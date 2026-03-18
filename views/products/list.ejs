@@ -1,0 +1,90 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/product-list.css">
+
+<%
+    const currentCategory = typeof category !== 'undefined' ? category : null;
+    const pageTitle = currentCategory
+        ? currentCategory.name
+        : (typeof query !== 'undefined' && query
+            ? `Kết quả tìm kiếm: "${query}"`
+            : ((typeof isSalePage !== 'undefined' && isSalePage) ? 'Sản phẩm đang giảm giá' : 'Tất cả sản phẩm'));
+    const pageEyebrow = currentCategory
+        ? 'Danh mục'
+        : ((typeof isSalePage !== 'undefined' && isSalePage) ? 'Ưu đãi' : 'Sản phẩm');
+%>
+
+<div class="catalog-page page-shell">
+    <div class="container">
+        <section class="page-intro page-intro--compact catalog-intro catalog-intro--compact">
+            <div class="catalog-intro__content">
+                <h1 class="page-intro__title page-intro__title-inline">
+                    <span><%= pageEyebrow %></span>
+                    <span class="page-intro__slash">/</span>
+                    <span><%= pageTitle %></span>
+                </h1>
+            </div>
+        </section>
+
+        <div class="catalog-shortcuts">
+            <a href="/products/category/nam">Nam</a>
+            <a href="/products/category/nu">Nữ</a>
+            <a href="/products/category/tre-em">Trẻ em</a>
+            <a href="/products?sale=true">Sale</a>
+        </div>
+
+        <section class="catalog-toolbar">
+            <div class="products-filters__left">
+                <button class="filter-btn active" data-filter="all">Tất cả</button>
+                <button class="filter-btn" data-filter="new">Mới nhất</button>
+                <button class="filter-btn" data-filter="bestseller">Bán chạy</button>
+                <button class="filter-btn" data-filter="sale">Đang sale</button>
+            </div>
+
+            <div class="products-filters__sort">
+                <label for="sortProducts">Sắp xếp</label>
+                <select id="sortProducts">
+                    <option value="newest" <%= (typeof currentSort !== 'undefined' && currentSort === 'newest') ? 'selected' : '' %>>Mới nhất</option>
+                    <option value="price-asc" <%= ((typeof currentSort !== 'undefined' && currentSort === 'price-asc') || (filters && filters.sort === 'price-asc')) ? 'selected' : '' %>>Giá tăng dần</option>
+                    <option value="price-desc" <%= ((typeof currentSort !== 'undefined' && currentSort === 'price-desc') || (filters && filters.sort === 'price-desc')) ? 'selected' : '' %>>Giá giảm dần</option>
+                    <option value="name-asc" <%= ((typeof currentSort !== 'undefined' && currentSort === 'name-asc') || (filters && filters.sort === 'name-asc')) ? 'selected' : '' %>>Tên A-Z</option>
+                    <option value="name-desc" <%= ((typeof currentSort !== 'undefined' && currentSort === 'name-desc') || (filters && filters.sort === 'name-desc')) ? 'selected' : '' %>>Tên Z-A</option>
+                </select>
+            </div>
+        </section>
+
+        <% if (products && products.length > 0) { %>
+            <div class="products-grid catalog-grid" id="productsGrid">
+                <% products.forEach(product => { %>
+                    <%- include('../partials/product-card', { product }) %>
+                <% }) %>
+            </div>
+        <% } else { %>
+            <div class="empty-panel">
+                <h3>Chưa tìm thấy sản phẩm phù hợp</h3>
+                <p>Thử đổi từ khóa, chuyển danh mục hoặc mở khu sale để tiếp tục mua sắm.</p>
+                <a href="/products" class="btn btn-primary">Xem lại toàn bộ sản phẩm</a>
+            </div>
+        <% } %>
+
+        <% if (products && products.length > 0 && typeof totalPages !== 'undefined' && totalPages > 1) { %>
+            <div class="pagination">
+                <% if (typeof currentPage !== 'undefined' && currentPage > 1) { %>
+                    <a href="?page=<%= currentPage - 1 %>" class="pagination__btn">Trước</a>
+                <% } %>
+
+                <% for (let i = 1; i <= totalPages; i++) { %>
+                    <a href="?page=<%= i %>" class="pagination__btn <%= currentPage === i ? 'active' : '' %>"><%= i %></a>
+                <% } %>
+
+                <% if (typeof currentPage !== 'undefined' && currentPage < totalPages) { %>
+                    <a href="?page=<%= currentPage + 1 %>" class="pagination__btn">Sau</a>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<script src="/js/category.js"></script>
+
+<%- include('../partials/footer') %>

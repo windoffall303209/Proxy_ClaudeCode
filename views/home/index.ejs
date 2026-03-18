@@ -1,0 +1,247 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/home.css">
+
+<%
+    const heroVisual =
+        (banners && banners[1] && banners[1].image_url) ||
+        (newProducts && newProducts[0] && newProducts[0].primary_image) ||
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1400&q=80';
+%>
+
+<% if (banners && banners.length > 0) { %>
+<div id="popupBanner" class="popup-banner">
+    <div class="popup-banner__overlay" onclick="closePopup()"></div>
+    <div class="popup-banner__content">
+        <button class="popup-banner__close" onclick="closePopup()" aria-label="Đóng popup">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+        <% const popupBanner = banners[0]; %>
+        <a href="<%= popupBanner.link_url || '/products' %>" class="popup-banner__link">
+            <% if (popupBanner.image_url) { %>
+                <img src="<%= popupBanner.image_url %>" alt="<%= popupBanner.title %>">
+            <% } else { %>
+                <div class="popup-banner__text">
+                    <p class="popup-banner__eyebrow">WIND OF FALL</p>
+                    <h2><%= popupBanner.title %></h2>
+                    <% if (popupBanner.subtitle) { %>
+                        <p><%= popupBanner.subtitle %></p>
+                    <% } %>
+                    <span class="popup-banner__btn">Khám phá ngay</span>
+                </div>
+            <% } %>
+        </a>
+    </div>
+</div>
+<% } %>
+
+<section class="home-hero">
+    <div class="container home-hero__inner">
+        <div class="home-hero__content">
+            <p class="home-hero__eyebrow">Bộ sưu tập mới / mặc đẹp mỗi ngày</p>
+            <h1 class="home-hero__title">Chọn nhanh outfit đẹp cho nam, nữ và trẻ em.</h1>
+            <p class="home-hero__copy">
+                Áo polo, sơ mi, váy, jeans và nhiều mẫu dễ mặc đã sẵn sàng để bạn mua ngay.
+            </p>
+            <div class="home-hero__actions">
+                <a href="/products" class="btn btn-primary">Mua bộ sưu tập mới</a>
+                <a href="/products?sale=true" class="btn btn-secondary">Xem khu sale</a>
+            </div>
+            <div class="home-hero__stats">
+                <div>
+                    <strong>Từ 499K</strong>
+                    <span>Freeship toàn quốc</span>
+                </div>
+                <div>
+                    <strong>30 ngày</strong>
+                    <span>Đổi trả dễ dàng</span>
+                </div>
+                <div>
+                    <strong>Nam, nữ, trẻ em</strong>
+                    <span>Đủ size và màu cơ bản</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-hero__visual">
+            <div class="home-hero__visual-card home-hero__visual-card--main">
+                <img src="<%= heroVisual %>" alt="Bộ sưu tập mới">
+            </div>
+            <div class="home-hero__mini-grid">
+                <a href="/products/category/nam" class="home-hero__mini-card">
+                    <strong>Nam</strong>
+                    <span>Áo polo, tee, jeans</span>
+                </a>
+                <a href="/products/category/nu" class="home-hero__mini-card">
+                    <strong>Nữ</strong>
+                    <span>Váy, đầm, cardigan</span>
+                </a>
+                <a href="/products/category/tre-em" class="home-hero__mini-card">
+                    <strong>Trẻ em</strong>
+                    <span>Set đồ cho cả nhà</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="home-strip">
+    <div class="container home-strip__grid">
+        <div class="home-strip__item">
+            <span>01</span>
+            <strong>Mẫu mới lên kệ đều mỗi tuần</strong>
+        </div>
+        <div class="home-strip__item">
+            <span>02</span>
+            <strong>Giá rõ ràng, ưu đãi dễ thấy</strong>
+        </div>
+        <div class="home-strip__item">
+            <span>03</span>
+            <strong>Mua nhanh trên cả desktop và mobile</strong>
+        </div>
+    </div>
+</section>
+
+<section class="home-categories section-block">
+    <div class="container">
+        <div class="home-section__header">
+            <div>
+                <p class="section-kicker">Danh mục nổi bật</p>
+                <h2 class="section-title">Mua sắm theo nhu cầu của bạn.</h2>
+                <p class="section-copy">Chọn nhanh theo nam, nữ và trẻ em để tìm đúng sản phẩm bạn cần.</p>
+            </div>
+            <a href="/products" class="home-section__link">Xem tất cả sản phẩm</a>
+        </div>
+
+        <% if (categories && categories.length > 0) { %>
+            <div class="category-showcase">
+                <% categories.slice(0, 3).forEach((category, index) => { %>
+                    <a href="/products/category/<%= category.slug %>" class="category-showcase__card category-showcase__card--<%= index + 1 %>">
+                        <% if (category.image_url) { %>
+                            <img src="<%= category.image_url %>" alt="<%= category.name %>">
+                        <% } else { %>
+                            <div class="category-showcase__placeholder"></div>
+                        <% } %>
+                        <div class="category-showcase__overlay">
+                            <p>Danh mục</p>
+                            <h3><%= category.name %></h3>
+                            <span>Khám phá ngay</span>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<section class="section-block">
+    <div class="container">
+        <div class="home-section__header">
+            <div>
+                <p class="section-kicker">Mẫu mới</p>
+                <h2 class="section-title">Hàng mới lên kệ hôm nay.</h2>
+            </div>
+            <a href="/products" class="home-section__link">Xem tất cả</a>
+        </div>
+
+        <% if (newProducts && newProducts.length > 0) { %>
+            <div class="home-products-grid">
+                <% newProducts.slice(0, 8).forEach(product => { %>
+                    <%- include('../partials/product-card', { product }) %>
+                <% }) %>
+            </div>
+        <% } else { %>
+            <div class="empty-panel">
+                <h3>Chưa có sản phẩm mới</h3>
+                <p>Hãy bổ sung sản phẩm trong trang quản trị để khu vực này hiển thị đầy đủ hơn.</p>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<section class="home-editorial section-block">
+    <div class="container home-editorial__grid">
+        <div class="home-editorial__copy">
+            <p class="section-kicker">Gợi ý phối đồ</p>
+            <h2 class="section-title">Dễ mặc từ công sở đến cuối tuần.</h2>
+            <p class="section-copy">
+                Các nhóm sản phẩm được sắp theo những nhu cầu mặc thường ngày để bạn chọn nhanh hơn.
+            </p>
+            <div class="home-editorial__benefits">
+                <div>
+                    <strong>Dễ phối</strong>
+                    <span>Màu sắc cơ bản và phom dáng quen thuộc để mặc hằng ngày.</span>
+                </div>
+                <div>
+                    <strong>Dễ mua lại</strong>
+                    <span>Những item chủ lực luôn có mặt trong các đợt lên kệ mới.</span>
+                </div>
+            </div>
+        </div>
+        <div class="home-editorial__cards">
+            <div class="home-editorial__card">
+                <span>Look 01</span>
+                <strong>Công sở chỉn chu</strong>
+                <p>Áo polo, sơ mi và quần kaki cho những ngày cần gọn gàng.</p>
+            </div>
+            <div class="home-editorial__card">
+                <span>Look 02</span>
+                <strong>Cuối tuần năng động</strong>
+                <p>Thun, jeans, hoodie và các item dễ mặc cho lịch trình linh hoạt.</p>
+            </div>
+            <div class="home-editorial__card">
+                <span>Look 03</span>
+                <strong>Cả nhà đồng điệu</strong>
+                <p>Danh mục trẻ em luôn sẵn để bạn chọn set đồ cho cả gia đình.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<% if (bestSellers && bestSellers.length > 0) { %>
+<section class="section-block section-block--alt">
+    <div class="container">
+        <div class="home-section__header">
+            <div>
+                <p class="section-kicker">Bán chạy</p>
+                <h2 class="section-title">Những mẫu được chọn nhiều nhất.</h2>
+            </div>
+            <a href="/products?sort=sold_count" class="home-section__link">Xem thêm</a>
+        </div>
+
+        <div class="home-products-grid home-products-grid--featured">
+            <% bestSellers.slice(0, 4).forEach(product => { %>
+                <%- include('../partials/product-card', { product }) %>
+            <% }) %>
+        </div>
+    </div>
+</section>
+<% } %>
+
+<section class="home-services section-block">
+    <div class="container home-services__grid">
+        <div class="home-service-card">
+            <strong>Freeship đơn từ 499K</strong>
+            <p>Thông tin ưu đãi rõ ràng ngay từ trang đầu để bạn chốt đơn nhanh hơn.</p>
+        </div>
+        <div class="home-service-card">
+            <strong>Đổi trả trong 30 ngày</strong>
+            <p>Yên tâm thử size và đổi mẫu nếu chưa thật sự phù hợp.</p>
+        </div>
+        <div class="home-service-card">
+            <strong>Hỗ trợ qua hotline và chat</strong>
+            <p>Dễ hỏi size, hỏi phối đồ và theo dõi đơn hàng khi cần.</p>
+        </div>
+        <div class="home-service-card">
+            <strong>Thanh toán rõ ràng</strong>
+            <p>COD, VNPay và MoMo hiển thị sớm để người mua dễ lựa chọn.</p>
+        </div>
+    </div>
+</section>
+
+<script src="/js/home.js"></script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,94 @@
+<%- include('../partials/header') %>
+
+<div class="auth-page">
+    <div class="container">
+        <div class="auth-shell">
+            <div class="auth-visual">
+                <p class="auth-visual__eyebrow">Tạo tài khoản</p>
+                <h2 class="auth-visual__title">Tạo tài khoản để lưu thông tin mua sắm.</h2>
+                <p class="auth-visual__copy">Lưu địa chỉ, nhận ưu đãi và thanh toán nhanh hơn ở những lần mua tiếp theo.</p>
+                <ul class="auth-visual__highlights">
+                    <li>Lưu sản phẩm và thông tin mua sắm</li>
+                    <li>Thanh toán nhanh hơn ở những lần mua sau</li>
+                    <li>Nhận ưu đãi và thông báo bộ sưu tập mới</li>
+                </ul>
+            </div>
+
+            <div class="auth-container">
+                <h1>Tạo tài khoản</h1>
+                <p class="auth-container__copy">Nhập thông tin cơ bản để bắt đầu mua sắm.</p>
+
+                <% if (error) { %>
+                    <div class="alert alert-error"><%= error %></div>
+                <% } %>
+
+                <form action="/auth/register" method="POST" class="auth-form" id="registerForm">
+                    <div class="form-group">
+                        <label for="full_name">Họ và tên *</label>
+                        <input type="text" id="full_name" name="full_name" value="<%= formData.full_name || '' %>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email *</label>
+                        <input type="email" id="email" name="email" value="<%= formData.email || '' %>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Số điện thoại</label>
+                        <input type="tel" id="phone" name="phone" value="<%= formData.phone || '' %>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Mật khẩu *</label>
+                        <div class="password-field">
+                            <input type="password" id="password" name="password" required minlength="6">
+                            <button type="button" class="password-toggle" onclick="togglePassword('password', this)">
+                                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                    <line x1="1" y1="1" x2="23" y2="23"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm_password">Xác nhận mật khẩu *</label>
+                        <div class="password-field">
+                            <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+                            <button type="button" class="password-toggle" onclick="togglePassword('confirm_password', this)">
+                                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                    <line x1="1" y1="1" x2="23" y2="23"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="password-match" id="passwordMatch"></div>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" id="marketing_consent" name="marketing_consent">
+                        <label for="marketing_consent">Tôi muốn nhận email khuyến mại và tin bộ sưu tập mới</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block">Đăng ký tài khoản</button>
+                </form>
+
+                <div class="auth-footer">
+                    <p>Đã có tài khoản? <a href="/auth/login">Đăng nhập</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/register.js"></script>
+
+<%- include('../partials/footer') %>

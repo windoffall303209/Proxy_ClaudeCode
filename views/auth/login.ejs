@@ -1,0 +1,48 @@
+<%- include('../partials/header') %>
+
+<div class="auth-page">
+    <div class="container">
+        <div class="auth-shell">
+            <div class="auth-visual">
+                <p class="auth-visual__eyebrow">Khu vực thành viên</p>
+                <h2 class="auth-visual__title">Đăng nhập để tiếp tục mua sắm.</h2>
+                <p class="auth-visual__copy">Theo dõi đơn hàng, lưu địa chỉ giao hàng và thanh toán nhanh hơn ở lần mua tiếp theo.</p>
+                <ul class="auth-visual__highlights">
+                    <li>Theo dõi đơn hàng và lịch sử mua hàng</li>
+                    <li>Lưu địa chỉ, thông tin thanh toán và voucher</li>
+                    <li>Mua lại nhanh trên mobile và desktop</li>
+                </ul>
+            </div>
+
+            <div class="auth-container">
+                <h1>Đăng nhập</h1>
+                <p class="auth-container__copy">Nhập email và mật khẩu để vào tài khoản của bạn.</p>
+
+                <% if (error) { %>
+                    <div class="alert alert-error"><%= error %></div>
+                <% } %>
+
+                <form action="/auth/login" method="POST" class="auth-form">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" value="<%= email %>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Mật khẩu</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
+                </form>
+
+                <div class="auth-footer">
+                    <p>Chưa có tài khoản? <a href="/auth/register">Đăng ký ngay</a></p>
+                    <a href="/auth/forgot-password">Quên mật khẩu?</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

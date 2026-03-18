@@ -1,0 +1,159 @@
+/* Admin Animations CSS */
+/* Shared animations for toast notifications and modals */
+
+/* Toast slide in from right */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Toast slide out to right */
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Modal fade in with scale */
+@keyframes modalFadeIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Toast container */
+.toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+}
+
+/* Toast notification */
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    margin-bottom: 10px;
+    min-width: 280px;
+    animation: slideInRight 0.3s ease;
+}
+
+.toast.success {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+}
+
+.toast.error {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+}
+
+.toast.info {
+    background: linear-gradient(135deg, #2196f3, #1976d2);
+}
+
+.toast-icon {
+    font-size: 20px;
+}
+
+.toast-message {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.toast-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+/* Confirm Modal */
+.confirm-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.confirm-modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    animation: modalFadeIn 0.2s ease;
+}
+
+.confirm-modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.confirm-modal-message {
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.confirm-modal-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.confirm-btn {
+    padding: 10px 25px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.confirm-btn:hover {
+    opacity: 0.9;
+}
+
+.confirm-btn-yes {
+    background: #f44336;
+    color: white;
+}
+
+.confirm-btn-no {
+    background: #e0e0e0;
+    color: #333;
+}

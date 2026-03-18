@@ -1,0 +1,1167 @@
+<%- include('../partials/admin-header', { currentPage: 'chat' }) %>
+
+<script>
+document.body.classList.add('admin-body--chat');
+document.querySelector('.admin-main-wrapper')?.classList.add('admin-main-wrapper--chat');
+document.querySelector('.admin-main-content')?.classList.add('admin-main-content--chat');
+</script>
+
+<div class="admin-page admin-page--chat">
+    <h1 class="admin-page__title">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Quản Lý Trò Chuyện
+        <span
+            id="adminChatUnreadCountBadge"
+            class="admin-chat-page__badge"
+            style="<%= unreadCount > 0 ? '' : 'display:none;' %>"
+        ><%= unreadCount %> chưa đọc</span>
+    </h1>
+
+    <div class="admin-chat-layout">
+        <section class="admin-chat-list">
+            <div class="admin-chat-list__header">
+                <div>
+                    <h3>Hộp thư khách hàng</h3>
+                    <p id="chatListSummary"><%= total %> cuộc trò chuyện</p>
+                </div>
+                <div class="admin-chat-list__search">
+                    <input
+                        type="search"
+                        id="adminChatSearchInput"
+                        class="admin-form__input"
+                        placeholder="Tìm theo tên, email, nội dung..."
+                        oninput="updateChatSearch(this.value)"
+                    >
+                </div>
+            </div>
+            <div class="admin-chat-list__items" id="chatListItems"></div>
+        </section>
+
+        <section class="admin-chat-detail">
+            <div class="admin-chat-detail__empty" id="chatDetailEmpty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <p>Chọn một cuộc trò chuyện để xem chi tiết.</p>
+            </div>
+
+            <div class="admin-chat-detail__content" id="chatDetailContent" hidden>
+                <div class="admin-chat-detail__header">
+                    <div class="admin-chat-detail__user">
+                        <div class="admin-chat-detail__title-row">
+                            <strong id="chatUserName">Khách</strong>
+                            <span class="admin-chat-detail__chip" id="chatConversationStatus">Đang mở</span>
+                            <span class="admin-chat-detail__chip admin-chat-detail__chip--mode" id="chatConversationMode">AI tự động</span>
+                        </div>
+                        <span class="admin-chat-detail__email" id="chatUserEmail"></span>
+                    </div>
+                    <div class="admin-chat-detail__actions">
+                        <button type="button" id="chatModeBtn" class="admin-btn admin-btn--ghost" onclick="toggleCurrentConversationMode()">
+                            Tiếp quản
+                        </button>
+                        <button type="button" id="chatStatusBtn" class="admin-btn admin-btn--danger" onclick="toggleCurrentConversationStatus()">
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-chat-detail__messages" id="adminChatMessages"></div>
+
+                <div class="admin-chat-detail__input">
+                    <form id="adminReplyForm" onsubmit="adminReply(event)">
+                        <input
+                            type="text"
+                            id="adminReplyInput"
+                            placeholder="Nhập tin nhắn trả lời..."
+                            autocomplete="off"
+                            maxlength="1000"
+                        >
+                        <button type="submit" class="admin-btn admin-btn--primary" id="adminReplySendBtn">Gửi</button>
+                    </form>
+                    <p class="admin-chat-detail__hint" id="adminReplyHint">
+                        Gửi tin nhắn từ đây sẽ tự chuyển cuộc trò chuyện sang chế độ admin tiếp quản.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+window.__INITIAL_ADMIN_CHAT__ = <%- JSON.stringify({
+    conversations,
+    unreadCount,
+    total
+}).replace(/</g, '\\u003c') %>;
+</script>
+
+<style>
+body.admin-body.admin-body--chat {
+    overflow: hidden;
+}
+
+.admin-main-wrapper.admin-main-wrapper--chat {
+    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.admin-main-content.admin-main-content--chat {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.admin-page.admin-page--chat {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    padding: 16px 20px 0;
+}
+
+.admin-page--chat .admin-page__title {
+    flex-shrink: 0;
+    margin-bottom: 12px;
+}
+
+.admin-chat-page__badge {
+    background: #ef4444;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-chat-layout {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    background: var(--admin-card-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--admin-shadow);
+    border: 1px solid var(--admin-border);
+}
+
+.admin-chat-list {
+    border-right: 1px solid var(--admin-border);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+.admin-chat-list__header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--admin-border);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.admin-chat-list__header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+}
+
+.admin-chat-list__header p {
+    margin: 4px 0 0 0;
+    font-size: 13px;
+    color: var(--admin-text-muted);
+}
+
+.admin-chat-list__search {
+    margin-top: 14px;
+}
+
+.admin-chat-list__search .admin-form__input {
+    width: 100%;
+}
+
+.admin-chat-list__items {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #fff;
+}
+
+.admin-chat-list__empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+.admin-chat-list__item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 14px 18px;
+    border: none;
+    border-bottom: 1px solid var(--admin-border);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.admin-chat-list__item:hover {
+    background: var(--admin-bg);
+}
+
+.admin-chat-list__item.active {
+    background: rgba(59, 130, 246, 0.08);
+    box-shadow: inset 3px 0 0 var(--admin-accent);
+}
+
+.admin-chat-list__item.unread {
+    background: rgba(59, 130, 246, 0.04);
+}
+
+.admin-chat-list__avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--admin-bg);
+    color: var(--admin-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.admin-chat-list__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.admin-chat-list__info {
+    min-width: 0;
+}
+
+.admin-chat-list__name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.admin-chat-list__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-chat-list__chip {
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.admin-chat-list__chip--manual {
+    background: rgba(245, 158, 11, 0.16);
+    color: #b45309;
+}
+
+.admin-chat-list__chip--closed {
+    background: rgba(148, 163, 184, 0.18);
+    color: #475569;
+}
+
+.admin-chat-list__preview {
+    font-size: 12px;
+    color: var(--admin-text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.45;
+}
+
+.admin-chat-list__meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--admin-text-muted);
+}
+
+.admin-chat-list__badge {
+    background: var(--admin-danger);
+    color: white;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: start;
+}
+
+.admin-chat-detail {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--admin-bg);
+    padding: 0 !important;
+}
+
+.admin-chat-detail__empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 24px;
+}
+
+.admin-chat-detail__empty[hidden],
+.admin-chat-detail__content[hidden] {
+    display: none !important;
+}
+
+.admin-chat-detail__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.admin-chat-detail__header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--admin-border);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.admin-chat-detail__user {
+    min-width: 0;
+}
+
+.admin-chat-detail__title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-chat-detail__title-row strong {
+    font-size: 16px;
+    color: var(--admin-text-primary);
+}
+
+.admin-chat-detail__email {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--admin-text-muted);
+    word-break: break-word;
+}
+
+.admin-chat-detail__chip {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+}
+
+.admin-chat-detail__chip--closed {
+    background: rgba(148, 163, 184, 0.18);
+    color: #475569;
+}
+
+.admin-chat-detail__chip--mode {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+}
+
+.admin-chat-detail__chip--manual {
+    background: rgba(245, 158, 11, 0.18);
+    color: #b45309;
+}
+
+.admin-chat-detail__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.admin-chat-detail__messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-chat-msg {
+    max-width: 76%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.55;
+    word-break: break-word;
+}
+
+.admin-chat-msg--customer {
+    align-self: flex-start;
+    background: #fff;
+    color: var(--admin-text-primary);
+    border: 1px solid var(--admin-border);
+    border-radius: 14px 14px 14px 4px;
+}
+
+.admin-chat-msg--admin {
+    align-self: flex-end;
+    background: var(--admin-accent);
+    color: #fff;
+    border-radius: 14px 14px 4px 14px;
+}
+
+.admin-chat-msg--bot {
+    align-self: flex-start;
+    background: #dbeafe;
+    color: #1e3a8a;
+    border-radius: 14px 14px 14px 4px;
+}
+
+.admin-chat-msg__label {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    opacity: 0.8;
+}
+
+.admin-chat-msg__time {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 6px;
+}
+
+.admin-chat-detail__input {
+    padding: 16px 20px;
+    border-top: 1px solid var(--admin-border);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.admin-chat-detail__input form {
+    display: flex;
+    gap: 10px;
+}
+
+.admin-chat-detail__input input {
+    flex: 1;
+    padding: 11px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+}
+
+.admin-chat-detail__input input:focus {
+    border-color: var(--admin-accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.admin-chat-detail__input input:disabled {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.admin-chat-detail__hint {
+    margin: 8px 0 0 0;
+    font-size: 12px;
+    color: var(--admin-text-muted);
+}
+
+@media (max-width: 1024px) {
+    .admin-main-wrapper.admin-main-wrapper--chat,
+    .admin-main-content.admin-main-content--chat,
+    .admin-page.admin-page--chat {
+        min-height: calc(100vh - var(--admin-topbar-height));
+        height: calc(100vh - var(--admin-topbar-height));
+    }
+
+    .admin-page.admin-page--chat {
+        padding: 16px 16px 0;
+    }
+
+    .admin-chat-layout {
+        grid-template-columns: 320px minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-page.admin-page--chat {
+        padding: 10px 10px 0;
+    }
+
+    .admin-chat-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(240px, 280px) minmax(0, 1fr);
+        min-height: 0;
+    }
+
+    .admin-chat-list {
+        border-right: none;
+        border-bottom: 1px solid var(--admin-border);
+    }
+
+    .admin-chat-detail__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-chat-detail__actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .admin-chat-detail__actions .admin-btn {
+        flex: 1;
+    }
+
+    .admin-chat-msg {
+        max-width: 92%;
+    }
+
+    .admin-chat-detail__input form {
+        flex-direction: column;
+    }
+}
+</style>
+
+<script>
+const adminChatState = {
+    conversations: window.__INITIAL_ADMIN_CHAT__?.conversations || [],
+    currentConversationId: null,
+    currentConversation: null,
+    searchTerm: '',
+    detailPollInterval: null,
+    listPollInterval: null
+};
+
+function showAdminChatToast(message, type = 'success') {
+    if (typeof showGlobalToast === 'function') {
+        showGlobalToast(message, type);
+    }
+}
+
+function formatConversationTime(dateString) {
+    if (!dateString) {
+        return '';
+    }
+
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const now = new Date();
+    const sameDay =
+        date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+
+    if (sameDay) {
+        return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+}
+
+function getConversationDisplayName(conversation) {
+    return conversation.user_name || conversation.user_email || conversation.guest_name || 'Khách';
+}
+
+function getConversationEmail(conversation) {
+    if (conversation.user_email) {
+        return conversation.user_email;
+    }
+
+    return conversation.user_id ? 'Khách hàng đã đăng nhập' : 'Khách vãng lai';
+}
+
+function getConversationStatusLabel(status) {
+    return status === 'closed' ? 'Đã đóng' : 'Đang mở';
+}
+
+function getConversationModeLabel(mode) {
+    return mode === 'manual' ? 'Admin tiếp quản' : 'AI tự động';
+}
+
+function updateTitleUnreadBadge(count) {
+    const badge = document.getElementById('adminChatUnreadCountBadge');
+    if (!badge) {
+        return;
+    }
+
+    if (!count || count <= 0) {
+        badge.style.display = 'none';
+        badge.textContent = '0 chưa đọc';
+        return;
+    }
+
+    badge.style.display = 'inline-flex';
+    badge.textContent = `${count} chưa đọc`;
+}
+
+function updateListSummary() {
+    const summary = document.getElementById('chatListSummary');
+    if (!summary) {
+        return;
+    }
+
+    const filteredTotal = getFilteredConversations().length;
+    const total = adminChatState.conversations.length;
+    const unread = adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length;
+    const totalLabel = filteredTotal !== total
+        ? `${filteredTotal}/${total} cuộc trò chuyện`
+        : `${total} cuộc trò chuyện`;
+    summary.textContent = unread > 0
+        ? `${totalLabel}, ${unread} cuộc chưa đọc`
+        : totalLabel;
+}
+
+function getFilteredConversations() {
+    const keyword = String(adminChatState.searchTerm || '').trim().toLowerCase();
+    if (!keyword) {
+        return adminChatState.conversations;
+    }
+
+    return adminChatState.conversations.filter((conversation) => {
+        const haystack = [
+            conversation.user_name,
+            conversation.user_email,
+            conversation.guest_name,
+            conversation.last_message
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+
+        return haystack.includes(keyword);
+    });
+}
+
+function updateChatSearch(value) {
+    adminChatState.searchTerm = value || '';
+    renderConversationList();
+}
+
+function createConversationItem(conversation) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'admin-chat-list__item';
+    button.dataset.id = String(conversation.id);
+
+    if (conversation.id === adminChatState.currentConversationId) {
+        button.classList.add('active');
+    }
+
+    if (conversation.unread_count > 0 && conversation.id !== adminChatState.currentConversationId) {
+        button.classList.add('unread');
+    }
+
+    button.addEventListener('click', () => {
+        selectConversation(conversation.id);
+    });
+
+    const avatar = document.createElement('div');
+    avatar.className = 'admin-chat-list__avatar';
+    if (conversation.user_avatar) {
+        const image = document.createElement('img');
+        image.src = conversation.user_avatar;
+        image.alt = getConversationDisplayName(conversation);
+        avatar.appendChild(image);
+    } else {
+        avatar.textContent = getConversationDisplayName(conversation).charAt(0).toUpperCase();
+    }
+
+    const info = document.createElement('div');
+    info.className = 'admin-chat-list__info';
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'admin-chat-list__name-row';
+
+    const name = document.createElement('div');
+    name.className = 'admin-chat-list__name';
+    name.textContent = getConversationDisplayName(conversation);
+    nameRow.appendChild(name);
+
+    if (conversation.handling_mode === 'manual') {
+        const modeChip = document.createElement('span');
+        modeChip.className = 'admin-chat-list__chip admin-chat-list__chip--manual';
+        modeChip.textContent = 'Admin';
+        nameRow.appendChild(modeChip);
+    }
+
+    if (conversation.status === 'closed') {
+        const statusChip = document.createElement('span');
+        statusChip.className = 'admin-chat-list__chip admin-chat-list__chip--closed';
+        statusChip.textContent = 'Đóng';
+        nameRow.appendChild(statusChip);
+    }
+
+    const preview = document.createElement('div');
+    preview.className = 'admin-chat-list__preview';
+
+    if (conversation.last_message) {
+        let prefix = '';
+        if (conversation.last_sender === 'admin') {
+            prefix = 'Admin: ';
+        } else if (conversation.last_sender === 'bot') {
+            prefix = 'AI: ';
+        }
+        preview.textContent = `${prefix}${conversation.last_message}`;
+    } else {
+        preview.textContent = 'Chưa có tin nhắn';
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'admin-chat-list__meta';
+    meta.textContent = `${getConversationStatusLabel(conversation.status)} • ${getConversationModeLabel(conversation.handling_mode)}${conversation.last_message_at ? ` • ${formatConversationTime(conversation.last_message_at)}` : ''}`;
+
+    info.appendChild(nameRow);
+    info.appendChild(preview);
+    info.appendChild(meta);
+
+    button.appendChild(avatar);
+    button.appendChild(info);
+
+    if (conversation.unread_count > 0 && conversation.id !== adminChatState.currentConversationId) {
+        const badge = document.createElement('span');
+        badge.className = 'admin-chat-list__badge';
+        badge.textContent = String(conversation.unread_count);
+        button.appendChild(badge);
+    }
+
+    return button;
+}
+
+function renderConversationList() {
+    const container = document.getElementById('chatListItems');
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = '';
+
+    const filteredConversations = getFilteredConversations();
+
+    if (!filteredConversations.length) {
+        const emptyState = document.createElement('div');
+        emptyState.className = 'admin-chat-list__empty';
+        emptyState.textContent = adminChatState.searchTerm
+            ? 'Không tìm thấy cuộc trò chuyện phù hợp.'
+            : 'Chưa có cuộc trò chuyện nào.';
+        container.appendChild(emptyState);
+        updateListSummary();
+        updateTitleUnreadBadge(adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length);
+        return;
+    }
+
+    filteredConversations.forEach((conversation) => {
+        container.appendChild(createConversationItem(conversation));
+    });
+
+    updateListSummary();
+    updateTitleUnreadBadge(adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length);
+}
+
+function createMessageElement(message) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `admin-chat-msg admin-chat-msg--${message.sender_type}`;
+    wrapper.dataset.messageId = String(message.id);
+
+    if (message.sender_type === 'admin' || message.sender_type === 'bot') {
+        const label = document.createElement('div');
+        label.className = 'admin-chat-msg__label';
+        label.textContent = message.sender_type === 'admin' ? 'Admin' : 'Trợ lý AI';
+        wrapper.appendChild(label);
+    }
+
+    const content = document.createElement('div');
+    content.textContent = message.message;
+    wrapper.appendChild(content);
+
+    const time = document.createElement('div');
+    time.className = 'admin-chat-msg__time';
+    time.textContent = formatConversationTime(message.created_at);
+    wrapper.appendChild(time);
+
+    return wrapper;
+}
+
+function renderMessages(messages, scrollToBottom = false) {
+    const container = document.getElementById('adminChatMessages');
+    if (!container) {
+        return;
+    }
+
+    const shouldStickToBottom =
+        scrollToBottom ||
+        container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+
+    container.innerHTML = '';
+
+    messages.forEach((message) => {
+        container.appendChild(createMessageElement(message));
+    });
+
+    if (shouldStickToBottom) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function updateConversationHeader(conversation) {
+    const name = document.getElementById('chatUserName');
+    const email = document.getElementById('chatUserEmail');
+    const status = document.getElementById('chatConversationStatus');
+    const mode = document.getElementById('chatConversationMode');
+    const modeButton = document.getElementById('chatModeBtn');
+    const statusButton = document.getElementById('chatStatusBtn');
+    const replyInput = document.getElementById('adminReplyInput');
+    const replyButton = document.getElementById('adminReplySendBtn');
+    const replyHint = document.getElementById('adminReplyHint');
+
+    if (!conversation) {
+        return;
+    }
+
+    name.textContent = getConversationDisplayName(conversation);
+    email.textContent = getConversationEmail(conversation);
+
+    status.textContent = getConversationStatusLabel(conversation.status);
+    status.className = `admin-chat-detail__chip${conversation.status === 'closed' ? ' admin-chat-detail__chip--closed' : ''}`;
+
+    mode.textContent = getConversationModeLabel(conversation.handling_mode);
+    mode.className = `admin-chat-detail__chip admin-chat-detail__chip--mode${conversation.handling_mode === 'manual' ? ' admin-chat-detail__chip--manual' : ''}`;
+
+    modeButton.textContent = conversation.handling_mode === 'manual' ? 'Bật AI' : 'Tiếp quản';
+    modeButton.className = conversation.handling_mode === 'manual'
+        ? 'admin-btn admin-btn--primary'
+        : 'admin-btn admin-btn--ghost';
+
+    statusButton.textContent = conversation.status === 'closed' ? 'Mở lại' : 'Đóng';
+    statusButton.className = conversation.status === 'closed'
+        ? 'admin-btn admin-btn--primary'
+        : 'admin-btn admin-btn--danger';
+
+    const isClosed = conversation.status === 'closed';
+    replyInput.disabled = isClosed;
+    replyButton.disabled = isClosed;
+
+    if (isClosed) {
+        replyInput.placeholder = 'Cuộc trò chuyện đã đóng. Hãy mở lại để trả lời.';
+        replyHint.textContent = 'Cuộc trò chuyện đang ở trạng thái đã đóng.';
+    } else if (conversation.handling_mode === 'manual') {
+        replyInput.placeholder = 'Nhập tin nhắn trả lời...';
+        replyHint.textContent = 'AI đang tạm dừng cho cuộc trò chuyện này vì admin đang tiếp quản.';
+    } else {
+        replyInput.placeholder = 'Nhập tin nhắn trả lời...';
+        replyHint.textContent = 'Gửi tin nhắn từ đây sẽ tự chuyển cuộc trò chuyện sang chế độ admin tiếp quản.';
+    }
+}
+
+function upsertConversation(conversation, messages = null) {
+    if (!conversation) {
+        return;
+    }
+
+    const updatedConversation = { ...conversation };
+    if (Array.isArray(messages) && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        updatedConversation.last_message = lastMessage.message;
+        updatedConversation.last_sender = lastMessage.sender_type;
+        updatedConversation.last_message_at = lastMessage.created_at;
+    }
+
+    if (updatedConversation.id === adminChatState.currentConversationId) {
+        updatedConversation.unread_count = 0;
+    }
+
+    const index = adminChatState.conversations.findIndex((item) => item.id === updatedConversation.id);
+    if (index >= 0) {
+        adminChatState.conversations[index] = {
+            ...adminChatState.conversations[index],
+            ...updatedConversation
+        };
+    } else {
+        adminChatState.conversations.unshift(updatedConversation);
+    }
+
+    adminChatState.conversations.sort((left, right) => {
+        const rightValue = right.last_message_at ? new Date(right.last_message_at).getTime() : 0;
+        const leftValue = left.last_message_at ? new Date(left.last_message_at).getTime() : 0;
+        return rightValue - leftValue || right.id - left.id;
+    });
+}
+
+async function refreshCurrentConversation({ forceScroll = false } = {}) {
+    if (!adminChatState.currentConversationId) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/chat/admin/${adminChatState.currentConversationId}/messages`, {
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể tải cuộc trò chuyện');
+        }
+
+        adminChatState.currentConversation = data.conversation;
+        upsertConversation(data.conversation, data.messages);
+        renderMessages(data.messages, forceScroll);
+        updateConversationHeader(data.conversation);
+        renderConversationList();
+    } catch (error) {
+        console.error('Refresh current conversation error:', error);
+    }
+}
+
+async function selectConversation(conversationId, options = {}) {
+    adminChatState.currentConversationId = conversationId;
+    adminChatState.currentConversation = adminChatState.conversations.find((conversation) => conversation.id === conversationId) || null;
+
+    document.getElementById('chatDetailEmpty').hidden = true;
+    document.getElementById('chatDetailContent').hidden = false;
+
+    await refreshCurrentConversation({ forceScroll: true });
+    startDetailPolling();
+
+    if (options.focusInput !== false) {
+        document.getElementById('adminReplyInput')?.focus();
+    }
+}
+
+async function refreshConversationList() {
+    try {
+        const response = await fetch('/chat/admin/conversations', { credentials: 'same-origin' });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể tải danh sách cuộc trò chuyện');
+        }
+
+        adminChatState.conversations = data.conversations || [];
+        renderConversationList();
+
+        if (
+            adminChatState.currentConversationId &&
+            !adminChatState.conversations.some((conversation) => conversation.id === adminChatState.currentConversationId)
+        ) {
+            clearCurrentConversation();
+        }
+    } catch (error) {
+        console.error('Refresh conversation list error:', error);
+    }
+}
+
+async function adminReply(event) {
+    event.preventDefault();
+
+    const input = document.getElementById('adminReplyInput');
+    const sendButton = document.getElementById('adminReplySendBtn');
+    const message = input.value.trim();
+
+    if (!message || !adminChatState.currentConversationId) {
+        return;
+    }
+
+    if (adminChatState.currentConversation?.status === 'closed') {
+        showAdminChatToast('Cuộc trò chuyện đã đóng. Hãy mở lại trước khi trả lời.', 'warning');
+        return;
+    }
+
+    sendButton.disabled = true;
+
+    try {
+        const response = await fetch(`/chat/admin/${adminChatState.currentConversationId}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể gửi tin nhắn');
+        }
+
+        input.value = '';
+        adminChatState.currentConversation = data.conversation;
+        upsertConversation(data.conversation, [data.message]);
+        await refreshCurrentConversation({ forceScroll: true });
+        renderConversationList();
+    } catch (error) {
+        showAdminChatToast(error.message || 'Lỗi gửi tin nhắn', 'error');
+    }
+
+    sendButton.disabled = false;
+    input.focus();
+}
+
+async function toggleCurrentConversationMode() {
+    if (!adminChatState.currentConversationId || !adminChatState.currentConversation) {
+        return;
+    }
+
+    const nextMode = adminChatState.currentConversation.handling_mode === 'manual' ? 'ai' : 'manual';
+
+    try {
+        const response = await fetch(`/chat/admin/${adminChatState.currentConversationId}/mode`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ mode: nextMode })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể đổi chế độ xử lý');
+        }
+
+        adminChatState.currentConversation = data.conversation;
+        upsertConversation(data.conversation);
+        updateConversationHeader(data.conversation);
+        renderConversationList();
+        showAdminChatToast(data.message, 'success');
+    } catch (error) {
+        showAdminChatToast(error.message || 'Không thể đổi chế độ xử lý', 'error');
+    }
+}
+
+async function toggleCurrentConversationStatus() {
+    if (!adminChatState.currentConversationId || !adminChatState.currentConversation) {
+        return;
+    }
+
+    const endpoint = adminChatState.currentConversation.status === 'closed' ? 'reopen' : 'close';
+
+    try {
+        const response = await fetch(`/chat/admin/${adminChatState.currentConversationId}/${endpoint}`, {
+            method: 'PUT',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể cập nhật trạng thái cuộc trò chuyện');
+        }
+
+        await refreshCurrentConversation();
+        renderConversationList();
+        showAdminChatToast(data.message, 'success');
+    } catch (error) {
+        showAdminChatToast(error.message || 'Không thể cập nhật trạng thái cuộc trò chuyện', 'error');
+    }
+}
+
+function clearCurrentConversation() {
+    adminChatState.currentConversationId = null;
+    adminChatState.currentConversation = null;
+    stopDetailPolling();
+
+    document.getElementById('chatDetailEmpty').hidden = false;
+    document.getElementById('chatDetailContent').hidden = true;
+}
+
+function startDetailPolling() {
+    stopDetailPolling();
+    adminChatState.detailPollInterval = setInterval(() => {
+        refreshCurrentConversation();
+    }, 3000);
+}
+
+function stopDetailPolling() {
+    if (adminChatState.detailPollInterval) {
+        clearInterval(adminChatState.detailPollInterval);
+        adminChatState.detailPollInterval = null;
+    }
+}
+
+function startListPolling() {
+    if (adminChatState.listPollInterval) {
+        return;
+    }
+
+    adminChatState.listPollInterval = setInterval(() => {
+        refreshConversationList();
+    }, 5000);
+}
+
+function initAdminChat() {
+    renderConversationList();
+    startListPolling();
+
+    const initialConversation =
+        adminChatState.conversations.find((conversation) => conversation.unread_count > 0) ||
+        adminChatState.conversations[0];
+
+    if (initialConversation) {
+        selectConversation(initialConversation.id, { focusInput: false });
+    }
+}
+
+window.addEventListener('beforeunload', () => {
+    stopDetailPolling();
+    if (adminChatState.listPollInterval) {
+        clearInterval(adminChatState.listPollInterval);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', initAdminChat);
+</script>
+
+<%- include('../partials/admin-footer', { hideAdminFooter: true }) %>

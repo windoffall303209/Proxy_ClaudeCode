@@ -1,0 +1,58 @@
+/* =============================================================================
+   CSS VARIABLES - Admin Design Tokens
+   ============================================================================= */
+:root {
+    /* Admin Colors */
+    --admin-primary: #0f172a;
+    --admin-primary-light: #1e293b;
+    --admin-secondary: #334155;
+    --admin-accent: #3b82f6;
+    --admin-accent-hover: #2563eb;
+    --admin-success: #10b981;
+    --admin-warning: #f59e0b;
+    --admin-danger: #ef4444;
+    --admin-info: #06b6d4;
+
+    /* Admin Background */
+    --admin-bg: #f1f5f9;
+    --admin-card-bg: #ffffff;
+
+    /* Admin Text */
+    --admin-text-primary: #0f172a;
+    --admin-text-secondary: #64748b;
+    --admin-text-muted: #94a3b8;
+
+    /* Admin Borders */
+    --admin-border: #e2e8f0;
+    --admin-border-dark: #cbd5e1;
+
+    /* Admin Shadows */
+    --admin-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --admin-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --admin-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --admin-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+    /* Admin Layout */
+    --admin-sidebar-width: 250px;
+    --admin-topbar-height: 56px;
+}
+
+/* =============================================================================
+   ADMIN BODY
+   ============================================================================= */
+body.admin-body {
+    background: var(--admin-bg);
+    min-height: 100vh;
+    padding-top: 0;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent body scroll when admin menu is open */
+body.admin-menu-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+}

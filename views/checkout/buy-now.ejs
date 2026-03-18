@@ -1,0 +1,272 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/checkout.css">
+<link rel="stylesheet" href="/css/leaflet.css">
+
+<%
+    const productPrice = product.final_price || product.price;
+    const shippingFee = productPrice >= 500000 ? 0 : 30000;
+%>
+
+<div class="checkout-page page-shell">
+    <div class="container">
+        <section class="page-intro page-intro--compact checkout-intro">
+            <div>
+                <h1 class="page-intro__title page-intro__title-inline">
+                    <span>Mua ngay</span>
+                    <span class="page-intro__slash">/</span>
+                    <span>Xác nhận đơn hàng</span>
+                </h1>
+            </div>
+            <div class="checkout-steps">
+                <span class="checkout-step is-active">Sản phẩm</span>
+                <span class="checkout-step is-active">Thanh toán</span>
+                <span class="checkout-step">Hoàn tất</span>
+            </div>
+        </section>
+
+        <form action="/orders/buy-now/create" method="POST" id="buyNowForm">
+            <input type="hidden" name="product_id" value="<%= product.id %>">
+            <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="variant_id" value="<%= typeof variantId !== 'undefined' && variantId ? variantId : '' %>">
+
+            <div class="checkout-grid">
+                <div class="checkout-main">
+                    <div class="checkout-section">
+                        <div class="checkout-section__heading">
+                            <div>
+                                <h3 class="checkout-section__title">Sản phẩm đang mua</h3>
+                            </div>
+                        </div>
+
+                        <div class="order-summary__item order-summary__item--feature">
+                            <div class="order-summary__item-image order-summary__item-image--large">
+                                <% if (product.images && product.images.length > 0) { %>
+                                    <img src="<%= product.images[0].image_url %>" alt="<%= product.name %>">
+                                <% } else { %>
+                                    <div class="order-summary__item-placeholder">WF</div>
+                                <% } %>
+                            </div>
+                            <div class="order-summary__item-info">
+                                <div class="order-summary__item-name order-summary__item-name--large"><%= product.name %></div>
+                                <% if (typeof selectedVariant !== 'undefined' && selectedVariant) { %>
+                                    <div class="order-summary__item-meta">
+                                        <% if (selectedVariant.color) { %>Màu: <%= selectedVariant.color %><% } %>
+                                        <% if (selectedVariant.color && selectedVariant.size) { %> | <% } %>
+                                        <% if (selectedVariant.size) { %>Size: <%= selectedVariant.size %><% } %>
+                                    </div>
+                                <% } %>
+                                <div class="order-summary__item-qty">Số lượng: 1</div>
+                            </div>
+                            <div class="order-summary__item-price">
+                                <% if (product.price !== product.final_price && product.final_price) { %>
+                                    <div class="order-summary__item-old-price"><%= product.price.toLocaleString('vi-VN') %>đ</div>
+                                <% } %>
+                                <div class="order-summary__item-amount"><%= productPrice.toLocaleString('vi-VN') %>đ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-section">
+                        <div class="checkout-section__heading">
+                            <div>
+                                <h3 class="checkout-section__title">Địa chỉ giao hàng</h3>
+                            </div>
+                        </div>
+
+                        <% if (addresses && addresses.length > 0) { %>
+                            <div class="address-list">
+                                <% addresses.forEach(addr => { %>
+                                    <label class="address-card <%= addr.is_default ? 'address-card--selected' : '' %>">
+                                        <input type="radio" name="address_id" value="<%= addr.id %>" <%= addr.is_default ? 'checked' : '' %> required class="address-card__radio">
+                                        <div class="address-card__content">
+                                            <div class="address-card__name"><%= addr.full_name %> - <%= addr.phone %></div>
+                                            <div class="address-card__detail"><%= addr.address_line %><%= addr.ward ? ', ' + addr.ward : '' %><%= addr.district ? ', ' + addr.district : '' %>, <%= addr.city %></div>
+                                            <% if (addr.is_default) { %>
+                                                <span class="address-card__badge">Mặc định</span>
+                                            <% } %>
+                                        </div>
+                                    </label>
+                                <% }) %>
+                            </div>
+                            <button type="button" onclick="toggleAddressForm()" class="address-add-btn">Thêm địa chỉ mới</button>
+                        <% } else { %>
+                            <p class="checkout-section__text">Bạn chưa có địa chỉ giao hàng. Hãy tạo địa chỉ mới ở bên dưới.</p>
+                        <% } %>
+
+                        <div id="newAddressForm" class="address-form" style="display: <%= (!addresses || addresses.length === 0) ? 'block' : 'none' %>;">
+                            <h4 class="address-form__title">Địa chỉ mới</h4>
+                            <div class="address-form__grid">
+                                <div>
+                                    <label class="address-form__label">Họ tên*</label>
+                                    <input type="text" id="newFullName" placeholder="Nguyễn Văn A" class="address-form__input">
+                                </div>
+                                <div>
+                                    <label class="address-form__label">Số điện thoại*</label>
+                                    <input type="tel" id="newPhone" placeholder="0901234567" class="address-form__input">
+                                </div>
+                            </div>
+                            <div class="address-form__grid-3">
+                                <div>
+                                    <label class="address-form__label">Tỉnh / Thành phố*</label>
+                                    <div class="address-form__select-wrapper">
+                                        <select id="newCity" class="address-form__select" onchange="loadDistricts()">
+                                            <option value="">-- Chọn Tỉnh/TP --</option>
+                                        </select>
+                                        <input type="hidden" id="newCityName">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="address-form__label">Quận / Huyện*</label>
+                                    <div class="address-form__select-wrapper">
+                                        <select id="newDistrict" class="address-form__select" onchange="loadWards()" disabled>
+                                            <option value="">-- Chọn Quận/Huyện --</option>
+                                        </select>
+                                        <input type="hidden" id="newDistrictName">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="address-form__label">Phường / Xã*</label>
+                                    <div class="address-form__select-wrapper">
+                                        <select id="newWard" class="address-form__select" disabled>
+                                            <option value="">-- Chọn Phường/Xã --</option>
+                                        </select>
+                                        <input type="hidden" id="newWardName">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="address-form__field">
+                                <label class="address-form__label">Địa chỉ chi tiết*</label>
+                                <input type="text" id="newAddressLine" placeholder="Số nhà, tên đường, tòa nhà..." class="address-form__input">
+                            </div>
+                            <button type="button" onclick="saveNewAddress()" class="address-form__submit">Lưu địa chỉ</button>
+
+                            <div class="address-form__map-section">
+                                <label class="address-form__label">Bản đồ giao hàng (tùy chọn)</label>
+                                <div id="addressMap" class="address-form__map"></div>
+                                <p class="address-form__map-hint">Bấm vào bản đồ để chọn vị trí giao hàng chính xác hơn.</p>
+                                <input type="hidden" id="newLatitude" name="latitude">
+                                <input type="hidden" id="newLongitude" name="longitude">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-section">
+                        <div class="checkout-section__heading">
+                            <div>
+                                <h3 class="checkout-section__title">Phương thức thanh toán</h3>
+                            </div>
+                        </div>
+
+                        <div class="payment-list">
+                            <label class="payment-option payment-option--selected">
+                                <input type="radio" name="payment_method" value="cod" checked required>
+                                <div class="payment-option__content">
+                                    <span class="payment-option__icon">COD</span>
+                                    <div>
+                                        <div class="payment-option__name">Thanh toán khi nhận hàng</div>
+                                        <div class="payment-option__desc">Thanh toán bằng tiền mặt khi nhận hàng.</div>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="payment-option">
+                                <input type="radio" name="payment_method" value="vnpay">
+                                <div class="payment-option__content">
+                                    <span class="payment-option__icon">VNP</span>
+                                    <div>
+                                        <div class="payment-option__name">VNPay</div>
+                                        <div class="payment-option__desc">Thanh toán qua ngân hàng và thẻ.</div>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="payment-option">
+                                <input type="radio" name="payment_method" value="momo">
+                                <div class="payment-option__content">
+                                    <span class="payment-option__icon">MM</span>
+                                    <div>
+                                        <div class="payment-option__name">Ví MoMo</div>
+                                        <div class="payment-option__desc">Quét QR để thanh toán trên điện thoại.</div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="checkout-section">
+                        <div class="checkout-section__heading">
+                            <div>
+                                <h3 class="checkout-section__title">Ghi chú cho đơn hàng</h3>
+                            </div>
+                        </div>
+                        <textarea name="notes" rows="3" placeholder="Ví dụ: giao giờ hành chính, gọi trước khi giao..." class="checkout-notes__textarea"></textarea>
+                    </div>
+                </div>
+
+                <div class="checkout-side">
+                    <div class="order-summary">
+                        <h3 class="order-summary__title">Tóm tắt đơn hàng</h3>
+
+                        <div class="order-summary__prices">
+                            <div class="order-summary__row">
+                                <span class="order-summary__label">Giá sản phẩm</span>
+                                <span class="order-summary__value"><%= productPrice.toLocaleString('vi-VN') %>đ</span>
+                            </div>
+                            <div class="order-summary__row">
+                                <span class="order-summary__label">Phí vận chuyển</span>
+                                <span id="shippingDisplay" class="order-summary__value <%= shippingFee === 0 ? 'order-summary__value--free' : '' %>"><%= shippingFee === 0 ? 'Miễn phí' : shippingFee.toLocaleString('vi-VN') + 'đ' %></span>
+                            </div>
+
+                            <% if (productPrice < 500000) { %>
+                                <div class="order-summary__shipping-tip">
+                                    <p>Mua thêm <%= (500000 - productPrice).toLocaleString('vi-VN') %>đ để được freeship.</p>
+                                </div>
+                            <% } %>
+
+                            <div class="voucher-section">
+                                <div class="voucher-section__input-group">
+                                    <input type="text" id="voucherCode" name="voucher_code" placeholder="Nhập mã giảm giá" class="voucher-section__input">
+                                    <button type="button" onclick="applyVoucher()" class="voucher-section__btn">Áp dụng</button>
+                                </div>
+                                <div id="voucherMessage" class="voucher-section__message"></div>
+                            </div>
+
+                            <div id="discountRow" class="discount-row">
+                                <span class="discount-row__label">Giảm giá</span>
+                                <span id="discountAmount" class="discount-row__value">-0đ</span>
+                            </div>
+
+                            <input type="hidden" name="shipping_fee" id="shippingFeeInput" value="<%= shippingFee %>">
+                            <input type="hidden" name="discount_amount" id="discountInput" value="0">
+                            <input type="hidden" name="subtotal" value="<%= productPrice %>">
+
+                            <div class="order-summary__total">
+                                <span class="order-summary__total-label">Tổng cộng</span>
+                                <span id="totalAmount" class="order-summary__total-value"><%= (productPrice + shippingFee).toLocaleString('vi-VN') %>đ</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="order-summary__submit">Đặt hàng ngay</button>
+                        <a href="/products/<%= product.slug %>" class="order-summary__back-link">Quay lại trang sản phẩm</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/leaflet.js"></script>
+<script>
+window.buyNowData = {
+    productId: <%= product.id %>,
+    quantity: 1,
+    variantId: <%= typeof variantId !== 'undefined' && variantId ? variantId : 'null' %>,
+    subtotal: <%= productPrice %>,
+    shippingFee: <%= shippingFee %>
+};
+</script>
+<script src="/js/checkout.js"></script>
+<script src="/js/buy-now.js"></script>
+
+<%- include('../partials/footer') %>

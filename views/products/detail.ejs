@@ -1,0 +1,183 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/product-detail.css">
+
+<%
+    let mainImage = product.primary_image;
+    if (!mainImage && product.images && product.images.length > 0) {
+        mainImage = product.images[0].image_url;
+    }
+
+    const colors = product.variants ? [...new Set(product.variants.filter(variant => variant.color).map(variant => variant.color))] : [];
+    const sizes = product.variants ? [...new Set(product.variants.filter(variant => variant.size).map(variant => variant.size))] : [];
+%>
+
+<div class="product-detail-page page-shell">
+    <div class="container">
+        <div class="product-breadcrumb">
+            <a href="/">Trang chủ</a>
+            <span>/</span>
+            <% if (product.category_name) { %>
+                <a href="/products/category/<%= product.category_slug %>"><%= product.category_name %></a>
+                <span>/</span>
+            <% } %>
+            <span><%= product.name %></span>
+        </div>
+
+        <div class="product-detail-grid">
+            <div class="product-gallery">
+                <div class="product-gallery__main">
+                    <% if (mainImage) { %>
+                        <img
+                            src="<%= mainImage %>"
+                            alt="<%= product.name %>"
+                            class="product-gallery__main-image"
+                            id="mainImage"
+                            onerror="this.style.display='none'; document.getElementById('fallbackIcon').style.display='flex';"
+                        >
+                        <div id="fallbackIcon" class="product-gallery__fallback">
+                            <span class="product-gallery__fallback-icon">WF</span>
+                        </div>
+                    <% } else { %>
+                        <div class="product-gallery__placeholder">
+                            <span class="product-gallery__placeholder-icon">WF</span>
+                        </div>
+                    <% } %>
+
+                    <% if (product.images && product.images.length > 1) { %>
+                        <button type="button" data-gallery-nav="prev" class="product-gallery__nav-btn product-gallery__nav-btn--prev" aria-label="Ảnh trước">&#8249;</button>
+                        <button type="button" data-gallery-nav="next" class="product-gallery__nav-btn product-gallery__nav-btn--next" aria-label="Ảnh sau">&#8250;</button>
+                        <div class="product-gallery__counter">
+                            <span id="currentIndex">1</span> / <%= product.images.length %>
+                        </div>
+                    <% } %>
+                </div>
+
+                <% if (product.images && product.images.length > 1) { %>
+                    <div class="product-gallery__thumbs">
+                        <% product.images.forEach((img, index) => { %>
+                            <img
+                                src="<%= img.image_url %>"
+                                alt="<%= product.name %> - <%= index + 1 %>"
+                                class="product-gallery__thumb <%= index === 0 ? 'product-gallery__thumb--active' : '' %>"
+                                data-index="<%= index %>"
+                                data-image-url="<%= img.image_url %>"
+                                loading="lazy"
+                                decoding="async"
+                            >
+                        <% }) %>
+                    </div>
+                <% } %>
+            </div>
+
+            <div class="product-info">
+                <div class="product-info__eyebrow">
+                    <span>WIND OF FALL</span>
+                    <% if (product.category_name) { %>
+                        <a href="/products/category/<%= product.category_slug %>"><%= product.category_name %></a>
+                    <% } %>
+                </div>
+
+                <h1 class="product-info__title"><%= product.name %></h1>
+
+                <div class="product-info__trust">
+                    <span>Form dễ mặc</span>
+                    <span>Giao nhanh</span>
+                    <span>Đổi trả 30 ngày</span>
+                </div>
+
+                <div class="product-info__price-box">
+                    <% if (product.price !== product.final_price && product.final_price) { %>
+                        <p class="product-info__price-original"><%= product.price.toLocaleString('vi-VN') %>đ</p>
+                        <p class="product-info__price-current" id="productPrice"><%= product.final_price.toLocaleString('vi-VN') %>đ</p>
+                        <span class="product-info__discount-badge">Giảm <%= Math.round((1 - product.final_price / product.price) * 100) %>%</span>
+                    <% } else { %>
+                        <p class="product-info__price-current" id="productPrice"><%= (product.final_price || product.price).toLocaleString('vi-VN') %>đ</p>
+                    <% } %>
+                </div>
+
+                <div class="product-info__service-grid">
+                    <div>
+                        <strong>Freeship từ 499K</strong>
+                        <span>Miễn phí vận chuyển cho đơn hàng đủ điều kiện.</span>
+                    </div>
+                    <div>
+                        <strong>COD / VNPay / MoMo</strong>
+                        <span>Hỗ trợ nhiều phương thức thanh toán tiện lợi.</span>
+                    </div>
+                </div>
+
+                <% if (product.variants && product.variants.length > 0) { %>
+                    <div class="variant-selector">
+                        <% if (colors.length > 0) { %>
+                            <div class="variant-group">
+                                <label>Màu sắc</label>
+                                <div class="variant-options" id="colorOptions">
+                                    <% colors.forEach(color => { %>
+                                        <button type="button" class="variant-btn color-btn" data-color="<%= color %>" onclick="selectColor(this, '<%= color %>')"><%= color %></button>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } %>
+
+                        <% if (sizes.length > 0) { %>
+                            <div class="variant-group">
+                                <label>Kích thước</label>
+                                <div class="variant-options" id="sizeOptions">
+                                    <% sizes.forEach(size => { %>
+                                        <button type="button" class="variant-btn size-btn" data-size="<%= size %>" onclick="selectSize(this, '<%= size %>')"><%= size %></button>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } %>
+
+                        <div id="variantStock" class="variant-stock"></div>
+                    </div>
+
+                    <script>
+                        window.productVariants = <%- JSON.stringify(product.variants) %>;
+                        window.productBasePrice = <%= product.final_price || product.price %>;
+                    </script>
+                <% } %>
+
+                <div class="product-info__actions">
+                    <button onclick="addToCartWithVariant(<%= product.id %>)" class="btn product-info__action-btn product-info__action-btn--cart">Thêm vào giỏ hàng</button>
+                    <button onclick="buyNowWithVariant(<%= product.id %>)" class="btn btn-accent product-info__action-btn product-info__action-btn--buy">Mua ngay</button>
+                </div>
+
+                <% if (product.description) { %>
+                    <div class="product-info__description">
+                        <h3>Mô tả sản phẩm</h3>
+                        <p><%= product.description %></p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <% if (relatedProducts && relatedProducts.length > 0) { %>
+            <section class="related-products">
+                <div class="home-section__header">
+                    <div>
+                        <p class="section-kicker">Gợi ý thêm</p>
+                        <h2 class="section-title">Sản phẩm liên quan</h2>
+                    </div>
+                    <a href="/products/category/<%= product.category_slug %>" class="home-section__link">Xem thêm cùng danh mục</a>
+                </div>
+
+                <div class="related-products__grid">
+                    <% relatedProducts.slice(0, 4).forEach(relatedProduct => { %>
+                        <%- include('../partials/product-card', { product: relatedProduct }) %>
+                    <% }) %>
+                </div>
+            </section>
+        <% } %>
+    </div>
+</div>
+
+<script>
+window.productImageUrls = <%- JSON.stringify((product.images || []).map(img => img.image_url)) %>;
+window.productInitialImage = <%- JSON.stringify((product.primary_image || ((product.images && product.images[0]) ? product.images[0].image_url : null))) %>;
+</script>
+<script src="/js/product-detail.js"></script>
+
+<%- include('../partials/footer') %>

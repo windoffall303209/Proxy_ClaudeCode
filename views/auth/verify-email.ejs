@@ -1,0 +1,56 @@
+<%- include('../partials/header') %>
+
+<div class="auth-page">
+    <div class="auth-container">
+        <h1>Xác nhận Email</h1>
+
+        <div class="verify-email-info">
+            <p>Chúng tôi sẽ gửi mã xác nhận 6 số đến email:</p>
+            <p class="user-email"><strong><%= user.email %></strong></p>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <!-- Step 1: Send verification code -->
+        <div id="step-send" class="verify-step">
+            <p>Nhấn nút bên dưới để nhận mã xác nhận qua email.</p>
+            <button type="button" id="btn-send-code" class="btn btn-primary btn-block">
+                Gửi mã xác nhận
+            </button>
+        </div>
+
+        <!-- Step 2: Enter verification code -->
+        <div id="step-verify" class="verify-step" style="display: none;">
+            <p>Nhập mã xác nhận 6 số đã được gửi đến email của bạn:</p>
+
+            <form id="verify-form" class="verify-code-form">
+                <div class="code-inputs">
+                    <input type="text" maxlength="1" class="code-input" data-index="0" autofocus>
+                    <input type="text" maxlength="1" class="code-input" data-index="1">
+                    <input type="text" maxlength="1" class="code-input" data-index="2">
+                    <input type="text" maxlength="1" class="code-input" data-index="3">
+                    <input type="text" maxlength="1" class="code-input" data-index="4">
+                    <input type="text" maxlength="1" class="code-input" data-index="5">
+                </div>
+                <input type="hidden" id="full-code" name="code">
+
+                <button type="submit" id="btn-verify" class="btn btn-primary btn-block">
+                    Xác nhận
+                </button>
+            </form>
+
+            <div class="resend-section">
+                <p>Không nhận được mã? <button type="button" id="btn-resend" class="btn-link">Gửi lại</button></p>
+                <p class="timer-text" id="timer-text"></p>
+            </div>
+        </div>
+
+        <div class="auth-footer">
+            <a href="/auth/profile">Quay lại trang cá nhân</a>
+        </div>
+    </div>
+</div>
+
+<script src="/js/verify-email.js"></script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,396 @@
+<%- include('../partials/admin-header', { currentPage: 'orders' }) %>
+
+<div class="admin-page">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="admin-page-header">
+            <div class="admin-page-header__left">
+                <h1>Quản Lý Đơn Hàng</h1>
+                <p><%= orders ? orders.length : 0 %> đơn hàng</p>
+            </div>
+            <!-- <div class="admin-page-header__actions">
+                <button class="admin-btn admin-btn--primary" onclick="exportOrders()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Xuất Excel
+                </button>
+            </div> -->
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card stat-card--blue">
+                <h3 class="stat-card__label">Tổng đơn hàng</h3>
+                <p class="stat-card__value"><%= orders ? orders.length : 0 %></p>
+            </div>
+            <div class="stat-card stat-card--purple">
+                <h3 class="stat-card__label">Chờ xử lý</h3>
+                <p class="stat-card__value"><%= orders ? orders.filter(o => o.status === 'pending').length : 0 %></p>
+            </div>
+            <div class="stat-card stat-card--green">
+                <h3 class="stat-card__label">Đã giao</h3>
+                <p class="stat-card__value"><%= orders ? orders.filter(o => o.status === 'delivered').length : 0 %></p>
+            </div>
+            <div class="stat-card stat-card--pink">
+                <h3 class="stat-card__label">Đã hủy</h3>
+                <p class="stat-card__value"><%= orders ? orders.filter(o => o.status === 'cancelled').length : 0 %></p>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="admin-section" style="padding: 0; margin-bottom: 24px;">
+            <div class="order-tabs">
+                <button class="order-tab active" data-status="all">Tất cả</button>
+                <button class="order-tab" data-status="pending">Chờ xử lý</button>
+                <button class="order-tab" data-status="confirmed">Đã xác nhận</button>
+                <button class="order-tab" data-status="shipping">Đang giao</button>
+                <button class="order-tab" data-status="delivered">Đã giao</button>
+                <button class="order-tab" data-status="cancelled">Đã hủy</button>
+            </div>
+        </div>
+
+        <div class="admin-toolbar">
+            <div class="admin-toolbar__info">
+                <p class="admin-toolbar__title">Tìm đơn hàng nhanh</p>
+                <p class="admin-toolbar__text">
+                    Tìm theo mã đơn, tên khách, email hoặc số điện thoại.
+                    <% if (searchQuery) { %>
+                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
+                    <% } %>
+                </p>
+            </div>
+            <form action="/admin/orders" method="GET" class="admin-search-form">
+                <input
+                    type="search"
+                    name="search"
+                    value="<%= searchQuery || '' %>"
+                    class="admin-form__input admin-search-form__input"
+                    placeholder="VD: ORD..., tên khách, email..."
+                >
+                <div class="admin-search-form__actions">
+                    <button type="submit" class="admin-btn admin-btn--primary">Tìm kiếm</button>
+                    <% if (searchQuery) { %>
+                        <a href="/admin/orders" class="admin-btn admin-btn--ghost">Xóa lọc</a>
+                    <% } %>
+                </div>
+            </form>
+        </div>
+
+        <!-- Orders Table -->
+        <% if (orders && orders.length > 0) { %>
+            <div class="admin-table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Mã Đơn</th>
+                            <th>Khách Hàng</th>
+                            <th class="text-right">Tổng Tiền</th>
+                            <th class="text-center">Thanh Toán</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">Ngày Đặt</th>
+                            <th class="text-center">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% orders.forEach(order => { %>
+                            <tr data-status="<%= order.status %>">
+                                <td>
+                                    <a href="/admin/orders/<%= order.id %>" class="admin-table__link">
+                                        <strong><%= order.order_code %></strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="order-customer">
+                                        <span class="order-customer__name"><%= order.user_name || order.recipient_name || 'N/A' %></span>
+                                        <% if (order.recipient_phone) { %>
+                                            <span class="order-customer__phone"><%= order.recipient_phone %></span>
+                                        <% } %>
+                                    </div>
+                                </td>
+                                <td class="text-right">
+                                    <span class="admin-table__price"><%= (order.final_amount || order.total_amount || 0).toLocaleString('vi-VN') %>đ</span>
+                                </td>
+                                <td class="text-center">
+                                    <% if (order.payment_status === 'paid') { %>
+                                        <span class="admin-table__badge admin-table__badge--delivered">Đã thanh toán</span>
+                                    <% } else { %>
+                                        <span class="admin-table__badge admin-table__badge--pending">Chưa thanh toán</span>
+                                    <% } %>
+                                </td>
+                                <td class="text-center">
+                                    <select onchange="updateOrderStatus('<%= order.id %>', this.value)" class="order-status-select order-status-select--<%= order.status %>">
+                                        <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
+                                        <option value="confirmed" <%= order.status === 'confirmed' ? 'selected' : '' %>>Đã xác nhận</option>
+                                        <option value="shipping" <%= order.status === 'shipping' ? 'selected' : '' %>>Đang giao</option>
+                                        <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Đã giao</option>
+                                        <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Đã hủy</option>
+                                    </select>
+                                </td>
+                                <td class="text-center">
+                                    <span class="order-date"><%= new Date(order.created_at).toLocaleDateString('vi-VN') %></span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="admin-actions-group">
+                                        <a href="/admin/orders/<%= order.id %>" class="admin-btn admin-btn--edit" title="Xem chi tiết">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </a>
+                                        <button onclick="printOrder('<%= order.id %>')" class="admin-btn admin-btn--image" title="In đơn hàng">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="6 9 6 2 18 2 18 9"/>
+                                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                                                <rect x="6" y="14" width="12" height="8"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="admin-empty">
+                <div class="admin-empty__icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                </div>
+                <h3 class="admin-empty__title">Chưa có đơn hàng nào</h3>
+                <p class="admin-empty__text">Đơn hàng mới sẽ xuất hiện tại đây khi khách hàng đặt hàng.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div id="orderDetailModal" class="admin-modal">
+    <div class="admin-modal__content" style="max-width: 700px;">
+        <div class="admin-modal__header">
+            <h3 class="admin-modal__title">Chi Tiết Đơn Hàng</h3>
+            <button class="admin-modal__close" onclick="closeOrderModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="admin-modal__body" id="orderDetailContent">
+            <p>Đang tải...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer"></div>
+
+<style>
+/* Order Tabs */
+.order-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--admin-border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    scrollbar-width: none;
+}
+
+.order-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.order-tab {
+    padding: 16px 24px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--admin-text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.order-tab:hover {
+    color: var(--admin-text-primary);
+    background: var(--admin-bg);
+}
+
+.order-tab.active {
+    color: var(--admin-accent);
+    border-bottom-color: var(--admin-accent);
+}
+
+/* Order Customer */
+.order-customer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.order-customer__name {
+    font-weight: 500;
+    color: var(--admin-text-primary);
+}
+
+.order-customer__phone {
+    font-size: 12px;
+    color: var(--admin-text-secondary);
+}
+
+/* Order Status Select */
+.order-status-select {
+    padding: 6px 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--admin-card-bg);
+    min-width: 130px;
+}
+
+.order-status-select--pending {
+    border-color: #f59e0b;
+    color: #b45309;
+}
+
+.order-status-select--confirmed {
+    border-color: #3b82f6;
+    color: #1d4ed8;
+}
+
+.order-status-select--shipping {
+    border-color: #8b5cf6;
+    color: #6d28d9;
+}
+
+.order-status-select--delivered {
+    border-color: #10b981;
+    color: #047857;
+}
+
+.order-status-select--cancelled {
+    border-color: #ef4444;
+    color: #b91c1c;
+}
+
+/* Order Date */
+.order-date {
+    font-size: 13px;
+    color: var(--admin-text-secondary);
+}
+
+/* Page Header */
+.admin-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.admin-page-header__left h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    margin: 0 0 4px 0;
+}
+
+.admin-page-header__left p {
+    font-size: 14px;
+    color: var(--admin-text-secondary);
+    margin: 0;
+}
+
+/* Modal Header */
+.admin-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--admin-border);
+    margin-bottom: 20px;
+}
+
+.admin-modal__header .admin-modal__title {
+    margin-bottom: 0;
+    padding-inline: 48px;
+}
+
+.admin-modal__close {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--admin-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--admin-text-secondary);
+    transition: all 0.2s;
+}
+
+.admin-modal__close:hover {
+    background: var(--admin-border);
+    color: var(--admin-text-primary);
+}
+</style>
+
+<script>
+// Filter tabs
+document.querySelectorAll('.order-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+
+        const status = this.dataset.status;
+        const rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            if (status === 'all' || row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Close modal
+function closeOrderModal() {
+    document.getElementById('orderDetailModal').style.display = 'none';
+}
+
+// Export orders placeholder
+function exportOrders() {
+    showToast('Tính năng đang phát triển', 'info');
+}
+
+// Print order placeholder
+function printOrder(orderId) {
+    window.open('/admin/orders/' + orderId + '/print', '_blank');
+}
+
+// Toast notification
+function showToast(message, type = 'success') {
+    if (typeof showGlobalToast === 'function') showGlobalToast(message, type);
+}
+</script>
+
+<script src="/js/admin/orders.js"></script>
+
+<%- include('../partials/admin-footer') %>

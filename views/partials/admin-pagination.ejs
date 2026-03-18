@@ -1,0 +1,70 @@
+<% if (pagination && pagination.totalPages > 0) { %>
+<%
+    const buildPaginationUrl = (page, limit) => {
+        const params = [`page=${page}`, `limit=${limit}`];
+
+        if (pagination.searchQuery) {
+            params.push(`search=${encodeURIComponent(pagination.searchQuery)}`);
+        }
+
+        return `?${params.join('&')}`;
+    };
+%>
+<div class="admin-pagination">
+    <div class="admin-pagination__info">
+        Hiển thị <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>–<%= Math.min(pagination.currentPage * pagination.limit, pagination.totalItems) %> / <%= pagination.totalItems %>
+    </div>
+
+    <div class="admin-pagination__controls">
+        <!-- Per-page selector -->
+        <div class="admin-pagination__perpage">
+            <label>Hiển thị</label>
+            <select id="perpageSelect" onchange="changePerPage(this.value)">
+                <% [10, 20, 30, 40, 50].forEach(n => { %>
+                    <option value="<%= n %>" <%= pagination.limit === n ? 'selected' : '' %>><%= n %></option>
+                <% }) %>
+            </select>
+        </div>
+
+        <!-- Page navigation -->
+        <% if (pagination.totalPages > 1) { %>
+        <div class="admin-pagination__nav">
+            <% if (pagination.currentPage > 1) { %>
+                <a href="<%= buildPaginationUrl(pagination.currentPage - 1, pagination.limit) %>" class="admin-pagination__btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </a>
+            <% } %>
+
+            <%
+                let startPage = Math.max(1, pagination.currentPage - 2);
+                let endPage = Math.min(pagination.totalPages, pagination.currentPage + 2);
+                if (endPage - startPage < 4) {
+                    if (startPage === 1) endPage = Math.min(pagination.totalPages, startPage + 4);
+                    else startPage = Math.max(1, endPage - 4);
+                }
+            %>
+
+            <% if (startPage > 1) { %>
+                <a href="<%= buildPaginationUrl(1, pagination.limit) %>" class="admin-pagination__btn">1</a>
+                <% if (startPage > 2) { %><span class="admin-pagination__dots">...</span><% } %>
+            <% } %>
+
+            <% for (let i = startPage; i <= endPage; i++) { %>
+                <a href="<%= buildPaginationUrl(i, pagination.limit) %>" class="admin-pagination__btn <%= i === pagination.currentPage ? 'admin-pagination__btn--active' : '' %>"><%= i %></a>
+            <% } %>
+
+            <% if (endPage < pagination.totalPages) { %>
+                <% if (endPage < pagination.totalPages - 1) { %><span class="admin-pagination__dots">...</span><% } %>
+                <a href="<%= buildPaginationUrl(pagination.totalPages, pagination.limit) %>" class="admin-pagination__btn"><%= pagination.totalPages %></a>
+            <% } %>
+
+            <% if (pagination.currentPage < pagination.totalPages) { %>
+                <a href="<%= buildPaginationUrl(pagination.currentPage + 1, pagination.limit) %>" class="admin-pagination__btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </a>
+            <% } %>
+        </div>
+        <% } %>
+    </div>
+</div>
+<% } %>

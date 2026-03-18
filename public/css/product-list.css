@@ -1,0 +1,206 @@
+.catalog-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.catalog-intro__summary {
+    display: none;
+}
+
+.catalog-intro--compact {
+    margin-bottom: 12px;
+}
+
+.catalog-intro__meta {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.catalog-intro--search .page-intro__title-inline {
+    font-size: clamp(14px, 1.8vw, 18px);
+}
+
+.catalog-shortcuts {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.catalog-shortcuts a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(215, 197, 154, 0.85);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.catalog-shortcuts a.active,
+.catalog-shortcuts a:hover {
+    background: var(--surface-soft);
+}
+
+.catalog-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(215, 197, 154, 0.8);
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: var(--shadow-soft);
+}
+
+.products-filters__left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(215, 197, 154, 0.9);
+    background: transparent;
+    color: var(--gray-700);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.filter-btn.active,
+.filter-btn:hover {
+    background: var(--hero-dark);
+    border-color: var(--hero-dark);
+    color: var(--white);
+}
+
+.products-filters__sort {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.products-filters__sort label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-700);
+}
+
+.products-filters__sort select {
+    min-height: 42px;
+    min-width: 200px;
+    padding: 0 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(215, 197, 154, 0.9);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.catalog-grid,
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 32px;
+}
+
+.pagination__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 46px;
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(215, 197, 154, 0.9);
+    background: rgba(255, 255, 255, 0.94);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.pagination__btn.active,
+.pagination__btn:hover {
+    background: var(--hero-dark);
+    color: var(--white);
+    border-color: var(--hero-dark);
+}
+
+.search-empty__actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+@media (max-width: 1180px) {
+    .catalog-intro {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .catalog-grid,
+    .products-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .catalog-intro {
+        align-items: flex-start;
+    }
+
+    .catalog-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 16px;
+    }
+
+    .products-filters__sort {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .products-filters__sort select {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .catalog-grid,
+    .products-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .catalog-grid,
+    .products-grid {
+        grid-template-columns: 1fr;
+    }
+}

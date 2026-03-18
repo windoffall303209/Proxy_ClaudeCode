@@ -1,0 +1,38 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/product-list.css">
+
+<div class="catalog-page page-shell">
+    <div class="container">
+        <section class="page-intro page-intro--compact catalog-intro catalog-intro--compact catalog-intro--search">
+            <div class="catalog-intro__content">
+                <h1 class="page-intro__title page-intro__title-inline">
+                    <span>Tìm kiếm</span>
+                    <span class="page-intro__slash">/</span>
+                    <span>Kết quả cho "<%= query %>"</span>
+                </h1>
+            </div>
+            <p class="catalog-intro__meta"><%= products ? products.length : 0 %> sản phẩm</p>
+        </section>
+
+        <% if (products && products.length > 0) { %>
+            <div class="products-grid catalog-grid">
+                <% products.forEach(product => { %>
+                    <%- include('../partials/product-card', { product }) %>
+                <% }) %>
+            </div>
+        <% } else { %>
+            <div class="empty-panel search-empty">
+                <h3>Không tìm thấy sản phẩm phù hợp</h3>
+                <p>Thử tìm bằng từ khóa ngắn hơn hoặc đi đến các danh mục mua nhanh bên dưới.</p>
+                <div class="search-empty__actions">
+                    <a href="/products/category/nam" class="btn btn-secondary">Xem danh mục nam</a>
+                    <a href="/products/category/nu" class="btn btn-secondary">Xem danh mục nữ</a>
+                    <a href="/products" class="btn btn-primary">Xem tất cả sản phẩm</a>
+                </div>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

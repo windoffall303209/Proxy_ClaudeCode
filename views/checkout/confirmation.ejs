@@ -1,0 +1,106 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/orders.css">
+
+<div class="confirmation-page page-shell">
+    <div class="container confirmation-page__container">
+        <section class="confirmation-hero">
+            <div class="confirmation-hero__icon">OK</div>
+            <h1 class="confirmation-hero__title page-intro__title-inline page-intro__title-inline--center">
+                <span>Hoàn tất</span>
+                <span class="page-intro__slash">/</span>
+                <span>Đặt hàng thành công</span>
+            </h1>
+            <div class="confirmation-hero__code">
+                <span>Mã đơn hàng</span>
+                <strong><%= order.order_code %></strong>
+            </div>
+        </section>
+
+        <div class="confirmation-layout">
+            <section class="confirmation-card">
+                <h3>Chi tiết đơn hàng</h3>
+                <div class="confirmation-items">
+                    <% if (order.items && order.items.length > 0) { %>
+                        <% order.items.forEach(item => { %>
+                            <div class="order-item">
+                                <div class="order-item__image">
+                                    <% if (item.product_image) { %>
+                                        <img src="<%= item.product_image %>" alt="<%= item.product_name %>">
+                                    <% } else { %>
+                                        <div class="order-item__placeholder">WF</div>
+                                    <% } %>
+                                </div>
+                                <div class="order-item__info">
+                                    <div class="order-item__name"><%= item.product_name %></div>
+                                    <% if (item.variant_color || item.variant_size) { %>
+                                        <div class="order-item__meta">
+                                            <% if (item.variant_color) { %>Màu: <%= item.variant_color %><% } %>
+                                            <% if (item.variant_color && item.variant_size) { %> | <% } %>
+                                            <% if (item.variant_size) { %>Size: <%= item.variant_size %><% } %>
+                                        </div>
+                                    <% } %>
+                                    <div class="order-item__qty">SL: <%= item.quantity %></div>
+                                </div>
+                                <div class="order-item__price"><%= item.subtotal.toLocaleString('vi-VN') %>đ</div>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </section>
+
+            <aside class="confirmation-side">
+                <section class="confirmation-card">
+                    <h3>Tổng tiền</h3>
+                    <div class="confirmation-summary">
+                        <div class="confirmation-summary__row">
+                            <span>Tạm tính</span>
+                            <span><%= order.total_amount.toLocaleString('vi-VN') %>đ</span>
+                        </div>
+                        <div class="confirmation-summary__row">
+                            <span>Phí vận chuyển</span>
+                            <span><%= order.shipping_fee === 0 ? 'Miễn phí' : order.shipping_fee.toLocaleString('vi-VN') + 'đ' %></span>
+                        </div>
+                        <div class="confirmation-summary__total">
+                            <span>Tổng cộng</span>
+                            <strong><%= order.final_amount.toLocaleString('vi-VN') %>đ</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="confirmation-card">
+                    <h3>Giao đến</h3>
+                    <div class="confirmation-block">
+                        <strong><%= order.shipping_name %> - <%= order.shipping_phone %></strong>
+                        <p><%= order.address_line %><%= order.ward ? ', ' + order.ward : '' %><%= order.district ? ', ' + order.district : '' %>, <%= order.city %></p>
+                    </div>
+                </section>
+
+                <section class="confirmation-card">
+                    <h3>Thanh toán</h3>
+                    <div class="confirmation-block">
+                        <strong>
+                            <% if (order.payment_method === 'cod') { %>
+                                Thanh toán khi nhận hàng
+                            <% } else if (order.payment_method === 'vnpay') { %>
+                                VNPay
+                            <% } else if (order.payment_method === 'momo') { %>
+                                Ví MoMo
+                            <% } else { %>
+                                <%= order.payment_method %>
+                            <% } %>
+                        </strong>
+                        <p><%= order.payment_status === 'paid' ? 'Đơn hàng đã được thanh toán.' : 'Đơn hàng đang chờ thanh toán.' %></p>
+                    </div>
+                </section>
+            </aside>
+        </div>
+
+        <div class="confirmation-actions">
+            <a href="/" class="btn btn-primary">Về trang chủ</a>
+            <a href="/orders/history" class="btn btn-secondary">Xem lịch sử đơn hàng</a>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

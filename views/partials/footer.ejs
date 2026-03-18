@@ -1,0 +1,113 @@
+</main>
+
+<footer class="footer">
+    <section class="footer-newsletter" id="newsletter-section">
+        <div class="container footer-newsletter__inner">
+            <div class="newsletter-content">
+                <p class="newsletter-content__eyebrow">Newsletter</p>
+                <h3>Nhập email để nhận ưu đãi và bộ sưu tập mới sớm hơn</h3>
+                <p>Cập nhật BST mới, voucher độc quyền và gợi ý phối đồ theo mùa.</p>
+            </div>
+
+            <div class="newsletter-actions">
+                <form id="newsletter-form" class="newsletter-form">
+                    <input type="email" name="email" id="newsletter-email" placeholder="Email của bạn" required>
+                    <button type="submit" id="newsletter-btn">Đăng ký ngay</button>
+                </form>
+                <div id="newsletter-success" class="newsletter-success" style="display: none;">
+                    Bạn đã đăng ký nhận tin khuyến mại thành công.
+                </div>
+                <div id="newsletter-error" class="newsletter-error" style="display: none;"></div>
+                <button type="button" class="newsletter-dismiss" onclick="dismissNewsletterBanner()">Tạm ẩn</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="footer-service-strip">
+        <div class="container footer-service-strip__grid">
+            <div class="footer-service-card">
+                <strong>Free ship 499K</strong>
+                <p>Giao nhanh tại thành phố lớn, theo dõi hành trình đơn hàng rõ ràng.</p>
+            </div>
+            <div class="footer-service-card">
+                <strong>Đổi trả 30 ngày</strong>
+                <p>Hỗ trợ đổi size, đổi màu và hoàn tiền theo chính sách minh bạch.</p>
+            </div>
+            <div class="footer-service-card">
+                <strong>Tư vấn chọn đồ</strong>
+                <p>Hotline và chat luôn sẵn sàng để chốt size và set outfit phù hợp.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="footer-main">
+        <div class="container footer-grid">
+            <div class="footer-branding">
+                <div class="footer-branding__logo">
+                    <span>WF</span>
+                    <strong>WIND OF FALL</strong>
+                </div>
+                <p class="footer-branding__text">
+                    Thương hiệu thời trang everyday theo tinh thần hiện đại, gọn gàng và dễ mặc.
+                    Chúng tôi ưu tiên chất liệu, phom dáng và trải nghiệm mua sắm mượt mà trên mọi thiết bị.
+                </p>
+                <div class="footer-socials">
+                    <a href="#" title="Facebook">Facebook</a>
+                    <a href="#" title="Instagram">Instagram</a>
+                    <a href="#" title="TikTok">TikTok</a>
+                </div>
+            </div>
+
+            <div class="footer-col">
+                <h4>Mua sắm</h4>
+                <ul>
+                    <li><a href="/products/category/nam">Thời trang nam</a></li>
+                    <li><a href="/products/category/nu">Thời trang nữ</a></li>
+                    <li><a href="/products/category/tre-em">Trẻ em</a></li>
+                    <li><a href="/products?sale=true">Khu sale</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col">
+                <h4>Hỗ trợ khách hàng</h4>
+                <ul>
+                    <li><a href="/policy/shipping">Vận chuyển</a></li>
+                    <li><a href="/policy/return">Đổi trả</a></li>
+                    <li><a href="/policy/payment">Thanh toán</a></li>
+                    <li><a href="/policy/privacy">Bảo mật thông tin</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col">
+                <h4>Liên hệ</h4>
+                <ul>
+                    <li><a href="tel:1900123456">Hotline: 1900 123 456</a></li>
+                    <li><a href="mailto:info@windoffall.vn">info@windoffall.vn</a></li>
+                    <li><a href="#">123 Nguyễn Huệ, Quận 1, TP.HCM</a></li>
+                    <li><a href="#">Mở cửa 8:00 - 22:00 mỗi ngày</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
+        <div class="container footer-bottom__inner">
+            <p>&copy; 2026 WIND OF FALL. All rights reserved.</p>
+            <div class="payment-methods">
+                <span class="payment-badge">COD</span>
+                <span class="payment-badge">VNPay</span>
+                <span class="payment-badge">MoMo</span>
+                <span class="payment-badge">Visa</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<%- include('chat-widget') %>
+
+<link rel="stylesheet" href="/css/chat-widget.css">
+<script src="/js/toast.js"></script>
+<script src="/js/main.js"></script>
+<script src="/js/chat-widget.js"></script>
+</body>
+</html>

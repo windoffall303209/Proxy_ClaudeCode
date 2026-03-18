@@ -1,0 +1,8 @@
+/* =============================================================================
+   ADMIN DASHBOARD - PROFESSIONAL THEME
+   Split into modular CSS files for maintainability
+   ============================================================================= */
+@import url('admin-variables.css');
+@import url('admin-sidebar.css');
+@import url('admin-components.css');
+@import url('admin-responsive.css');

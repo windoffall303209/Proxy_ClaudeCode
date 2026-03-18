@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WIND OF FALL | Thời trang mỗi ngày</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body data-user-authenticated="<%= user ? 'true' : 'false' %>">
+<%
+    const currentUrl = typeof path === 'string' ? path : '';
+    const currentPath = currentUrl.split('?')[0];
+    const currentCategory = typeof category !== 'undefined' ? category : null;
+    const categorySlug = currentCategory ? currentCategory.slug : '';
+    const isSalePageActive = typeof isSalePage !== 'undefined' ? isSalePage : currentUrl.includes('sale=true');
+    const isProfilePage = currentPath === '/auth/profile';
+    const isOrdersPage = currentPath === '/orders/history';
+    const isCartPage = currentPath === '/cart';
+%>
+
+<header class="header">
+    <div class="header-main">
+        <div class="container header-main__inner">
+            <a href="/" class="header-brand" aria-label="WIND OF FALL">
+                <span class="header-brand__mark">WF</span>
+                <span class="header-brand__text">
+                    <strong>WIND OF FALL</strong>
+                    <small>Thời trang mặc đẹp mỗi ngày</small>
+                </span>
+            </a>
+
+            <div class="header-search">
+                <form action="/products/search" method="GET">
+                    <input type="text" name="q" placeholder="Tìm áo polo, váy midi, quần jean..." required>
+                    <button type="submit" aria-label="Tìm kiếm">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                            <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+
+            <div class="header-actions">
+                <% if (user) { %>
+                    <% if (user.role === 'admin') { %>
+                        <a href="/admin/dashboard" class="admin-badge" title="Quản trị">Admin</a>
+                    <% } %>
+                    <a href="/auth/profile" class="icon-btn <%= isProfilePage ? 'icon-btn--active' : '' %>" title="Tài khoản">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span class="icon-label">Tài khoản</span>
+                    </a>
+                    <a href="/orders/history" class="icon-btn <%= isOrdersPage ? 'icon-btn--active' : '' %>" title="Đơn hàng">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span class="icon-label">Đơn hàng</span>
+                    </a>
+                    <a href="/cart" class="icon-btn cart-btn <%= isCartPage ? 'icon-btn--active' : '' %>" title="Giỏ hàng">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
+                            <path d="M16 10a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span class="icon-label">Giỏ hàng</span>
+                        <span class="cart-count" id="cart-count">0</span>
+                    </a>
+                    <form action="/auth/logout" method="POST" class="logout-form">
+                        <button type="submit" class="icon-btn logout-btn" title="Đăng xuất">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span class="icon-label">Thoát</span>
+                        </button>
+                    </form>
+                <% } else { %>
+                    <a href="/auth/login" class="auth-link" title="Đăng nhập">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>Đăng nhập / Đăng ký</span>
+                    </a>
+                    <a href="/cart" class="icon-btn cart-btn <%= isCartPage ? 'icon-btn--active' : '' %>" title="Giỏ hàng">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
+                            <path d="M16 10a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span class="cart-count" id="cart-count">0</span>
+                    </a>
+                <% } %>
+
+                <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Mở menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header-nav">
+        <div class="container header-nav__inner">
+            <nav class="main-nav">
+                <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Trang chủ</a>
+                <a href="/products/category/nam" class="<%= categorySlug === 'nam' ? 'active' : '' %>">Nam</a>
+                <a href="/products/category/nu" class="<%= categorySlug === 'nu' ? 'active' : '' %>">Nữ</a>
+                <a href="/products/category/tre-em" class="<%= categorySlug === 'tre-em' ? 'active' : '' %>">Trẻ em</a>
+                <a href="/products" class="<%= currentPath === '/products' ? 'active' : '' %>">Tất cả</a>
+                <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>">Sale tới 50%</a>
+            </nav>
+            <div class="header-nav__promo">
+                <span>Hàng mới lên kệ mỗi Thứ 3 và Thứ 6</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mobile-header-search">
+        <form action="/products/search" method="GET">
+            <input type="text" name="q" placeholder="Tìm sản phẩm yêu thích..." required>
+            <button type="submit" aria-label="Tìm kiếm">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                    <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </form>
+    </div>
+</header>
+
+<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
+<nav class="mobile-nav" id="mobileNav">
+    <div class="mobile-nav__header">
+        <div>
+            <span class="mobile-nav__eyebrow">WIND OF FALL</span>
+            <strong class="mobile-nav__logo">Tìm outfit cho cả gia đình</strong>
+        </div>
+        <button class="mobile-nav__close" id="mobileNavClose" aria-label="Đóng menu">&times;</button>
+    </div>
+
+    <div class="mobile-nav__search">
+        <form action="/products/search" method="GET">
+            <input type="text" name="q" placeholder="Tìm áo, váy, quần..." required>
+            <button type="submit" aria-label="Tìm kiếm">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                    <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <div class="mobile-nav__links">
+        <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Trang chủ</a>
+        <a href="/products/category/nam" class="<%= categorySlug === 'nam' ? 'active' : '' %>">Thời trang nam</a>
+        <a href="/products/category/nu" class="<%= categorySlug === 'nu' ? 'active' : '' %>">Thời trang nữ</a>
+        <a href="/products/category/tre-em" class="<%= categorySlug === 'tre-em' ? 'active' : '' %>">Trẻ em</a>
+        <a href="/products">Tất cả sản phẩm</a>
+        <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>">Khu sale</a>
+    </div>
+
+    <div class="mobile-nav__actions">
+        <% if (user) { %>
+            <% if (user.role === 'admin') { %>
+                <a href="/admin/dashboard" class="admin-badge">Quản trị</a>
+            <% } %>
+            <a href="/auth/profile">Tài khoản của tôi</a>
+            <a href="/orders/history">Đơn hàng của tôi</a>
+            <a href="/cart">Giỏ hàng</a>
+            <form action="/auth/logout" method="POST" class="mobile-nav__logout-form">
+                <button type="submit" class="mobile-nav__logout-btn">Đăng xuất</button>
+            </form>
+        <% } else { %>
+            <a href="/auth/login">Đăng nhập</a>
+            <a href="/auth/register">Đăng ký</a>
+            <a href="/cart">Giỏ hàng</a>
+        <% } %>
+    </div>
+
+    <div class="mobile-nav__footer">
+        <p>Hỗ trợ tư vấn set đồ 1:1 qua hotline 1900 123 456</p>
+    </div>
+</nav>
+
+<main>
+
+<script>
+(function() {
+    function initMobileMenuInline() {
+        var mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        var mobileNav = document.getElementById('mobileNav');
+        var mobileNavOverlay = document.getElementById('mobileNavOverlay');
+        var mobileNavClose = document.getElementById('mobileNavClose');
+
+        if (!mobileMenuBtn || !mobileNav || !mobileNavOverlay) return;
+        if (mobileMenuBtn.dataset.initialized) return;
+        mobileMenuBtn.dataset.initialized = 'true';
+
+        function openMobileMenu() {
+            mobileMenuBtn.classList.add('active');
+            mobileNav.classList.add('active');
+            mobileNavOverlay.classList.add('active');
+            document.body.classList.add('mobile-menu-open');
+        }
+
+        function closeMobileMenu() {
+            mobileMenuBtn.classList.remove('active');
+            mobileNav.classList.remove('active');
+            mobileNavOverlay.classList.remove('active');
+            document.body.classList.remove('mobile-menu-open');
+        }
+
+        mobileMenuBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (mobileNav.classList.contains('active')) {
+                closeMobileMenu();
+            } else {
+                openMobileMenu();
+            }
+        });
+
+        if (mobileNavClose) {
+            mobileNavClose.addEventListener('click', closeMobileMenu);
+        }
+
+        mobileNavOverlay.addEventListener('click', closeMobileMenu);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && mobileNav.classList.contains('active')) {
+                closeMobileMenu();
+            }
+        });
+
+        var mobileNavLinks = mobileNav.querySelectorAll('a');
+        var mobileNavForms = mobileNav.querySelectorAll('form');
+
+        mobileNavLinks.forEach(function(link) {
+            link.addEventListener('click', closeMobileMenu);
+        });
+
+        mobileNavForms.forEach(function(form) {
+            form.addEventListener('submit', closeMobileMenu);
+        });
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 960 && mobileNav.classList.contains('active')) {
+                closeMobileMenu();
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileMenuInline);
+    } else {
+        initMobileMenuInline();
+    }
+})();
+</script>

@@ -1,0 +1,552 @@
+/* =============================================================================
+   RESPONSIVE - Tablet (1200px)
+   ============================================================================= */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE - Tablet/Mobile (1024px) - Sidebar becomes drawer
+   ============================================================================= */
+@media (max-width: 1024px) {
+    /* Sidebar: hidden by default, slide-in as drawer when .active */
+    .admin-sidebar {
+        transform: translateX(-100%);
+    }
+
+    .admin-sidebar.active {
+        transform: translateX(0);
+    }
+
+    /* Show mobile topbar */
+    .admin-topbar {
+        display: flex;
+    }
+
+    /* Reset main content - no sidebar offset, add topbar padding */
+    .admin-main-wrapper {
+        margin-left: 0;
+    }
+
+    body.admin-body {
+        padding-top: var(--admin-topbar-height);
+    }
+
+    /* Page adjustments */
+    .admin-page {
+        padding: 20px 16px;
+        min-height: calc(100vh - var(--admin-topbar-height));
+    }
+
+    .admin-page__title {
+        font-size: 22px;
+        margin-bottom: 20px;
+    }
+
+    .admin-image-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Table scroll indicator */
+    .admin-table-wrapper {
+        position: relative;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+        scroll-behavior: smooth;
+    }
+
+    .admin-table-wrapper::after {
+        content: '← Vuốt để xem thêm →';
+        display: block;
+        text-align: center;
+        padding: 8px;
+        font-size: 12px;
+        color: var(--admin-text-muted);
+        background: var(--admin-bg);
+        border-top: 1px solid var(--admin-border);
+    }
+
+    .admin-section {
+        overflow: visible;
+    }
+
+    .admin-page .container {
+        padding: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .admin-table {
+        min-width: 600px;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE - Mobile (768px)
+   ============================================================================= */
+@media (max-width: 768px) {
+    :root {
+        --admin-topbar-height: 50px;
+    }
+
+    /* Fix overall page scrolling */
+    body.admin-body {
+        overflow-x: hidden;
+        width: 100%;
+        position: relative;
+    }
+
+    .admin-page {
+        padding: 12px 10px;
+        overflow-x: hidden;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .admin-page .container {
+        padding: 0;
+        max-width: 100%;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .admin-page__title {
+        font-size: 16px;
+        margin-bottom: 14px;
+        gap: 8px;
+    }
+
+    /* Tables: scrollable horizontally */
+    .admin-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+        border-radius: 8px;
+        margin: 0 -2px;
+    }
+
+    .admin-table-wrapper::after {
+        font-size: 10px;
+        padding: 6px;
+    }
+
+    .admin-table {
+        font-size: 10px;
+        min-width: 450px;
+    }
+
+    .admin-table th {
+        padding: 8px 5px;
+        font-size: 9px;
+        letter-spacing: 0.3px;
+    }
+
+    .admin-table td {
+        padding: 8px 5px;
+        white-space: nowrap;
+    }
+
+    .admin-table__badge {
+        padding: 3px 6px;
+        font-size: 9px;
+        border-radius: 10px;
+    }
+
+    .admin-table__link {
+        font-size: 10px;
+    }
+
+    .admin-table__price {
+        font-size: 10px;
+    }
+
+    /* Section overflow fix */
+    .admin-section {
+        overflow: visible;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+
+    .admin-section__title {
+        font-size: 13px;
+        margin-bottom: 10px;
+        gap: 6px;
+    }
+
+    .admin-section__title svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .stat-card {
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .stat-card::before {
+        height: 3px;
+    }
+
+    .stat-card__label {
+        font-size: 9px;
+        margin-bottom: 4px;
+        letter-spacing: 0.2px;
+    }
+
+    .stat-card__value {
+        font-size: 16px;
+    }
+
+    /* Form */
+    .admin-form__grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .admin-form__field {
+        margin-top: 12px;
+    }
+
+    .admin-form__label {
+        font-size: 12px;
+        margin-bottom: 6px;
+    }
+
+    .admin-form__input,
+    .admin-form__select,
+    .admin-form__textarea {
+        padding: 10px 12px;
+        font-size: 13px;
+        border-radius: 6px;
+    }
+
+    .admin-form__submit {
+        padding: 10px 20px;
+        font-size: 13px;
+        margin-top: 16px;
+    }
+
+    /* Buttons */
+    .admin-btn {
+        padding: 5px 8px;
+        font-size: 10px;
+        gap: 3px;
+        border-radius: 4px;
+    }
+
+    .admin-btn svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .admin-btn--primary {
+        padding: 8px 14px;
+    }
+
+    /* Pagination */
+    .admin-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-pagination__controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Modal */
+    .admin-modal__content {
+        margin: 8px;
+        padding: 14px;
+        border-radius: 10px;
+    }
+
+    .admin-modal__title {
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+
+    .admin-modal__buttons {
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .admin-modal__buttons .admin-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 10px;
+        font-size: 12px;
+    }
+
+    /* Image grid */
+    .admin-image-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    .admin-image-item {
+        border-radius: 6px;
+    }
+
+    .admin-image-item__badge {
+        font-size: 8px;
+        padding: 2px 5px;
+        top: 4px;
+        left: 4px;
+    }
+
+    .admin-image-item__btn {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+    }
+
+    /* Confirm modal */
+    .confirm-modal__content {
+        padding: 18px 14px;
+        border-radius: 10px;
+    }
+
+    .confirm-modal__title {
+        font-size: 15px;
+        margin-bottom: 10px;
+    }
+
+    .confirm-modal__message {
+        font-size: 12px;
+        margin-bottom: 18px;
+    }
+
+    .confirm-modal__buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .confirm-modal__btn {
+        width: 100%;
+        padding: 11px;
+        font-size: 13px;
+    }
+
+    /* Toast notifications */
+    #toastContainer {
+        left: 10px;
+        right: 10px;
+        top: calc(var(--admin-topbar-height) + 8px);
+    }
+
+    .toast {
+        min-width: auto;
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 12px;
+        border-radius: 8px;
+        gap: 8px;
+    }
+
+    /* Empty state */
+    .admin-empty {
+        padding: 30px 14px;
+        border-radius: 8px;
+    }
+
+    .admin-empty__icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+
+    .admin-empty__title {
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+
+    .admin-empty__text {
+        font-size: 12px;
+    }
+
+    /* Hide icons on mobile to make text bigger */
+    .stat-card__icon {
+        display: none;
+    }
+
+    .admin-section__title svg {
+        display: none;
+    }
+
+    .admin-btn svg {
+        display: none;
+    }
+
+    .quick-action__icon {
+        display: none;
+    }
+
+    .quick-action {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .quick-action span {
+        font-size: 12px;
+    }
+
+    /* Bigger text without icons */
+    .stat-card__label {
+        font-size: 10px;
+        margin-bottom: 6px;
+    }
+
+    .stat-card__value {
+        font-size: 18px;
+    }
+
+    .admin-section__title {
+        font-size: 14px;
+    }
+
+    .admin-table {
+        font-size: 11px;
+    }
+
+    .admin-table th {
+        font-size: 10px;
+    }
+
+    .admin-table__badge {
+        font-size: 10px;
+    }
+
+    .admin-btn {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+
+    /* Topbar compact */
+    .admin-topbar__logo a {
+        font-size: 14px;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE - Small Mobile (480px)
+   ============================================================================= */
+@media (max-width: 480px) {
+    :root {
+        --admin-topbar-height: 46px;
+    }
+
+    .admin-page {
+        padding: 8px 6px;
+    }
+
+    .admin-page__title {
+        font-size: 15px;
+        flex-wrap: wrap;
+    }
+
+    /* Topbar */
+    .admin-topbar__logo a {
+        font-size: 12px;
+    }
+
+    .admin-topbar__logo a span {
+        display: none;
+    }
+
+    /* Tables */
+    .admin-table {
+        font-size: 9px;
+        min-width: 400px;
+    }
+
+    .admin-table-wrapper {
+        margin: 0 -4px;
+        border-radius: 6px;
+    }
+
+    .admin-table th {
+        padding: 6px 4px;
+        font-size: 8px;
+    }
+
+    .admin-table td {
+        padding: 6px 4px;
+    }
+
+    .admin-table__badge {
+        padding: 2px 5px;
+        font-size: 8px;
+    }
+
+    /* Stats */
+    .stats-grid {
+        gap: 6px;
+    }
+
+    .stat-card {
+        padding: 8px;
+    }
+
+    .stat-card__label {
+        font-size: 8px;
+    }
+
+    .stat-card__value {
+        font-size: 14px;
+    }
+
+    /* Buttons */
+    .admin-btn {
+        padding: 4px 6px;
+        font-size: 9px;
+    }
+
+    .admin-btn svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Section */
+    .admin-section {
+        padding: 10px;
+    }
+
+    .admin-section__title {
+        font-size: 12px;
+    }
+
+    /* Image grid */
+    .admin-image-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Empty */
+    .admin-empty {
+        padding: 24px 12px;
+    }
+
+    .admin-empty__icon {
+        font-size: 32px;
+    }
+
+    .admin-empty__title {
+        font-size: 13px;
+    }
+
+    .admin-empty__text {
+        font-size: 11px;
+    }
+}

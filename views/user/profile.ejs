@@ -1,0 +1,168 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/user-profile.css">
+
+<div class="user-profile-page page-shell">
+    <div class="container">
+        <% if (user) { %>
+            <section class="page-intro page-intro--compact">
+                <h1 class="page-intro__title page-intro__title-inline">
+                    <span>Tài khoản</span>
+                    <span class="page-intro__slash">/</span>
+                    <span>Tài khoản của tôi</span>
+                </h1>
+            </section>
+
+            <div class="profile-grid">
+                <aside class="profile-sidebar">
+                    <div class="profile-avatar">
+                        <% if (user.avatar_url) { %>
+                            <img src="<%= user.avatar_url %>" alt="Avatar" class="profile-avatar__image" id="avatarImage">
+                            <div class="profile-avatar__placeholder" id="avatarPlaceholder" style="display: none;">WF</div>
+                        <% } else { %>
+                            <img src="" alt="Avatar" class="profile-avatar__image" id="avatarImage" style="display: none;">
+                            <div class="profile-avatar__placeholder" id="avatarPlaceholder">WF</div>
+                        <% } %>
+                        <label class="profile-avatar__upload" title="Thay đổi ảnh đại diện">
+                            <input type="file" accept="image/*" id="avatarInput">
+                            <span class="profile-avatar__upload-icon">+</span>
+                        </label>
+                    </div>
+
+                    <h2 class="profile-sidebar__name"><%= user.full_name %></h2>
+                    <p class="profile-sidebar__email"><%= user.email %></p>
+                    <p class="profile-sidebar__joined">Thành viên từ <%= new Date(user.created_at).toLocaleDateString('vi-VN') %></p>
+
+                    <div class="profile-sidebar__badges">
+                        <span><%= user.email_verified ? 'Email đã xác thực' : 'Email chưa xác thực' %></span>
+                        <span><%= user.phone_verified ? 'Số điện thoại đã xác thực' : 'Cần xác thực số điện thoại' %></span>
+                    </div>
+                </aside>
+
+                <div class="profile-content">
+                    <section class="profile-section">
+                        <div class="profile-section__header">
+                            <h3 class="profile-section__title">Thông tin cá nhân</h3>
+                            <p class="profile-section__copy">Cập nhật tên, số điện thoại và ngày sinh.</p>
+                        </div>
+
+                        <form id="profileForm">
+                            <div class="profile-form__grid">
+                                <div class="profile-form__field">
+                                    <label class="profile-form__label">Họ và tên</label>
+                                    <input type="text" name="full_name" value="<%= user.full_name %>" class="profile-form__input" required minlength="2">
+                                </div>
+                                <div class="profile-form__field">
+                                    <label class="profile-form__label">Số điện thoại</label>
+                                    <input type="tel" name="phone" value="<%= user.phone || '' %>" class="profile-form__input" placeholder="0901234567">
+                                </div>
+                            </div>
+                            <div class="profile-form__field">
+                                <label class="profile-form__label">Ngày sinh</label>
+                                <input type="date" name="birthday" value="<%= user.birthday ? new Date(user.birthday).toISOString().split('T')[0] : '' %>" class="profile-form__input">
+                            </div>
+                            <button type="submit" class="profile-form__submit">Lưu thay đổi</button>
+                        </form>
+                    </section>
+
+                    <section class="profile-section">
+                        <div class="profile-section__header">
+                            <h3 class="profile-section__title">Thông tin liên hệ</h3>
+                            <p class="profile-section__copy">Kiểm tra trạng thái xác thực email và số điện thoại.</p>
+                        </div>
+
+                        <div class="contact-info">
+                            <div class="contact-info__item">
+                                <div class="contact-info__left">
+                                    <div>
+                                        <div class="contact-info__label">Email</div>
+                                        <div class="contact-info__value"><%= user.email %></div>
+                                    </div>
+                                </div>
+                                <div class="contact-info__right">
+                                    <% if (user.email_verified) { %>
+                                        <span class="verification-badge verification-badge--verified">Đã xác thực</span>
+                                    <% } else { %>
+                                        <span class="verification-badge verification-badge--unverified">Chưa xác thực</span>
+                                        <a href="/auth/verify-email" class="verify-btn">Xác thực ngay</a>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                            <div class="contact-info__item">
+                                <div class="contact-info__left">
+                                    <div>
+                                        <div class="contact-info__label">Số điện thoại</div>
+                                        <div class="contact-info__value"><%= user.phone || 'Chưa cập nhật' %></div>
+                                    </div>
+                                </div>
+                                <div class="contact-info__right">
+                                    <% if (user.phone_verified) { %>
+                                        <span class="verification-badge verification-badge--verified">Đã xác thực</span>
+                                    <% } else { %>
+                                        <span class="verification-badge verification-badge--unverified">Chưa xác thực</span>
+                                        <button type="button" class="verify-btn" onclick="showDevelopingAlert()">Xác thực ngay</button>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="profile-section">
+                        <div class="profile-section__header">
+                            <h3 class="profile-section__title">Đổi mật khẩu</h3>
+                            <p class="profile-section__copy">Nhập mật khẩu hiện tại trước khi tạo mật khẩu mới.</p>
+                        </div>
+
+                        <div class="password-section__info">Mật khẩu mới cần có ít nhất 6 ký tự.</div>
+
+                        <form id="passwordForm">
+                            <div class="profile-form__field">
+                                <label class="profile-form__label">Mật khẩu hiện tại</label>
+                                <div class="password-input-wrapper">
+                                    <input type="password" name="current_password" class="profile-form__input" required>
+                                    <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                                        <span class="eye-icon">show</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="profile-form__grid">
+                                <div class="profile-form__field">
+                                    <label class="profile-form__label">Mật khẩu mới</label>
+                                    <div class="password-input-wrapper">
+                                        <input type="password" name="new_password" class="profile-form__input" required minlength="6">
+                                        <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                                            <span class="eye-icon">show</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="profile-form__field">
+                                    <label class="profile-form__label">Xác nhận mật khẩu mới</label>
+                                    <div class="password-input-wrapper">
+                                        <input type="password" name="confirm_password" class="profile-form__input" required>
+                                        <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                                            <span class="eye-icon">show</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="profile-form__submit">Cập nhật mật khẩu</button>
+                        </form>
+                    </section>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="empty-panel">
+                <h3>Vui lòng đăng nhập</h3>
+                <p>Bạn cần đăng nhập để truy cập khu vực tài khoản.</p>
+                <a href="/auth/login" class="btn btn-primary">Đăng nhập</a>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<script src="/js/user-profile.js"></script>
+
+<%- include('../partials/footer') %>
