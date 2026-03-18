@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+<% const extraPageStyles = Array.isArray(typeof pageStyles !== 'undefined' ? pageStyles : null) ? pageStyles : []; %>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <% extraPageStyles.forEach((href) => { %>
+        <link rel="stylesheet" href="<%= href %>">
+    <% }) %>
 </head>
 <body data-user-authenticated="<%= user ? 'true' : 'false' %>">
 <%
@@ -27,7 +31,7 @@
     <div class="header-main">
         <div class="container header-main__inner">
             <a href="/" class="header-brand" aria-label="WIND OF FALL">
-                <span class="header-brand__mark">WF</span>
+                <img src="/favicon.png" alt="WIND OF FALL" class="header-brand__mark">
                 <span class="header-brand__text">
                     <strong>WIND OF FALL</strong>
                     <small>Thời trang mặc đẹp mỗi ngày</small>
@@ -188,76 +192,3 @@
 </nav>
 
 <main>
-
-<script>
-(function() {
-    function initMobileMenuInline() {
-        var mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        var mobileNav = document.getElementById('mobileNav');
-        var mobileNavOverlay = document.getElementById('mobileNavOverlay');
-        var mobileNavClose = document.getElementById('mobileNavClose');
-
-        if (!mobileMenuBtn || !mobileNav || !mobileNavOverlay) return;
-        if (mobileMenuBtn.dataset.initialized) return;
-        mobileMenuBtn.dataset.initialized = 'true';
-
-        function openMobileMenu() {
-            mobileMenuBtn.classList.add('active');
-            mobileNav.classList.add('active');
-            mobileNavOverlay.classList.add('active');
-            document.body.classList.add('mobile-menu-open');
-        }
-
-        function closeMobileMenu() {
-            mobileMenuBtn.classList.remove('active');
-            mobileNav.classList.remove('active');
-            mobileNavOverlay.classList.remove('active');
-            document.body.classList.remove('mobile-menu-open');
-        }
-
-        mobileMenuBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (mobileNav.classList.contains('active')) {
-                closeMobileMenu();
-            } else {
-                openMobileMenu();
-            }
-        });
-
-        if (mobileNavClose) {
-            mobileNavClose.addEventListener('click', closeMobileMenu);
-        }
-
-        mobileNavOverlay.addEventListener('click', closeMobileMenu);
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && mobileNav.classList.contains('active')) {
-                closeMobileMenu();
-            }
-        });
-
-        var mobileNavLinks = mobileNav.querySelectorAll('a');
-        var mobileNavForms = mobileNav.querySelectorAll('form');
-
-        mobileNavLinks.forEach(function(link) {
-            link.addEventListener('click', closeMobileMenu);
-        });
-
-        mobileNavForms.forEach(function(form) {
-            form.addEventListener('submit', closeMobileMenu);
-        });
-
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 960 && mobileNav.classList.contains('active')) {
-                closeMobileMenu();
-            }
-        });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMobileMenuInline);
-    } else {
-        initMobileMenuInline();
-    }
-})();
-</script>

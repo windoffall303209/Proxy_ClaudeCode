@@ -23,7 +23,7 @@
                 <div class="cart-items-container">
                     <div class="cart-select-all">
                         <label>
-                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="cart-select-all__checkbox">
+                            <input type="checkbox" id="selectAll" class="cart-select-all__checkbox">
                             <span class="cart-select-all__text">Chọn tất cả (<%= cart.items.length %> sản phẩm)</span>
                         </label>
                     </div>
@@ -32,7 +32,7 @@
                         <% cart.items.forEach((item, index) => { %>
                             <div class="cart-item <%= index < cart.items.length - 1 ? 'cart-item--bordered' : '' %>" data-item-id="<%= item.id %>" data-price="<%= item.subtotal %>">
                                 <div class="cart-item__checkbox-wrapper">
-                                    <input type="checkbox" class="item-checkbox cart-item__checkbox" value="<%= item.id %>" data-price="<%= item.subtotal %>" onchange="updateSelectedTotal()">
+                                    <input type="checkbox" class="item-checkbox cart-item__checkbox" value="<%= item.id %>" data-price="<%= item.subtotal %>">
                                 </div>
 
                                 <div class="cart-item__image">
@@ -55,16 +55,16 @@
                                 </div>
 
                                 <div class="cart-item__quantity">
-                                    <button onclick="updateQuantity(<%= item.id %>, <%= item.quantity - 1 %>)" class="cart-item__qty-btn">-</button>
+                                    <button data-cart-action="update-quantity" data-item-id="<%= item.id %>" data-next-quantity="<%= item.quantity - 1 %>" class="cart-item__qty-btn">-</button>
                                     <input type="number" value="<%= item.quantity %>" min="1" readonly class="cart-item__qty-input">
-                                    <button onclick="updateQuantity(<%= item.id %>, <%= item.quantity + 1 %>)" class="cart-item__qty-btn">+</button>
+                                    <button data-cart-action="update-quantity" data-item-id="<%= item.id %>" data-next-quantity="<%= item.quantity + 1 %>" class="cart-item__qty-btn">+</button>
                                 </div>
 
                                 <div class="cart-item__subtotal">
                                     <p class="cart-item__subtotal-price"><%= item.subtotal.toLocaleString('vi-VN') %>đ</p>
                                 </div>
 
-                                <button onclick="removeItem(<%= item.id %>)" class="cart-item__remove" aria-label="Xóa sản phẩm">&times;</button>
+                                <button data-cart-action="remove-item" data-item-id="<%= item.id %>" class="cart-item__remove" aria-label="Xóa sản phẩm">&times;</button>
                             </div>
                         <% }) %>
                     </div>
@@ -94,7 +94,7 @@
                             <span id="selectedTotal" class="cart-summary__total-value">0đ</span>
                         </div>
 
-                        <button onclick="checkoutSelected()" id="checkoutBtn" disabled class="cart-summary__checkout-btn">
+                        <button id="checkoutBtn" type="button" disabled class="cart-summary__checkout-btn" data-cart-action="checkout-selected">
                             Thanh toán (<span id="checkoutCount">0</span>)
                         </button>
 

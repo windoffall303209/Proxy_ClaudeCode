@@ -1,16 +1,19 @@
-function togglePassword(inputId, btn) {
+function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
-    const eyeOpen = btn.querySelector('.eye-open');
-    const eyeClosed = btn.querySelector('.eye-closed');
+    if (!input || !button) {
+        return;
+    }
+    const eyeOpen = button.querySelector('.eye-open');
+    const eyeClosed = button.querySelector('.eye-closed');
 
     if (input.type === 'password') {
         input.type = 'text';
-        eyeOpen.style.display = 'none';
-        eyeClosed.style.display = 'block';
+        if (eyeOpen) eyeOpen.hidden = true;
+        if (eyeClosed) eyeClosed.hidden = false;
     } else {
         input.type = 'password';
-        eyeOpen.style.display = 'block';
-        eyeClosed.style.display = 'none';
+        if (eyeOpen) eyeOpen.hidden = false;
+        if (eyeClosed) eyeClosed.hidden = true;
     }
 }
 
@@ -37,6 +40,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     password.addEventListener('input', checkPasswordMatch);
     confirmPassword.addEventListener('input', checkPasswordMatch);
+
+    document.querySelectorAll('[data-password-target]').forEach((button) => {
+        button.addEventListener('click', () => {
+            togglePassword(button.dataset.passwordTarget, button);
+        });
+    });
 
     document.getElementById('registerForm').addEventListener('submit', function(e) {
         if (password.value !== confirmPassword.value) {

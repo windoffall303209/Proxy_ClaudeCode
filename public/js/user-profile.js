@@ -44,10 +44,10 @@ function initAvatarUpload() {
         reader.onload = function(loadEvent) {
             if (avatarImage) {
                 avatarImage.src = loadEvent.target.result;
-                avatarImage.style.display = 'block';
+                avatarImage.hidden = false;
             }
             if (avatarPlaceholder) {
-                avatarPlaceholder.style.display = 'none';
+                avatarPlaceholder.hidden = true;
             }
         };
         reader.readAsDataURL(file);
@@ -175,4 +175,12 @@ document.addEventListener('DOMContentLoaded', function() {
     initAvatarUpload();
     initProfileForm();
     initPasswordForm();
+
+    document.querySelectorAll('.password-toggle').forEach((button) => {
+        button.addEventListener('click', () => togglePassword(button));
+    });
+
+    document.querySelectorAll('[data-profile-action="show-developing"]').forEach((button) => {
+        button.addEventListener('click', showDevelopingAlert);
+    });
 });

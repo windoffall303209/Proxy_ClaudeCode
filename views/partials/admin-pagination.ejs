@@ -19,7 +19,7 @@
         <!-- Per-page selector -->
         <div class="admin-pagination__perpage">
             <label>Hiển thị</label>
-            <select id="perpageSelect" onchange="changePerPage(this.value)">
+            <select id="perpageSelect" data-admin-pagination="per-page">
                 <% [10, 20, 30, 40, 50].forEach(n => { %>
                     <option value="<%= n %>" <%= pagination.limit === n ? 'selected' : '' %>><%= n %></option>
                 <% }) %>

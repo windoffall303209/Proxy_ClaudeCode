@@ -58,8 +58,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (data.success) {
                 showAlert(data.message, 'success');
-                stepSend.style.display = 'none';
-                stepVerify.style.display = 'block';
+                stepSend.hidden = true;
+                stepVerify.hidden = false;
                 codeInputs[0].focus();
                 startResendTimer();
             } else {

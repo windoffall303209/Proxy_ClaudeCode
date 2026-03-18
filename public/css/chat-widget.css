@@ -221,6 +221,26 @@
     margin-bottom: 4px;
 }
 
+.chat-msg__content {
+    white-space: normal;
+}
+
+.chat-msg__content a {
+    color: #2563eb;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.chat-msg--customer .chat-msg__content a {
+    color: #fff;
+}
+
+.chat-msg--system .chat-msg__content a {
+    color: #0f172a;
+}
+
 .chat-msg__time {
     font-size: 10px;
     opacity: 0.6;

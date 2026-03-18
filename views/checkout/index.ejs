@@ -52,12 +52,12 @@
                                     </label>
                                 <% }) %>
                             </div>
-                            <button type="button" onclick="toggleAddressForm()" class="address-add-btn">Thêm địa chỉ mới</button>
+                            <button type="button" data-checkout-action="toggle-address-form" class="address-add-btn">Thêm địa chỉ mới</button>
                         <% } else { %>
                             <p class="checkout-section__text">Bạn chưa có địa chỉ giao hàng. Hãy tạo địa chỉ mới ở bên dưới.</p>
                         <% } %>
 
-                        <div id="newAddressForm" class="address-form" style="display: <%= (!addresses || addresses.length === 0) ? 'block' : 'none' %>;">
+                        <div id="newAddressForm" class="address-form" <%= (!addresses || addresses.length === 0) ? "" : "hidden" %>>
                             <h4 class="address-form__title">Địa chỉ mới</h4>
                             <div class="address-form__grid">
                                 <div>
@@ -73,7 +73,7 @@
                                 <div>
                                     <label class="address-form__label">Tỉnh / Thành phố*</label>
                                     <div class="address-form__select-wrapper">
-                                        <select id="newCity" class="address-form__select" onchange="loadDistricts()">
+                                        <select id="newCity" class="address-form__select">
                                             <option value="">-- Chọn Tỉnh/TP --</option>
                                         </select>
                                         <input type="hidden" id="newCityName">
@@ -82,7 +82,7 @@
                                 <div>
                                     <label class="address-form__label">Quận / Huyện*</label>
                                     <div class="address-form__select-wrapper">
-                                        <select id="newDistrict" class="address-form__select" onchange="loadWards()" disabled>
+                                        <select id="newDistrict" class="address-form__select" disabled>
                                             <option value="">-- Chọn Quận/Huyện --</option>
                                         </select>
                                         <input type="hidden" id="newDistrictName">
@@ -102,7 +102,7 @@
                                 <label class="address-form__label">Địa chỉ chi tiết*</label>
                                 <input type="text" id="newAddressLine" placeholder="Số nhà, tên đường, tòa nhà..." class="address-form__input">
                             </div>
-                            <button type="button" onclick="saveNewAddress()" class="address-form__submit">Lưu địa chỉ</button>
+                            <button type="button" data-checkout-action="save-address" class="address-form__submit">Lưu địa chỉ</button>
 
                             <div class="address-form__map-section">
                                 <label class="address-form__label">Bản đồ giao hàng (tùy chọn)</label>
@@ -229,7 +229,6 @@
                                                     data-value="<%= voucher.value %>"
                                                     data-min-order="<%= voucher.min_order_amount || 0 %>"
                                                     data-max-discount="<%= voucher.max_discount_amount || 0 %>"
-                                                    onclick="selectVoucher(this)"
                                                 >
                                                     <div class="voucher-card__icon"><%= voucher.type === 'percentage' ? '%' : 'đ' %></div>
                                                     <div class="voucher-card__content">
@@ -254,7 +253,7 @@
 
                                 <div class="voucher-section__input-group">
                                     <input type="text" id="voucherCode" name="voucher_code" placeholder="Nhập mã giảm giá" class="voucher-section__input">
-                                    <button type="button" onclick="applyVoucher()" class="voucher-section__btn">Áp dụng</button>
+                                    <button type="button" data-checkout-action="apply-voucher" class="voucher-section__btn">Áp dụng</button>
                                 </div>
                                 <div id="voucherMessage" class="voucher-section__message"></div>
                             </div>
@@ -286,12 +285,11 @@
 </div>
 
 <script src="/js/leaflet.js"></script>
-<script>
-window.checkoutData = {
-    subtotal: <%= cart.subtotal %>,
-    shippingFee: <%= cart.subtotal >= 500000 ? 0 : 30000 %>
-};
-</script>
+<script type="application/json" id="checkoutBootstrapData"><%- JSON.stringify({
+    mode: 'cart',
+    subtotal: cart.subtotal,
+    shippingFee: cart.subtotal >= 500000 ? 0 : 30000
+}).replace(/</g, '\u003c') %></script>
 <script src="/js/checkout.js"></script>
 
 <%- include('../partials/footer') %>

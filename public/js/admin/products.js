@@ -24,13 +24,69 @@ function showConfirm(message, title = 'Xác nhận', yesText = 'Xác nhận', ye
     });
 }
 
+function changePerPage(limit) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', '1');
+    url.searchParams.set('limit', limit);
+    window.location.href = url.toString();
+}
+
+function toggleProductSection(titleElement) {
+    const section = titleElement.closest('.admin-section--collapsible');
+    section?.classList.toggle('is-open');
+}
+
 const variantMediaState = {
-    create: { images: [], uploadCounter: 0, productId: null },
+    create: { images: [], uploadCounter: 0, productId: null, mainUploads: [] },
     edit: { images: [], uploadCounter: 0, productId: null }
 };
 
 function getModeState(mode) {
     return variantMediaState[mode];
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function revokePreviewUrl(previewUrl) {
+    if (typeof previewUrl === 'string' && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+    }
+}
+
+function getFileSignature(file) {
+    return `${file.name}::${file.size}::${file.lastModified}`;
+}
+
+function getCreateImagesPreview() {
+    return document.getElementById('createImagesPreview');
+}
+
+function createObjectPreviewUrl(file) {
+    if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        return URL.createObjectURL(file);
+    }
+
+    return null;
+}
+
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Cannot read file'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function getPreviewUrl(file) {
+    return readFileAsDataUrl(file);
 }
 
 function buildExistingImageOption(image) {
@@ -39,26 +95,30 @@ function buildExistingImageOption(image) {
         label: `Ảnh #${image.id}${image.is_primary ? ' (chính)' : ''}`,
         previewUrl: image.image_url,
         imageId: image.id,
-        kind: 'existing'
+        kind: 'existing',
+        fileName: `Anh #${image.id}`
     };
 }
 
-function buildMainImageOption(file, index) {
+function buildMainImageOption(upload, index) {
+    const file = upload.file;
     return {
         value: `main:${index}`,
         label: `Ảnh tải lên: ${file.name}`,
-        previewUrl: URL.createObjectURL(file),
-        kind: 'main'
+        previewUrl: upload.previewUrl,
+        kind: 'main',
+        fileName: file.name
     };
 }
 
-function buildUploadedImageOption(token, file) {
+function buildUploadedImageOption(token, file, previewUrl) {
     return {
         value: `upload:${token}`,
         label: `Ảnh variant: ${file.name}`,
-        previewUrl: URL.createObjectURL(file),
+        previewUrl,
         kind: 'upload',
-        token
+        token,
+        fileName: file.name
     };
 }
 
@@ -66,6 +126,9 @@ function upsertModeImage(mode, imageOption) {
     const state = getModeState(mode);
     const existingIndex = state.images.findIndex(image => image.value === imageOption.value);
     if (existingIndex >= 0) {
+        if (state.images[existingIndex].kind === 'upload') {
+            revokePreviewUrl(state.images[existingIndex].previewUrl);
+        }
         state.images[existingIndex] = imageOption;
     } else {
         state.images.push(imageOption);
@@ -74,32 +137,143 @@ function upsertModeImage(mode, imageOption) {
 
 function removeModeImage(mode, value) {
     const state = getModeState(mode);
+    const imageToRemove = state.images.find(image => image.value === value);
+    if (imageToRemove?.kind === 'upload') {
+        revokePreviewUrl(imageToRemove.previewUrl);
+    }
     state.images = state.images.filter(image => image.value !== value);
 }
 
 function resetModeImages(mode, images) {
     const state = getModeState(mode);
+    state.images
+        .filter(image => image.kind === 'upload')
+        .forEach(image => revokePreviewUrl(image.previewUrl));
     state.images = images.slice();
 }
 
 function getCreateForm() {
-    return document.querySelector('form[action="/admin/products"]');
+    return document.getElementById('createProductForm');
 }
 
 function getCreateImagesInput() {
-    return getCreateForm()?.querySelector('input[name="images"]');
+    return document.getElementById('createImagesInput');
+}
+
+function syncCreateImagesInputFromState() {
+    const input = getCreateImagesInput();
+    if (!input) return;
+
+    try {
+        const dataTransfer = new DataTransfer();
+        getModeState('create').mainUploads.forEach(upload => dataTransfer.items.add(upload.file));
+        input.files = dataTransfer.files;
+    } catch (error) {
+        console.warn('Cannot sync selected images back to file input:', error);
+    }
+}
+
+function renderCreateImagesPreview() {
+    const preview = getCreateImagesPreview();
+    if (!preview) return;
+
+    const uploads = getModeState('create').mainUploads;
+    if (uploads.length === 0) {
+        preview.setAttribute('hidden', 'hidden');
+        preview.style.display = 'none';
+        preview.innerHTML = '';
+        return;
+    }
+
+    preview.removeAttribute('hidden');
+    preview.style.display = 'flex';
+    preview.style.flexWrap = 'wrap';
+    preview.style.gap = '12px';
+    preview.style.marginTop = '12px';
+    preview.innerHTML = uploads.map((upload, index) => `
+        <div
+            class="product-upload-preview__item"
+            style="position: relative; width: 96px; height: 96px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(204, 191, 167, 0.88); background: #fff; box-shadow: 0 8px 20px rgba(24, 21, 15, 0.08); flex: 0 0 auto;"
+        >
+            <button
+                type="button"
+                class="product-upload-preview__remove"
+                data-file-key="${encodeURIComponent(upload.key)}"
+                title="Xoa anh nay"
+                aria-label="Xoa anh nay"
+                style="position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border: none; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: #dc2626; font-size: 14px; font-weight: 700; cursor: pointer; z-index: 1;"
+            >
+                x
+            </button>
+            ${index === 0 ? '<span class="product-upload-preview__badge" style="position: absolute; left: 6px; top: 6px; padding: 2px 6px; border-radius: 999px; background: rgba(102, 126, 234, 0.95); color: #fff; font-size: 9px; font-weight: 700; z-index: 1;">Chinh</span>' : ''}
+            <div class="product-upload-preview__thumb" style="width: 100%; height: 100%;">
+                <img src="${upload.previewUrl}" alt="${escapeHtml(upload.file.name)}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+            </div>
+        </div>
+    `).join('');
+
+    preview.querySelectorAll('.product-upload-preview__remove').forEach(button => {
+        button.addEventListener('click', () => {
+            removeCreateMainUpload(decodeURIComponent(button.dataset.fileKey));
+        });
+    });
+}
+
+async function addCreateMainUploads(files) {
+    const state = getModeState('create');
+    const existingKeys = new Set(state.mainUploads.map(upload => upload.key));
+    const filesToAdd = files
+        .map((file) => ({ file, key: getFileSignature(file) }))
+        .filter(({ key }) => !existingKeys.has(key));
+
+    const uploads = await Promise.all(
+        filesToAdd.map(async ({ file, key }) => ({
+            key,
+            file,
+            previewUrl: await getPreviewUrl(file)
+        }))
+    );
+
+    state.mainUploads.push(...uploads);
+}
+
+function removeCreateMainUpload(fileKey) {
+    const state = getModeState('create');
+    const uploadIndex = state.mainUploads.findIndex(upload => upload.key === fileKey);
+    if (uploadIndex < 0) return;
+
+    revokePreviewUrl(state.mainUploads[uploadIndex].previewUrl);
+    state.mainUploads.splice(uploadIndex, 1);
+    syncCreateMainImageOptions();
+    syncCreateImagesInputFromState();
+    collectVariants('create');
+}
+
+async function handleCreateImagesSelection() {
+    const input = getCreateImagesInput();
+    const selectedFiles = Array.from(input?.files || []);
+
+    if (selectedFiles.length === 0) {
+        if (getModeState('create').mainUploads.length === 0) {
+            syncCreateMainImageOptions();
+        }
+        return;
+    }
+
+    await addCreateMainUploads(selectedFiles);
+    syncCreateMainImageOptions();
+    syncCreateImagesInputFromState();
 }
 
 function syncCreateMainImageOptions() {
-    const input = getCreateImagesInput();
     const state = getModeState('create');
     state.images = state.images.filter(image => image.kind !== 'main');
 
-    const files = Array.from(input?.files || []);
-    files.forEach((file, index) => {
-        state.images.push(buildMainImageOption(file, index));
+    state.mainUploads.forEach((upload, index) => {
+        state.images.push(buildMainImageOption(upload, index));
     });
 
+    renderCreateImagesPreview();
     refreshVariantImageSelects('create');
 }
 
@@ -124,12 +298,20 @@ function updateVariantImagePreview(row, mode) {
 
     if (!selectedImage) {
         preview.innerHTML = '';
-        preview.style.display = 'none';
+        preview.classList.remove('is-visible');
         return;
     }
 
-    preview.style.display = 'flex';
-    preview.innerHTML = `<img src="${selectedImage.previewUrl}" alt="Ảnh biến thể">`;
+    const thumb = document.createElement('div');
+    thumb.className = 'variant-image-preview__thumb';
+
+    const img = document.createElement('img');
+    img.src = selectedImage.previewUrl;
+    img.alt = selectedImage.fileName || selectedImage.label || 'Variant image preview';
+    thumb.appendChild(img);
+
+    preview.replaceChildren(thumb);
+    preview.classList.add('is-visible');
 }
 
 function refreshVariantImageSelects(mode) {
@@ -156,7 +338,30 @@ function getNextUploadToken(mode) {
     return `${mode}-${Date.now()}-${state.uploadCounter}`;
 }
 
-function handleVariantFileSelection(fileInput, mode) {
+function syncVariantUploadInputNames(mode) {
+    const container = document.getElementById(`${mode}VariantsList`);
+    if (!container) return;
+
+    const activeTokens = new Set();
+    container.querySelectorAll('.variant-image-select').forEach(select => {
+        if (select.value.startsWith('upload:')) {
+            activeTokens.add(select.value.replace('upload:', ''));
+        }
+    });
+
+    container.querySelectorAll('.variant-image-file').forEach(fileInput => {
+        const token = fileInput.dataset.uploadToken;
+        if (!token) return;
+
+        if (activeTokens.has(token)) {
+            fileInput.name = `variant_image__${token}`;
+        } else {
+            fileInput.removeAttribute('name');
+        }
+    });
+}
+
+async function handleVariantFileSelection(fileInput, mode) {
     const file = fileInput.files && fileInput.files[0];
     const row = fileInput.closest('.variant-row');
     if (!row) return;
@@ -179,8 +384,8 @@ function handleVariantFileSelection(fileInput, mode) {
         fileInput.dataset.uploadToken = token;
     }
 
-    fileInput.name = `variant_image__${token}`;
-    upsertModeImage(mode, buildUploadedImageOption(token, file));
+    const previewUrl = await getPreviewUrl(file);
+    upsertModeImage(mode, buildUploadedImageOption(token, file, previewUrl));
     refreshVariantImageSelects(mode);
 
     const select = row.querySelector('.variant-image-select');
@@ -292,8 +497,8 @@ async function loadProductImages(productId) {
                     <img src="${img.image_url}" alt="" style="width: 100%; height: 120px; object-fit: cover;">
                     ${img.is_primary ? '<span style="position: absolute; top: 5px; left: 5px; background: #667eea; color: white; padding: 2px 6px; font-size: 10px; border-radius: 4px;">Chính</span>' : ''}
                     <div style="position: absolute; bottom: 5px; right: 5px; display: flex; gap: 5px;">
-                        ${!img.is_primary ? `<button onclick="setPrimaryImage(${img.id})" style="padding: 3px 8px; font-size: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">★</button>` : ''}
-                        <button onclick="deleteImage(${img.id})" style="padding: 3px 8px; font-size: 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">×</button>
+                        ${!img.is_primary ? `<button data-image-action="set-primary" data-image-id="${img.id}" style="padding: 3px 8px; font-size: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">★</button>` : ''}
+                        <button data-image-action="delete" data-image-id="${img.id}" style="padding: 3px 8px; font-size: 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">×</button>
                     </div>
                 </div>
             `).join('');
@@ -383,7 +588,7 @@ function addVariantRow(mode, data = {}) {
     row.className = 'variant-row';
     row.innerHTML = `
         <input type="hidden" class="variant-id" value="${data.id || ''}">
-        <div class="variant-row__field">
+        <div class="variant-row__field variant-row__field--size">
             <span class="variant-row__label">Size</span>
             <select class="variant-size">
                 <option value="" ${!data.size ? 'selected' : ''}>Chọn size</option>
@@ -395,7 +600,7 @@ function addVariantRow(mode, data = {}) {
                 <option value="Free Size" ${data.size === 'Free Size' ? 'selected' : ''}>Free Size</option>
             </select>
         </div>
-        <div class="variant-row__field">
+        <div class="variant-row__field variant-row__field--color">
             <span class="variant-row__label">Màu sắc</span>
             <select class="variant-color">
                 <option value="" ${!data.color ? 'selected' : ''}>Chọn màu</option>
@@ -414,15 +619,15 @@ function addVariantRow(mode, data = {}) {
                 <option value="Kem" ${data.color === 'Kem' ? 'selected' : ''}>Kem</option>
             </select>
         </div>
-        <div class="variant-row__field">
+        <div class="variant-row__field variant-row__field--price">
             <span class="variant-row__label">Giá cộng thêm</span>
             <input type="number" placeholder="0" value="${data.additional_price || 0}" class="variant-price" min="0">
         </div>
-        <div class="variant-row__field">
+        <div class="variant-row__field variant-row__field--stock">
             <span class="variant-row__label">Tồn kho</span>
             <input type="number" placeholder="0" value="${data.stock_quantity || 0}" class="variant-stock" min="0">
         </div>
-        <div class="variant-row__field">
+        <div class="variant-row__field variant-row__field--sku">
             <span class="variant-row__label">SKU</span>
             <input type="text" placeholder="Mã SKU" value="${data.sku || ''}" class="variant-sku">
         </div>
@@ -441,7 +646,7 @@ function addVariantRow(mode, data = {}) {
             <div class="variant-image-preview"></div>
         </div>
         <div class="variant-row__action">
-            <button type="button" class="variant-remove-btn" title="Xóa biến thể" aria-label="Xóa biến thể">×</button>
+            <button type="button" class="variant-remove-btn" title="Xoa bien the" aria-label="Xoa bien the">x</button>
         </div>
     `;
 
@@ -455,7 +660,10 @@ function addVariantRow(mode, data = {}) {
         const eventName = input.type === 'file' ? 'change' : (input.tagName === 'SELECT' ? 'change' : 'input');
         input.addEventListener(eventName, () => {
             if (input.classList.contains('variant-image-file')) {
-                handleVariantFileSelection(input, mode);
+                handleVariantFileSelection(input, mode).catch(error => {
+                    console.error('Variant image preview error:', error);
+                });
+                return;
             }
             if (input.classList.contains('variant-image-select')) {
                 updateVariantImagePreview(row, mode);
@@ -508,6 +716,7 @@ function collectVariants(mode) {
     });
 
     document.getElementById(`${mode}VariantsJson`).value = JSON.stringify(variants);
+    syncVariantUploadInputNames(mode);
 }
 
 function initAdminProducts() {
@@ -521,9 +730,14 @@ function initAdminProducts() {
         imageModalFileInput.multiple = true;
     }
 
-    createImagesInput?.addEventListener('change', syncCreateMainImageOptions);
+    createImagesInput?.addEventListener('change', () => {
+        handleCreateImagesSelection().catch(error => {
+            console.error('Create image preview error:', error);
+        });
+    });
 
     createForm?.addEventListener('submit', function () {
+        syncCreateImagesInputFromState();
         syncCreateMainImageOptions();
         collectVariants('create');
     });
@@ -602,6 +816,83 @@ function initAdminProducts() {
     document.getElementById('imageModal')?.addEventListener('click', function (e) {
         if (e.target === this) closeImageModal();
     });
+    document.getElementById('perpageSelect')?.addEventListener('change', (event) => {
+        changePerPage(event.target.value);
+    });
+
+    document.querySelectorAll('[data-admin-toggle="section"]').forEach((button) => {
+        button.addEventListener('click', () => toggleProductSection(button));
+    });
+
+    document.addEventListener('click', (event) => {
+        const actionButton = event.target.closest('[data-product-action]');
+        if (actionButton) {
+            const action = actionButton.dataset.productAction;
+
+            if (action === 'add-variant') {
+                addVariantRow(actionButton.dataset.productMode);
+                return;
+            }
+
+            if (action === 'open-image-modal') {
+                openImageModal(Number(actionButton.dataset.productId), actionButton.dataset.productName || '');
+                return;
+            }
+
+            if (action === 'open-edit-modal') {
+                openEditModal(
+                    Number(actionButton.dataset.productId),
+                    actionButton.dataset.productName || '',
+                    actionButton.dataset.productCategoryId || null,
+                    Number(actionButton.dataset.productPrice || 0),
+                    Number(actionButton.dataset.productStock || 0),
+                    actionButton.dataset.productDescription || ''
+                );
+                return;
+            }
+
+            if (action === 'delete-product') {
+                deleteProduct(Number(actionButton.dataset.productId));
+                return;
+            }
+
+            if (action === 'close-edit-modal') {
+                closeEditModal();
+                return;
+            }
+
+            if (action === 'close-image-modal') {
+                closeImageModal();
+                return;
+            }
+
+            if (action === 'add-image-url') {
+                addImageByUrl();
+                return;
+            }
+        }
+
+        const imageActionButton = event.target.closest('[data-image-action]');
+        if (!imageActionButton) {
+            return;
+        }
+
+        const imageId = Number(imageActionButton.dataset.imageId);
+        if (!imageId) {
+            return;
+        }
+
+        if (imageActionButton.dataset.imageAction === 'set-primary') {
+            setPrimaryImage(imageId);
+            return;
+        }
+
+        if (imageActionButton.dataset.imageAction === 'delete') {
+            deleteImage(imageId);
+        }
+    });
+
+    syncCreateMainImageOptions();
 }
 
 document.addEventListener('DOMContentLoaded', initAdminProducts);

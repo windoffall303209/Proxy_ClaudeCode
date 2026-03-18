@@ -478,6 +478,14 @@
     color: var(--gray-700);
 }
 
+.voucher-section__message[data-state="success"] {
+    color: var(--success);
+}
+
+.voucher-section__message[data-state="error"] {
+    color: var(--danger);
+}
+
 .discount-row {
     display: none;
     align-items: center;

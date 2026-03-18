@@ -18,9 +18,9 @@
                     <div class="profile-avatar">
                         <% if (user.avatar_url) { %>
                             <img src="<%= user.avatar_url %>" alt="Avatar" class="profile-avatar__image" id="avatarImage">
-                            <div class="profile-avatar__placeholder" id="avatarPlaceholder" style="display: none;">WF</div>
+                            <div class="profile-avatar__placeholder" id="avatarPlaceholder" hidden>WF</div>
                         <% } else { %>
-                            <img src="" alt="Avatar" class="profile-avatar__image" id="avatarImage" style="display: none;">
+                            <img src="" alt="Avatar" class="profile-avatar__image" id="avatarImage" hidden>
                             <div class="profile-avatar__placeholder" id="avatarPlaceholder">WF</div>
                         <% } %>
                         <label class="profile-avatar__upload" title="Thay đổi ảnh đại diện">
@@ -101,7 +101,7 @@
                                         <span class="verification-badge verification-badge--verified">Đã xác thực</span>
                                     <% } else { %>
                                         <span class="verification-badge verification-badge--unverified">Chưa xác thực</span>
-                                        <button type="button" class="verify-btn" onclick="showDevelopingAlert()">Xác thực ngay</button>
+                                        <button type="button" class="verify-btn" data-profile-action="show-developing">Xác thực ngay</button>
                                     <% } %>
                                 </div>
                             </div>
@@ -121,7 +121,7 @@
                                 <label class="profile-form__label">Mật khẩu hiện tại</label>
                                 <div class="password-input-wrapper">
                                     <input type="password" name="current_password" class="profile-form__input" required>
-                                    <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                                    <button type="button" class="password-toggle">
                                         <span class="eye-icon">show</span>
                                     </button>
                                 </div>
@@ -132,7 +132,7 @@
                                     <label class="profile-form__label">Mật khẩu mới</label>
                                     <div class="password-input-wrapper">
                                         <input type="password" name="new_password" class="profile-form__input" required minlength="6">
-                                        <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                                        <button type="button" class="password-toggle">
                                             <span class="eye-icon">show</span>
                                         </button>
                                     </div>
@@ -141,7 +141,7 @@
                                     <label class="profile-form__label">Xác nhận mật khẩu mới</label>
                                     <div class="password-input-wrapper">
                                         <input type="password" name="confirm_password" class="profile-form__input" required>
-                                        <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                                        <button type="button" class="password-toggle">
                                             <span class="eye-icon">show</span>
                                         </button>
                                     </div>

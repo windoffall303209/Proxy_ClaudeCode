@@ -1,0 +1,207 @@
+/* Page Header */
+.admin-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.admin-page-header__left h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    margin: 0 0 4px 0;
+}
+
+.admin-page-header__left p {
+    font-size: 14px;
+    color: var(--admin-text-secondary);
+    margin: 0;
+}
+
+/* Stat Card with Icon */
+.stat-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.stat-card--purple .stat-card__icon {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.stat-card--pink .stat-card__icon {
+    background: rgba(236, 72, 153, 0.15);
+    color: #ec4899;
+}
+
+.stat-card--blue .stat-card__icon {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.stat-card--green .stat-card__icon {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+/* Section Header */
+.admin-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Order Customer */
+.order-customer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.order-customer__name {
+    font-weight: 500;
+    color: var(--admin-text-primary);
+}
+
+/* Order Date */
+.order-date {
+    font-size: 13px;
+    color: var(--admin-text-secondary);
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    background: var(--admin-card-bg);
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--admin-text-primary);
+    transition: all 0.2s;
+}
+
+.quick-action:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--admin-shadow-md);
+    border-color: var(--admin-accent);
+}
+
+.quick-action__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quick-action__icon--blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.quick-action__icon--purple {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.quick-action__icon--pink {
+    background: rgba(236, 72, 153, 0.1);
+    color: #ec4899;
+}
+
+.quick-action__icon--green {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.quick-action span {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Admin Button Ghost */
+.admin-btn--ghost {
+    background: transparent;
+    color: var(--admin-text-secondary);
+    border: 1px solid var(--admin-border);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-btn--ghost:hover {
+    background: var(--admin-bg);
+    color: var(--admin-text-primary);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-section__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}
+
+.stats-grid--spaced {
+    margin-top: 24px;
+}
+
+.stat-card__icon--users {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--admin-accent);
+}
+
+.stat-card__icon--products {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.stat-card__icon--completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--admin-success);
+}
+
+.stat-card__icon--cancelled {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--admin-danger);
+}
+
+.admin-section--spaced,
+.admin-empty--spaced {
+    margin-top: 32px;
+}

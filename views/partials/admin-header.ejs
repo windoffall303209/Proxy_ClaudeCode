@@ -1,147 +1,194 @@
 <!DOCTYPE html>
 <html lang="vi">
+<%
+    const adminPages = {
+        dashboard: { label: 'Bảng điều khiển', group: 'Tổng quan' },
+        products: { label: 'Sản phẩm', group: 'Danh mục bán hàng' },
+        orders: { label: 'Đơn hàng', group: 'Vận hành bán hàng' },
+        users: { label: 'Người dùng', group: 'Quản trị tài khoản' },
+        banners: { label: 'Banner', group: 'Nội dung hiển thị' },
+        sales: { label: 'Khuyến mãi', group: 'Giá và ưu đãi' },
+        vouchers: { label: 'Voucher', group: 'Giá và ưu đãi' },
+        chat: { label: 'Chat khách hàng', group: 'Chăm sóc khách hàng' }
+    };
 
+    const pageMeta = adminPages[currentPage] || { label: 'Quản trị', group: 'Back office' };
+    const adminUserName = user && user.full_name ? user.full_name : 'Quản trị viên';
+    const adminUserEmail = user && user.email ? user.email : 'admin@windoffall.local';
+    const adminUserInitial = adminUserName.trim().charAt(0).toUpperCase();
+    const todayLabel = new Date().toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+    const isChatPage = currentPage === 'chat';
+    const extraAdminPageStyles = Array.isArray(typeof pageStyles !== 'undefined' ? pageStyles : null) ? pageStyles : [];
+%>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - WIND OF FALL</title>
-    <link rel="icon" type="image/jpeg"
-        href="https://res.cloudinary.com/drs7xrtxo/image/upload/v1773135637/z7606467693465_9fdaa8e775a54c925e4ce37b258ca07b_yo7jhg.jpg">
+    <title><%= pageMeta.label %> | Admin WIND OF FALL</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/admin.css">
     <link rel="stylesheet" href="/css/admin-animations.css">
+    <link rel="stylesheet" href="/css/admin-overhaul.css">
+    <% extraAdminPageStyles.forEach((href) => { %>
+        <link rel="stylesheet" href="<%= href %>">
+    <% }) %>
 </head>
 
-<body class="admin-body">
-
-    <!-- Admin Sidebar -->
+<body class="admin-body admin-body--<%= currentPage %>">
     <aside class="admin-sidebar" id="adminSidebar">
-        <div class="admin-sidebar__logo">
-            <a href="/admin/dashboard">
-                WIND OF FALL
-                <span>Admin</span>
+        <div class="admin-sidebar__brand">
+            <a href="/admin/dashboard" class="admin-sidebar__brand-link">
+                <img src="/favicon.png" alt="WIND OF FALL" class="admin-sidebar__brand-mark">
+                <span class="admin-sidebar__brand-copy">
+                    <strong>WIND OF FALL</strong>
+                    <small>Back office control</small>
+                </span>
             </a>
         </div>
 
-        <nav class="admin-sidebar__nav">
-            <a href="/admin/dashboard" class="<%= currentPage === 'dashboard' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                </svg>
-                <span>Bảng điều khiển</span>
-            </a>
-            <a href="/admin/products" class="<%= currentPage === 'products' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path
-                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                </svg>
-                <span>Sản phẩm</span>
-            </a>
-            <a href="/admin/orders" class="<%= currentPage === 'orders' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                    <line x1="3" y1="6" x2="21" y2="6" />
-                    <path d="M16 10a4 4 0 0 1-8 0" />
-                </svg>
-                <span>Đơn hàng</span>
-            </a>
-            <a href="/admin/users" class="<%= currentPage === 'users' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                <span>Người dùng</span>
-            </a>
-            <a href="/admin/banners" class="<%= currentPage === 'banners' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <polyline points="21 15 16 10 5 21" />
-                </svg>
-                <span>Banner</span>
-            </a>
-            <a href="/admin/sales" class="<%= currentPage === 'sales' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="19" y1="5" x2="5" y2="19" />
-                    <circle cx="6.5" cy="6.5" r="2.5" />
-                    <circle cx="17.5" cy="17.5" r="2.5" />
-                </svg>
-                <span>Khuyến mãi</span>
-            </a>
-            <a href="/admin/vouchers" class="<%= currentPage === 'vouchers' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" />
-                    <path d="M2 7h20v5H2z" />
-                    <path d="M12 22V7" />
-                    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
-                    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-                </svg>
-                <span>Voucher</span>
-            </a>
-            <a href="/chat/admin" class="<%= currentPage === 'chat' ? 'active' : '' %>">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-                <span>Chat</span>
-            </a>
-        </nav>
+        <div class="admin-sidebar__section">
+            <nav class="admin-sidebar__nav">
+                <a href="/admin/dashboard" class="<%= currentPage === 'dashboard' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Dashboard</strong>
+                    </span>
+                </a>
+                <a href="/admin/products" class="<%= currentPage === 'products' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Sản phẩm</strong>
+                    </span>
+                </a>
+                <a href="/admin/orders" class="<%= currentPage === 'orders' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <path d="M16 10a4 4 0 0 1-8 0" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Đơn hàng</strong>
+                    </span>
+                </a>
+                <a href="/admin/users" class="<%= currentPage === 'users' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Người dùng</strong>
+                    </span>
+                </a>
+                <a href="/admin/banners" class="<%= currentPage === 'banners' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Banner</strong>
+                    </span>
+                </a>
+                <a href="/admin/sales" class="<%= currentPage === 'sales' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="5" x2="5" y2="19" />
+                        <circle cx="6.5" cy="6.5" r="2.5" />
+                        <circle cx="17.5" cy="17.5" r="2.5" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Khuyến mãi</strong>
+                    </span>
+                </a>
+                <a href="/admin/vouchers" class="<%= currentPage === 'vouchers' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" />
+                        <path d="M2 7h20v5H2z" />
+                        <path d="M12 22V7" />
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Voucher</strong>
+                    </span>
+                </a>
+                <a href="/chat/admin" class="<%= currentPage === 'chat' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Chat</strong>
+                    </span>
+                </a>
+            </nav>
+        </div>
 
         <div class="admin-sidebar__bottom">
-            <% if (user) { %>
-                <div class="admin-sidebar__user">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                    </svg>
-                    <span>
-                        <%= user.email %>
-                    </span>
+            <div class="admin-sidebar__profile">
+                <span class="admin-sidebar__profile-avatar"><%= adminUserInitial %></span>
+                <div class="admin-sidebar__profile-copy">
+                    <strong><%= adminUserName %></strong>
+                    <span><%= adminUserEmail %></span>
                 </div>
-                <% } %>
-                    <a href="/" class="admin-sidebar__link">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                            <polyline points="9 22 9 12 15 12 15 22" />
+            </div>
+
+            <div class="admin-sidebar__actions">
+                <a href="/" class="admin-sidebar__link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    <span>Xem storefront</span>
+                </a>
+                <form action="/auth/logout" method="POST" class="admin-sidebar__logout-form">
+                    <button type="submit" class="admin-sidebar__link admin-sidebar__link--danger">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
                         </svg>
-                        <span>Xem cửa hàng</span>
-                    </a>
-                    <form action="/auth/logout" method="POST" class="admin-sidebar__logout-form">
-                        <button type="submit" class="admin-sidebar__link admin-sidebar__link--danger">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                <polyline points="16 17 21 12 16 7" />
-                                <line x1="21" y1="12" x2="9" y2="12" />
-                            </svg>
-                            <span>Đăng xuất</span>
-                        </button>
-                    </form>
+                        <span>Đăng xuất</span>
+                    </button>
+                </form>
+            </div>
         </div>
     </aside>
 
-    <!-- Mobile Header -->
     <header class="admin-topbar">
-        <button class="admin-topbar__toggle" id="adminMobileMenuBtn" aria-label="Menu">
+        <button class="admin-topbar__toggle" id="adminMobileMenuBtn" aria-label="Mở menu">
             <span></span>
             <span></span>
             <span></span>
         </button>
-        <div class="admin-topbar__logo">
-            <a href="/admin/dashboard">WIND OF FALL <span>Admin</span></a>
-        </div>
+
+        <a href="/admin/dashboard" class="admin-topbar__brand">
+            <img src="/favicon.png" alt="WIND OF FALL" class="admin-topbar__brand-mark">
+            <span class="admin-topbar__brand-copy">
+                <strong>WIND OF FALL</strong>
+                <small>Admin</small>
+            </span>
+        </a>
+
         <div class="admin-topbar__actions">
-            <a href="/" title="Xem cửa hàng">
+            <a href="/" title="Xem storefront">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                     <polyline points="9 22 9 12 15 12 15 22" />
@@ -159,70 +206,7 @@
         </div>
     </header>
 
-    <!-- Mobile Overlay -->
     <div class="admin-mobile-overlay" id="adminMobileOverlay"></div>
 
-    <!-- Main Content Wrapper -->
     <div class="admin-main-wrapper">
         <main class="admin-main-content">
-
-            <script>
-                (function () {
-                    var savedScrollY = 0;
-
-                    function initAdminMobileMenu() {
-                        var btn = document.getElementById('adminMobileMenuBtn');
-                        var sidebar = document.getElementById('adminSidebar');
-                        var overlay = document.getElementById('adminMobileOverlay');
-
-                        if (!btn || !sidebar) return;
-                        if (btn.dataset.initialized) return;
-                        btn.dataset.initialized = 'true';
-
-                        function openMenu() {
-                            savedScrollY = window.scrollY;
-                            btn.classList.add('active');
-                            sidebar.classList.add('active');
-                            if (overlay) overlay.classList.add('active');
-                            document.body.classList.add('admin-menu-open');
-                            document.body.style.top = '-' + savedScrollY + 'px';
-                        }
-
-                        function closeMenu() {
-                            btn.classList.remove('active');
-                            sidebar.classList.remove('active');
-                            if (overlay) overlay.classList.remove('active');
-                            document.body.classList.remove('admin-menu-open');
-                            document.body.style.top = '';
-                            window.scrollTo(0, savedScrollY);
-                        }
-
-                        function toggleMenu() {
-                            if (sidebar.classList.contains('active')) {
-                                closeMenu();
-                            } else {
-                                openMenu();
-                            }
-                        }
-
-                        btn.addEventListener('click', toggleMenu);
-                        if (overlay) {
-                            overlay.addEventListener('click', closeMenu);
-                        }
-
-                        document.addEventListener('keydown', function (e) {
-                            if (e.key === 'Escape') closeMenu();
-                        });
-
-                        window.addEventListener('resize', function () {
-                            if (window.innerWidth > 1024) closeMenu();
-                        });
-                    }
-
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', initAdminMobileMenu);
-                    } else {
-                        initAdminMobileMenu();
-                    }
-                })();
-            </script>

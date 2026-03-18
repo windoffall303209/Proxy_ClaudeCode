@@ -1,0 +1,14 @@
+.error-page__container {
+    text-align: center;
+    padding: 100px 20px;
+}
+
+.error-page__title {
+    font-size: 72px;
+    margin-bottom: 20px;
+}
+
+.error-page__message {
+    font-size: 24px;
+    margin-bottom: 30px;
+}

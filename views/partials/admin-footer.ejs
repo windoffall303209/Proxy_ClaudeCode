@@ -1,13 +1,27 @@
 </main>
-</div><!-- .admin-main-wrapper -->
+</div>
+<% const extraAdminPageScripts = Array.isArray(typeof pageScripts !== 'undefined' ? pageScripts : null) ? pageScripts : []; %>
 
 <% const shouldHideAdminFooter = typeof hideAdminFooter !== 'undefined' && hideAdminFooter; %>
 <% if (!shouldHideAdminFooter) { %>
-<footer style="background: #1a1a2e; color: white; padding: 20px; text-align: center;">
-    <p>© 2024 WIND OF FALL Admin Panel. All rights reserved.</p>
+<footer class="admin-footer">
+    <div class="admin-footer__inner">
+        <div>
+            <strong>WIND OF FALL Admin</strong>
+            <p>Back office cho sản phẩm, đơn hàng, ưu đãi và chăm sóc khách hàng.</p>
+        </div>
+        <div class="admin-footer__meta">
+            <span>Storefront nội bộ</span>
+            <span>Thiết kế đồng bộ cùng user UI</span>
+        </div>
+    </div>
 </footer>
 <% } %>
 
 <script src="/js/toast.js"></script>
+<script src="/js/admin/admin-shell.js"></script>
+<% extraAdminPageScripts.forEach((src) => { %>
+<script src="<%= src %>"></script>
+<% }) %>
 </body>
 </html>

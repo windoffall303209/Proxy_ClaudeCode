@@ -1,15 +1,15 @@
 <!-- Chat Widget - Include in footer.ejs -->
 <div id="chatWidget" class="chat-widget">
     <!-- Chat Toggle Button -->
-    <button class="chat-widget__toggle" id="chatToggleBtn" onclick="toggleChatWidget()">
+    <button class="chat-widget__toggle" id="chatToggleBtn" type="button">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
-        <span class="chat-widget__badge" id="chatBadge" style="display:none;">0</span>
+        <span class="chat-widget__badge" id="chatBadge" hidden>0</span>
     </button>
 
     <!-- Chat Box -->
-    <div class="chat-widget__box" id="chatBox" style="display:none;">
+    <div class="chat-widget__box" id="chatBox" hidden>
         <div class="chat-widget__header">
             <div class="chat-widget__header-info">
                 <div class="chat-widget__avatar">WF</div>
@@ -20,7 +20,7 @@
                     </div>
                 </div>
             </div>
-            <button class="chat-widget__close" onclick="toggleChatWidget()">
+            <button class="chat-widget__close" type="button">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
@@ -35,7 +35,7 @@
         </div>
 
         <div class="chat-widget__input-area">
-            <form id="chatForm" onsubmit="sendChatMessage(event)">
+            <form id="chatForm">
                 <input type="text" id="chatInput" placeholder="Nhập tin nhắn..."
                        autocomplete="off" maxlength="500">
                 <button type="submit" id="chatSendBtn">

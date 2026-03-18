@@ -285,6 +285,14 @@
     font-weight: 600;
 }
 
+.variant-stock[data-state="in-stock"] {
+    color: #247a55;
+}
+
+.variant-stock[data-state="out-of-stock"] {
+    color: #c6402d;
+}
+
 .product-info__actions {
     display: flex;
     gap: 12px;

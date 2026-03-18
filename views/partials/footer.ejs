@@ -1,4 +1,5 @@
 </main>
+<% const extraPageScripts = Array.isArray(typeof pageScripts !== 'undefined' ? pageScripts : null) ? pageScripts : []; %>
 
 <footer class="footer">
     <section class="footer-newsletter" id="newsletter-section">
@@ -14,11 +15,11 @@
                     <input type="email" name="email" id="newsletter-email" placeholder="Email của bạn" required>
                     <button type="submit" id="newsletter-btn">Đăng ký ngay</button>
                 </form>
-                <div id="newsletter-success" class="newsletter-success" style="display: none;">
+                <div id="newsletter-success" class="newsletter-success" hidden>
                     Bạn đã đăng ký nhận tin khuyến mại thành công.
                 </div>
-                <div id="newsletter-error" class="newsletter-error" style="display: none;"></div>
-                <button type="button" class="newsletter-dismiss" onclick="dismissNewsletterBanner()">Tạm ẩn</button>
+                <div id="newsletter-error" class="newsletter-error" hidden></div>
+                <button type="button" class="newsletter-dismiss">Tạm ẩn</button>
             </div>
         </div>
     </section>
@@ -109,5 +110,8 @@
 <script src="/js/toast.js"></script>
 <script src="/js/main.js"></script>
 <script src="/js/chat-widget.js"></script>
+<% extraPageScripts.forEach((src) => { %>
+<script src="<%= src %>"></script>
+<% }) %>
 </body>
 </html>

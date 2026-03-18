@@ -43,12 +43,53 @@ const upload = multer({
     fileFilter: fileFilter
 });
 
+async function uploadSingleFile(file, folder) {
+    const localPath = file.path;
+
+    try {
+        const result = await uploadToCloudinary(localPath, { folder });
+
+        if (result.success) {
+            file.cloudinaryUrl = result.url;
+            file.cloudinaryPublicId = result.public_id;
+        } else {
+            console.error('âŒ Cloudinary upload failed:', result.error);
+        }
+    } finally {
+        cleanupTempFile(localPath);
+    }
+}
+
 /**
  * Middleware to upload files to Cloudinary (cloud only)
  * After multer saves to temp, this uploads to Cloudinary then deletes the temp file
  */
 const uploadToCloud = async (req, res, next) => {
     try {
+        if (req.file) {
+            await uploadSingleFile(req.file, 'tmdt_ecommerce/products');
+            next();
+            return;
+        }
+
+        if (req.files && Array.isArray(req.files)) {
+            await Promise.all(
+                req.files.map((file) => uploadSingleFile(file, 'tmdt_ecommerce/products'))
+            );
+            next();
+            return;
+        }
+
+        if (req.files && !Array.isArray(req.files)) {
+            const uploads = Object.entries(req.files).flatMap(([fieldName, files]) =>
+                files.map((file) => uploadSingleFile(file, `tmdt_ecommerce/${fieldName}`))
+            );
+
+            await Promise.all(uploads);
+            next();
+            return;
+        }
+
         // Handle single file
         if (req.file) {
             const localPath = req.file.path;

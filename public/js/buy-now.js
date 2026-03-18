@@ -1,16 +1,51 @@
 let currentDiscount = 0;
+let buyNowRuntimeData = null;
 
-async function applyVoucher() {
-    const codeInput = document.getElementById('voucherCode');
-    const messageDiv = document.getElementById('voucherMessage');
-    const code = codeInput.value.trim();
+function readBuyNowBootstrapData() {
+    if (buyNowRuntimeData) {
+        return buyNowRuntimeData;
+    }
 
-    if (!code) {
-        messageDiv.innerHTML = '<span style="color: #c6402d;">Vui lòng nhập mã giảm giá</span>';
+    const bootstrapElement = document.getElementById('checkoutBootstrapData');
+    if (!bootstrapElement?.textContent) {
+        buyNowRuntimeData = {};
+        return buyNowRuntimeData;
+    }
+
+    try {
+        buyNowRuntimeData = JSON.parse(bootstrapElement.textContent);
+    } catch (error) {
+        console.error('Buy now bootstrap parse error:', error);
+        buyNowRuntimeData = {};
+    }
+
+    return buyNowRuntimeData;
+}
+
+function setBuyNowVoucherMessage(message, type = '') {
+    const messageElement = document.getElementById('voucherMessage');
+    if (!messageElement) {
         return;
     }
 
-    const data = window.buyNowData;
+    messageElement.textContent = message || '';
+    if (type) {
+        messageElement.dataset.state = type;
+    } else {
+        delete messageElement.dataset.state;
+    }
+}
+
+async function applyVoucher() {
+    const codeInput = document.getElementById('voucherCode');
+    const code = codeInput?.value.trim();
+
+    if (!code) {
+        setBuyNowVoucherMessage('Vui lòng nhập mã giảm giá', 'error');
+        return;
+    }
+
+    const data = readBuyNowBootstrapData();
 
     try {
         const response = await fetch('/orders/validate-voucher', {
@@ -31,26 +66,29 @@ async function applyVoucher() {
 
         if (!response.ok || !result.success) {
             currentDiscount = 0;
-            messageDiv.innerHTML = `<span style="color: #c6402d;">${result.message || 'Mã giảm giá không hợp lệ'}</span>`;
+            setBuyNowVoucherMessage(result.message || 'Mã giảm giá không hợp lệ', 'error');
             updateTotals();
             return;
         }
 
         currentDiscount = result.discount_amount || 0;
-        messageDiv.innerHTML = `<span style="color: #247a55;">${result.message} - Giảm ${currentDiscount.toLocaleString('vi-VN')}đ</span>`;
+        setBuyNowVoucherMessage(
+            `${result.message} - Giảm ${currentDiscount.toLocaleString('vi-VN')}đ`,
+            'success'
+        );
     } catch (error) {
         console.error('Buy now voucher validation error:', error);
         currentDiscount = 0;
-        messageDiv.innerHTML = '<span style="color: #c6402d;">Có lỗi xảy ra khi kiểm tra voucher</span>';
+        setBuyNowVoucherMessage('Có lỗi xảy ra khi kiểm tra voucher', 'error');
     }
 
     updateTotals();
 }
 
 function updateTotals() {
-    const data = window.buyNowData;
-    const subtotal = data.subtotal;
-    const shippingFee = data.shippingFee;
+    const data = readBuyNowBootstrapData();
+    const subtotal = data.subtotal || 0;
+    const shippingFee = data.shippingFee || 0;
 
     document.getElementById('discountInput').value = currentDiscount;
     document.getElementById('discountAmount').textContent = `-${currentDiscount.toLocaleString('vi-VN')}đ`;
@@ -61,22 +99,24 @@ function updateTotals() {
     }
 
     const total = subtotal + shippingFee - currentDiscount;
-    document.getElementById('totalAmount').textContent = total.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('totalAmount').textContent = `${total.toLocaleString('vi-VN')}đ`;
 }
 
 function initBuyNow() {
-    document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+    readBuyNowBootstrapData();
+
+    document.querySelectorAll('input[name="payment_method"]').forEach((radio) => {
         radio.addEventListener('change', function() {
-            document.querySelectorAll('.payment-option').forEach(option => {
+            document.querySelectorAll('.payment-option').forEach((option) => {
                 option.classList.remove('payment-option--selected');
             });
             this.closest('label')?.classList.add('payment-option--selected');
         });
     });
 
-    document.querySelectorAll('input[name="address_id"]').forEach(radio => {
+    document.querySelectorAll('input[name="address_id"]').forEach((radio) => {
         radio.addEventListener('change', function() {
-            document.querySelectorAll('.address-card').forEach(card => {
+            document.querySelectorAll('.address-card').forEach((card) => {
                 card.classList.remove('address-card--selected');
             });
             this.closest('label')?.classList.add('address-card--selected');
@@ -101,6 +141,10 @@ function initBuyNow() {
             event.preventDefault();
             applyVoucher();
         }
+    });
+
+    document.querySelectorAll('[data-checkout-action="apply-voucher"]').forEach((button) => {
+        button.addEventListener('click', applyVoucher);
     });
 
     const discountRow = document.getElementById('discountRow');

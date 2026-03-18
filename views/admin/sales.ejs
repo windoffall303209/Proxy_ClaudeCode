@@ -1,4 +1,4 @@
-<%- include('../partials/admin-header', { currentPage: 'sales' }) %>
+<%- include('../partials/admin-header', { currentPage: 'sales', pageStyles: ['/css/admin/sales.css'] }) %>
 
 <div class="admin-page">
     <div class="container">
@@ -9,7 +9,7 @@
                 <p><%= sales ? sales.length : 0 %> chương trình khuyến mãi</p>
             </div>
             <!-- <div class="admin-page-header__actions">
-                <button class="admin-btn admin-btn--primary" onclick="openAddSaleModal()">
+                <button class="admin-btn admin-btn--primary" data-sale-action="scroll-to-form">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"/>
                         <line x1="5" y1="12" x2="19" y2="12"/>
@@ -68,7 +68,7 @@
 
         <!-- Add Sale Form -->
         <div class="admin-section admin-section--collapsible">
-            <h3 class="admin-section__title admin-section__title--toggle" onclick="toggleSection(this)">
+            <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/>
                     <line x1="5" y1="12" x2="19" y2="12"/>
@@ -113,10 +113,10 @@
                 <div class="admin-form__group">
                     <label class="admin-form__label">Sản phẩm áp dụng</label>
                     <div class="admin-product-checklist__toolbar">
-                        <input type="search" class="admin-form__input admin-product-checklist__search" placeholder="Tìm sản phẩm theo tên hoặc SKU..." oninput="filterProductChecklist(this, 'createSaleProducts')">
+                        <input type="search" class="admin-form__input admin-product-checklist__search" placeholder="Tìm sản phẩm theo tên hoặc SKU..." data-checklist-search="createSaleProducts">
                         <div class="admin-product-checklist__actions">
-                            <button type="button" class="admin-btn admin-btn--ghost" onclick="setChecklistState('createSaleProducts', true)">Chọn tất cả</button>
-                            <button type="button" class="admin-btn admin-btn--ghost" onclick="setChecklistState('createSaleProducts', false)">Bỏ chọn</button>
+                            <button type="button" class="admin-btn admin-btn--ghost" data-checklist-toggle="all" data-checklist-target="createSaleProducts">Chọn tất cả</button>
+                            <button type="button" class="admin-btn admin-btn--ghost" data-checklist-toggle="none" data-checklist-target="createSaleProducts">Bỏ chọn</button>
                         </div>
                     </div>
                     <div id="createSaleProducts" class="admin-product-checklist"></div>
@@ -213,13 +213,13 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="admin-actions-group">
-                                        <button onclick="editSale(<%= sale.id %>)" class="admin-btn admin-btn--edit" title="Sửa">
+                                        <button data-sale-action="edit" data-sale-id="<%= sale.id %>" class="admin-btn admin-btn--edit" title="Sửa">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                             </svg>
                                         </button>
-                                        <button onclick="deleteSale(<%= sale.id %>)" class="admin-btn admin-btn--delete" title="Xóa">
+                                        <button data-sale-action="delete" data-sale-id="<%= sale.id %>" class="admin-btn admin-btn--delete" title="Xóa">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <polyline points="3 6 5 6 21 6"/>
                                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -276,14 +276,14 @@
     <div class="admin-modal__content admin-modal__content--wide">
         <div class="admin-modal__header">
             <h3 class="admin-modal__title">Sửa khuyến mãi</h3>
-            <button type="button" class="admin-modal__close" onclick="closeModal('editSaleModal')" aria-label="Đóng">
+            <button type="button" class="admin-modal__close" data-sale-modal-close="editSaleModal" aria-label="Đóng">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
                     <line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
             </button>
         </div>
-        <form id="editSaleForm" class="admin-form" onsubmit="submitEditSale(event)">
+        <form id="editSaleForm" class="admin-form" >
             <div class="admin-form__row">
                 <div class="admin-form__group">
                     <label class="admin-form__label">Tên khuyến mãi <span>*</span></label>
@@ -327,10 +327,10 @@
             <div class="admin-form__group">
                 <label class="admin-form__label">Sản phẩm áp dụng</label>
                 <div class="admin-product-checklist__toolbar">
-                    <input type="search" class="admin-form__input admin-product-checklist__search" placeholder="Tìm sản phẩm theo tên hoặc SKU..." oninput="filterProductChecklist(this, 'editSaleProducts')">
+                    <input type="search" class="admin-form__input admin-product-checklist__search" placeholder="Tìm sản phẩm theo tên hoặc SKU..." data-checklist-search="editSaleProducts">
                     <div class="admin-product-checklist__actions">
-                        <button type="button" class="admin-btn admin-btn--ghost" onclick="setChecklistState('editSaleProducts', true)">Chọn tất cả</button>
-                        <button type="button" class="admin-btn admin-btn--ghost" onclick="setChecklistState('editSaleProducts', false)">Bỏ chọn</button>
+                        <button type="button" class="admin-btn admin-btn--ghost" data-checklist-toggle="all" data-checklist-target="editSaleProducts">Chọn tất cả</button>
+                        <button type="button" class="admin-btn admin-btn--ghost" data-checklist-toggle="none" data-checklist-target="editSaleProducts">Bỏ chọn</button>
                     </div>
                 </div>
                 <div id="editSaleProducts" class="admin-product-checklist"></div>
@@ -339,644 +339,19 @@
                 </p>
             </div>
             <div class="admin-modal__buttons">
-                <button type="button" class="admin-btn admin-btn--ghost admin-btn--full" onclick="closeModal('editSaleModal')">Hủy</button>
+                <button type="button" class="admin-btn admin-btn--ghost admin-btn--full" data-sale-modal-close="editSaleModal">Hủy</button>
                 <button type="submit" class="admin-btn admin-btn--primary admin-btn--full">Lưu thay đổi</button>
             </div>
         </form>
     </div>
 </div>
 
-<style>
-/* Page Header */
-.admin-page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
-}
 
-.admin-page-header__left h1 {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--admin-text-primary);
-    margin: 0 0 4px 0;
-}
 
-.admin-page-header__left p {
-    font-size: 14px;
-    color: var(--admin-text-secondary);
-    margin: 0;
-}
-
-/* Sale Info */
-.sale-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.sale-info__name {
-    color: var(--admin-text-primary);
-}
-
-.sale-info__desc {
-    font-size: 12px;
-    color: var(--admin-text-secondary);
-}
-
-/* Sale Value */
-.sale-value {
-    font-weight: 600;
-    color: var(--admin-danger);
-    font-size: 15px;
-}
-
-/* Sale Dates */
-.sale-dates {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--admin-text-secondary);
-}
-
-.sale-dates__separator {
-    color: var(--admin-text-muted);
-}
-
-.sale-dates__none {
-    font-style: italic;
-    color: var(--admin-text-muted);
-}
-
-/* Admin Form Row */
-.admin-form__row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
-}
-
-.admin-form__group {
-    display: flex;
-    flex-direction: column;
-}
-
-.admin-form__actions {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid var(--admin-border);
-}
-
-.admin-form__hint {
-    margin: 10px 0 0 0;
-    font-size: 12px;
-    color: var(--admin-text-secondary);
-    line-height: 1.5;
-}
-
-.admin-form__textarea {
-    width: 100%;
-    min-height: 90px;
-    padding: 12px 16px;
-    border: 1px solid var(--admin-border);
-    border-radius: 8px;
-    font-size: 14px;
-    color: var(--admin-text-primary);
-    background: var(--admin-card-bg);
-    resize: vertical;
-    font-family: inherit;
-}
-
-.admin-form__textarea:focus {
-    outline: none;
-    border-color: var(--admin-accent);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.admin-form__checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 0;
-}
-
-.admin-form__checkbox input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-}
-
-.admin-form__checkbox label {
-    cursor: pointer;
-    color: var(--admin-text-primary);
-}
-
-.admin-product-checklist__toolbar {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-}
-
-.admin-product-checklist__search {
-    flex: 1;
-    min-width: 240px;
-}
-
-.admin-product-checklist__actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.admin-product-checklist {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 12px;
-    max-height: 320px;
-    overflow-y: auto;
-    padding: 4px;
-    border: 1px solid var(--admin-border);
-    border-radius: 12px;
-    background: var(--admin-bg);
-}
-
-.admin-product-checklist__item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px;
-    border: 1px solid var(--admin-border);
-    border-radius: 12px;
-    background: var(--admin-card-bg);
-    cursor: pointer;
-    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-}
-
-.admin-product-checklist__item:hover {
-    border-color: var(--admin-accent);
-    transform: translateY(-1px);
-    box-shadow: var(--admin-shadow);
-}
-
-.admin-product-checklist__item input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    margin-top: 2px;
-    accent-color: var(--admin-accent);
-    flex-shrink: 0;
-}
-
-.admin-product-checklist__body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-}
-
-.admin-product-checklist__name {
-    font-weight: 600;
-    color: var(--admin-text-primary);
-}
-
-.admin-product-checklist__meta {
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--admin-text-secondary);
-}
-
-.admin-product-checklist__empty {
-    grid-column: 1 / -1;
-    padding: 24px;
-    text-align: center;
-    color: var(--admin-text-secondary);
-}
-
-.sale-products {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-}
-
-.sale-products__count {
-    font-weight: 600;
-    color: var(--admin-text-primary);
-}
-
-.sale-products__preview {
-    font-size: 12px;
-    color: var(--admin-text-secondary);
-}
-
-.sale-products__none {
-    font-size: 12px;
-    color: var(--admin-text-muted);
-    font-style: italic;
-}
-
-/* Confirm Modal Icon */
-.confirm-modal__icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 20px;
-}
-
-.confirm-modal__icon--danger {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--admin-danger);
-}
-
-.confirm-modal__text {
-    text-align: center;
-    margin-bottom: 24px;
-}
-
-.confirm-modal__text h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 8px 0;
-    color: var(--admin-text-primary);
-}
-
-.confirm-modal__text p {
-    font-size: 14px;
-    color: var(--admin-text-secondary);
-    margin: 0;
-}
-
-/* Admin Button Ghost */
-.admin-btn--ghost {
-    background: transparent;
-    color: var(--admin-text-secondary);
-    border: 1px solid var(--admin-border);
-}
-
-.admin-btn--ghost:hover {
-    background: var(--admin-bg);
-    color: var(--admin-text-primary);
-}
-
-/* Admin Button Danger */
-.admin-btn--danger {
-    background: var(--admin-danger);
-    color: white;
-}
-
-.admin-btn--danger:hover {
-    background: #dc2626;
-    color: white;
-}
-
-/* Actions Group */
-.admin-actions-group {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-}
-
-/* Collapsible Section */
-.admin-section--collapsible .admin-section__content {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
-    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-    padding-top: 0;
-    padding-bottom: 0;
-}
-
-.admin-section--collapsible.is-open .admin-section__content {
-    max-height: 2000px;
-    opacity: 1;
-    padding-top: 20px;
-}
-
-.admin-section__title--toggle {
-    cursor: pointer;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: color 0.2s;
-}
-
-.admin-section__title--toggle:hover {
-    color: var(--admin-primary);
-}
-
-.admin-section__chevron {
-    margin-left: auto;
-    transition: transform 0.3s ease;
-}
-
-.admin-section--collapsible.is-open .admin-section__chevron {
-    transform: rotate(180deg);
-}
-
-.admin-modal__content--wide {
-    max-width: 920px;
-}
-
-.admin-modal__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 20px;
-}
-
-.admin-modal__header .admin-modal__title {
-    margin: 0;
-    justify-content: flex-start;
-    text-align: left;
-}
-
-.admin-modal__close {
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--admin-border);
-    border-radius: 10px;
-    background: transparent;
-    color: var(--admin-text-secondary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.admin-modal__close:hover {
-    background: var(--admin-bg);
-    color: var(--admin-text-primary);
-}
-
-.admin-btn--full {
-    flex: 1;
-}
-
-@media (max-width: 768px) {
-    .admin-product-checklist {
-        grid-template-columns: 1fr;
-    }
-
-    .admin-modal__content--wide {
-        padding: 20px;
-    }
-}
-</style>
-
-<script>
-const adminSaleProducts = <%- JSON.stringify((products || []).map(product => ({ id: product.id, name: product.name, sku: product.sku || '', sale_name: product.sale_name || '' }))).replace(/</g, '\\u003c') %>;
-const adminSales = <%- JSON.stringify((sales || []).map(sale => ({ id: sale.id, name: sale.name || '', description: sale.description || '', type: sale.type, value: sale.value, start_date: sale.start_date, end_date: sale.end_date, is_active: !!sale.is_active, product_ids: (sale.assigned_products || []).map(product => product.id) }))).replace(/</g, '\\u003c') %>;
-const adminSalesMap = new Map(adminSales.map((sale) => [Number(sale.id), sale]));
-
-function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function renderProductChecklist(containerId, selectedIds = [], options = {}) {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        return;
-    }
-
-    const selectedSet = new Set((selectedIds || []).map((value) => Number(value)));
-    const prefix = options.prefix || containerId;
-    const inputName = options.inputName || 'product_ids[]';
-    const showSale = options.showSale === true;
-
-    if (!adminSaleProducts.length) {
-        container.innerHTML = '<div class="admin-product-checklist__empty">Không có sản phẩm để chọn.</div>';
-        return;
-    }
-
-    container.innerHTML = adminSaleProducts.map((product) => {
-        const productId = Number(product.id);
-        const metaParts = [];
-
-        if (product.sku) {
-            metaParts.push(`SKU: ${escapeHtml(product.sku)}`);
-        }
-
-        if (showSale && product.sale_name) {
-            metaParts.push(`Đang ở: ${escapeHtml(product.sale_name)}`);
-        }
-
-        const checkboxId = `${prefix}-${productId}`;
-        const meta = metaParts.length > 0 ? metaParts.join(' • ') : 'Không có thông tin bổ sung';
-        const checked = selectedSet.has(productId) ? 'checked' : '';
-        const searchText = escapeHtml([product.name, product.sku, product.sale_name].filter(Boolean).join(' ').toLowerCase());
-
-        return `
-            <label class="admin-product-checklist__item" data-search="${searchText}" for="${checkboxId}">
-                <input type="checkbox" id="${checkboxId}" name="${inputName}" value="${productId}" ${checked}>
-                <div class="admin-product-checklist__body">
-                    <span class="admin-product-checklist__name">${escapeHtml(product.name)}</span>
-                    <span class="admin-product-checklist__meta">${meta}</span>
-                </div>
-            </label>
-        `;
-    }).join('');
-}
-
-function filterProductChecklist(input, containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        return;
-    }
-
-    const keyword = String(input.value || '').trim().toLowerCase();
-    container.querySelectorAll('.admin-product-checklist__item').forEach((item) => {
-        const searchText = item.dataset.search || item.textContent.toLowerCase();
-        item.style.display = !keyword || searchText.includes(keyword) ? '' : 'none';
-    });
-}
-
-function setChecklistState(containerId, checked) {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        return;
-    }
-
-    container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-        input.checked = checked;
-    });
-}
-
-function getCheckedProductIds(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        return [];
-    }
-
-    return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
-        .map((input) => Number(input.value))
-        .filter((value) => Number.isInteger(value) && value > 0);
-}
-
-function toDatetimeLocal(value) {
-    if (!value) {
-        return '';
-    }
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-
-    const timezoneOffset = date.getTimezoneOffset() * 60000;
-    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-function editSale(saleId) {
-    const sale = adminSalesMap.get(Number(saleId));
-    const form = document.getElementById('editSaleForm');
-
-    if (!sale || !form) {
-        showToast('Không tìm thấy dữ liệu khuyến mãi', 'error');
-        return;
-    }
-
-    form.dataset.saleId = String(sale.id);
-    form.elements.name.value = sale.name || '';
-    form.elements.description.value = sale.description || '';
-    form.elements.type.value = sale.type || 'percentage';
-    form.elements.value.value = sale.value || '';
-    form.elements.start_date.value = toDatetimeLocal(sale.start_date);
-    form.elements.end_date.value = toDatetimeLocal(sale.end_date);
-    form.elements.is_active.checked = Boolean(sale.is_active);
-
-    renderProductChecklist('editSaleProducts', sale.product_ids || [], {
-        prefix: `edit-sale-${sale.id}`,
-        showSale: true
-    });
-
-    document.getElementById('editSaleModal').style.display = 'flex';
-}
-
-async function submitEditSale(event) {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    if (!form.reportValidity()) {
-        return;
-    }
-
-    const saleId = form.dataset.saleId;
-    if (!saleId) {
-        showToast('Không xác định được khuyến mãi cần sửa', 'error');
-        return;
-    }
-
-    const payload = {
-        name: form.name.value.trim(),
-        description: form.description.value.trim(),
-        type: form.type.value,
-        value: form.value.value,
-        start_date: form.start_date.value || null,
-        end_date: form.end_date.value || null,
-        is_active: form.is_active.checked,
-        product_ids: getCheckedProductIds('editSaleProducts')
-    };
-
-    try {
-        const response = await fetch('/admin/sales/' + saleId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Không thể cập nhật khuyến mãi');
-        }
-
-        showToast(data.message || 'Đã cập nhật khuyến mãi');
-        closeModal('editSaleModal');
-        setTimeout(() => location.reload(), 500);
-    } catch (error) {
-        showToast(error.message || 'Có lỗi xảy ra', 'error');
-    }
-}
-
-function deleteSale(saleId) {
-    const modal = document.getElementById('confirmModal');
-    modal.style.display = 'flex';
-
-    document.getElementById('confirmYes').onclick = async function() {
-        try {
-            const response = await fetch('/admin/sales/' + saleId, {
-                method: 'DELETE'
-            });
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Không thể xóa khuyến mãi');
-            }
-
-            showToast(data.message || 'Đã ngừng khuyến mãi');
-            setTimeout(() => location.reload(), 500);
-        } catch (error) {
-            showToast(error.message || 'Có lỗi xảy ra', 'error');
-        }
-
-        modal.style.display = 'none';
-    };
-
-    document.getElementById('confirmNo').onclick = function() {
-        modal.style.display = 'none';
-    };
-}
-
-function toggleSection(titleElement) {
-    const section = titleElement.closest('.admin-section--collapsible');
-    section.classList.toggle('is-open');
-}
-
-function showToast(message, type = 'success') {
-    if (typeof showGlobalToast === 'function') {
-        showGlobalToast(message, type);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    renderProductChecklist('createSaleProducts', [], {
-        prefix: 'create-sale',
-        showSale: true
-    });
-
-    ['editSaleModal', 'confirmModal'].forEach((modalId) => {
-        const modal = document.getElementById(modalId);
-        if (!modal) {
-            return;
-        }
-
-        modal.addEventListener('click', function(event) {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-    });
-});
-</script>
+<script type="application/json" id="adminSalesBootstrap"><%- JSON.stringify({
+    products: (products || []).map(product => ({ id: product.id, name: product.name, sku: product.sku || '', sale_name: product.sale_name || '' })),
+    sales: (sales || []).map(sale => ({ id: sale.id, name: sale.name || '', description: sale.description || '', type: sale.type, value: sale.value, start_date: sale.start_date, end_date: sale.end_date, is_active: !!sale.is_active, product_ids: (sale.assigned_products || []).map(product => product.id) }))
+}).replace(/</g, '\u003c') %></script>
+<script src="/js/admin/sales.js"></script>
 
 <%- include('../partials/admin-footer') %>

@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "check:inline-views": "node scripts/check-no-inline-view-assets.js",
     "test": "jest --coverage"
   },
   "keywords": [

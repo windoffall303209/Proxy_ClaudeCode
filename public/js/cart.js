@@ -28,7 +28,7 @@ function updateSelectedTotal() {
 
     const checkoutBtn = document.getElementById('checkoutBtn');
     checkoutBtn.disabled = count === 0;
-    checkoutBtn.style.opacity = count === 0 ? '0.5' : '1';
+    checkoutBtn.classList.toggle('is-disabled', count === 0);
 
     const allCheckboxes = document.querySelectorAll('.item-checkbox');
     document.getElementById('selectAll').checked = checkboxes.length === allCheckboxes.length && allCheckboxes.length > 0;
@@ -104,10 +104,15 @@ function updateCartItemUI(itemId, newQuantity, itemData) {
     const qtyInput = cartItem.querySelector('.cart-item__qty-input');
     qtyInput.value = newQuantity;
 
-    const minusBtn = cartItem.querySelector('.cart-item__qty-btn');
-    const plusBtn = cartItem.querySelectorAll('.cart-item__qty-btn')[1];
-    minusBtn.onclick = () => updateQuantity(itemId, newQuantity - 1);
-    plusBtn.onclick = () => updateQuantity(itemId, newQuantity + 1);
+    const quantityButtons = cartItem.querySelectorAll('.cart-item__qty-btn');
+    const minusBtn = quantityButtons[0];
+    const plusBtn = quantityButtons[1];
+    if (minusBtn) {
+        minusBtn.dataset.nextQuantity = String(newQuantity - 1);
+    }
+    if (plusBtn) {
+        plusBtn.dataset.nextQuantity = String(newQuantity + 1);
+    }
 
     const subtotalEl = cartItem.querySelector('.cart-item__subtotal-price');
     subtotalEl.textContent = newSubtotal.toLocaleString('vi-VN') + 'đ';
@@ -213,5 +218,37 @@ function checkEmptyCart() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('selectAll')?.addEventListener('change', toggleSelectAll);
+
+    document.querySelectorAll('.item-checkbox').forEach((checkbox) => {
+        checkbox.addEventListener('change', updateSelectedTotal);
+    });
+
+    document.addEventListener('click', (event) => {
+        const quantityButton = event.target.closest('[data-cart-action="update-quantity"]');
+        if (quantityButton) {
+            const itemId = Number(quantityButton.dataset.itemId);
+            const nextQuantity = Number(quantityButton.dataset.nextQuantity);
+            if (itemId) {
+                updateQuantity(itemId, nextQuantity);
+            }
+            return;
+        }
+
+        const removeButton = event.target.closest('[data-cart-action="remove-item"]');
+        if (removeButton) {
+            const itemId = Number(removeButton.dataset.itemId);
+            if (itemId) {
+                removeItem(itemId);
+            }
+            return;
+        }
+
+        const checkoutButton = event.target.closest('[data-cart-action="checkout-selected"]');
+        if (checkoutButton) {
+            checkoutSelected();
+        }
+    });
+
     updateSelectedTotal();
 });

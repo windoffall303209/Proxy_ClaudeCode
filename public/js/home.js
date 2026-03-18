@@ -7,17 +7,21 @@
 function closePopup() {
     const popupBanner = document.getElementById('popupBanner');
     if (popupBanner) {
-        popupBanner.style.display = 'none';
+        popupBanner.hidden = true;
         sessionStorage.setItem('bannerClosed', 'true');
     }
 }
 
 // Auto-close if already dismissed in this session
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-popup-close]').forEach((element) => {
+        element.addEventListener('click', closePopup);
+    });
+
     if (sessionStorage.getItem('bannerClosed')) {
         const popupBanner = document.getElementById('popupBanner');
         if (popupBanner) {
-            popupBanner.style.display = 'none';
+            popupBanner.hidden = true;
         }
     }
 });

@@ -9,6 +9,8 @@ const chatState = window.__tmdtChatWidgetState || (window.__tmdtChatWidgetState 
     badgeRequest: null
 });
 
+const CHAT_LINK_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+|\/(?:products|cart|checkout|chat|auth|admin|orders)[^\s<]*)/gi;
+
 function getChatElements() {
     return {
         box: document.getElementById('chatBox'),
@@ -27,12 +29,12 @@ function updateChatBadge(count) {
     }
 
     if (!count || count <= 0 || chatState.open) {
-        badge.style.display = 'none';
+        badge.hidden = true;
         badge.textContent = '0';
         return;
     }
 
-    badge.style.display = 'flex';
+    badge.hidden = false;
     badge.textContent = String(count);
 }
 
@@ -121,6 +123,71 @@ function buildMessageLabel(type) {
     return '';
 }
 
+function normalizeChatLink(rawValue) {
+    if (!rawValue) {
+        return null;
+    }
+
+    let value = rawValue;
+    let trailing = '';
+
+    while (/[),.!?:;]$/.test(value)) {
+        trailing = value.slice(-1) + trailing;
+        value = value.slice(0, -1);
+    }
+
+    if (!value) {
+        return null;
+    }
+
+    const href = value.startsWith('www.') ? `https://${value}` : value;
+    return { href, text: value, trailing };
+}
+
+function appendLinkedText(container, text) {
+    const value = typeof text === 'string' ? text : '';
+    const lines = value.split(/\r?\n/);
+
+    lines.forEach((line, lineIndex) => {
+        let lastIndex = 0;
+
+        line.replace(CHAT_LINK_PATTERN, (match, _group, offset) => {
+            if (offset > lastIndex) {
+                container.appendChild(document.createTextNode(line.slice(lastIndex, offset)));
+            }
+
+            const normalized = normalizeChatLink(match);
+            if (!normalized) {
+                container.appendChild(document.createTextNode(match));
+            } else {
+                const link = document.createElement('a');
+                link.href = normalized.href;
+                link.textContent = normalized.text;
+                link.target = normalized.href.startsWith('/') ? '_self' : '_blank';
+                if (link.target === '_blank') {
+                    link.rel = 'noopener noreferrer';
+                }
+                container.appendChild(link);
+
+                if (normalized.trailing) {
+                    container.appendChild(document.createTextNode(normalized.trailing));
+                }
+            }
+
+            lastIndex = offset + match.length;
+            return match;
+        });
+
+        if (lastIndex < line.length) {
+            container.appendChild(document.createTextNode(line.slice(lastIndex)));
+        }
+
+        if (lineIndex < lines.length - 1) {
+            container.appendChild(document.createElement('br'));
+        }
+    });
+}
+
 function appendMessage(type, text, time, options = {}) {
     const { messages } = getChatElements();
     if (!messages) {
@@ -150,7 +217,8 @@ function appendMessage(type, text, time, options = {}) {
     }
 
     const messageText = document.createElement('div');
-    messageText.textContent = text;
+    messageText.className = 'chat-msg__content';
+    appendLinkedText(messageText, text);
     wrapper.appendChild(messageText);
 
     const timeElement = document.createElement('div');
@@ -389,8 +457,8 @@ function toggleChatWidget() {
     chatState.open = !chatState.open;
 
     if (chatState.open) {
-        box.style.display = 'flex';
-        toggleButton.style.display = 'none';
+        box.hidden = false;
+        toggleButton.hidden = true;
 
         if (!chatState.loaded) {
             loadChatHistory();
@@ -404,8 +472,8 @@ function toggleChatWidget() {
         return;
     }
 
-    box.style.display = 'none';
-    toggleButton.style.display = 'flex';
+    box.hidden = true;
+    toggleButton.hidden = false;
     stopChatPolling();
     refreshChatBadge();
 }
@@ -438,6 +506,10 @@ function initChatWidget() {
 
     chatState.initialized = true;
     runChatTaskWhenIdle(() => refreshChatBadge());
+
+    toggleButton.addEventListener('click', toggleChatWidget);
+    document.querySelector('.chat-widget__close')?.addEventListener('click', toggleChatWidget);
+    document.getElementById('chatForm')?.addEventListener('submit', sendChatMessage);
 
     document.addEventListener('visibilitychange', syncChatAfterFocus);
     window.addEventListener('pagehide', stopChatPolling, { passive: true });

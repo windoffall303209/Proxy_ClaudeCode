@@ -1,0 +1,236 @@
+/* Page Header */
+.admin-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.admin-page-header__left h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    margin: 0 0 4px 0;
+}
+
+.admin-page-header__left p {
+    font-size: 14px;
+    color: var(--admin-text-secondary);
+    margin: 0;
+}
+
+/* User Info */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-info__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--admin-accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.user-info__details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.user-info__name {
+    font-weight: 500;
+    color: var(--admin-text-primary);
+}
+
+.user-info__phone {
+    font-size: 12px;
+    color: var(--admin-text-secondary);
+}
+
+/* User Date */
+.user-date {
+    font-size: 13px;
+    color: var(--admin-text-secondary);
+}
+
+/* User Admin Badge */
+.user-admin-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--admin-accent);
+    border-radius: 6px;
+}
+
+/* Secondary Badge */
+.admin-table__badge--secondary {
+    background: var(--admin-bg);
+    color: var(--admin-text-secondary);
+}
+
+/* Actions Group */
+.admin-actions-group {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* Confirm Modal Icon */
+.confirm-modal__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--admin-danger);
+}
+
+.confirm-modal__icon--success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--admin-success);
+}
+
+.confirm-modal__text {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.confirm-modal__text h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: var(--admin-text-primary);
+}
+
+.confirm-modal__text p {
+    font-size: 14px;
+    color: var(--admin-text-secondary);
+    margin: 0;
+}
+
+/* Admin Button Ghost */
+.admin-btn--ghost {
+    background: transparent;
+    color: var(--admin-text-secondary);
+    border: 1px solid var(--admin-border);
+}
+
+.admin-btn--ghost:hover {
+    background: var(--admin-bg);
+    color: var(--admin-text-primary);
+}
+
+/* User Detail Modal Styles */
+.user-detail-profile {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--admin-border);
+}
+.user-detail-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--admin-accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.user-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.user-detail-info h3 { margin: 0 0 4px 0; font-size: 18px; }
+.user-detail-info p { margin: 0; font-size: 14px; color: var(--admin-text-secondary); }
+.user-detail-section { margin-top: 16px; }
+.user-detail-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--admin-text-primary);
+    margin: 0 0 10px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--admin-border);
+}
+.user-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--admin-text-secondary);
+}
+.user-detail-row span:last-child {
+    font-weight: 500;
+    color: var(--admin-text-primary);
+}
+.user-detail-address {
+    padding: 10px 12px;
+    background: var(--admin-bg);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+.user-detail-order {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--admin-border);
+    font-size: 13px;
+    flex-wrap: wrap;
+}
+
+.admin-modal__content--users {
+    max-width: 600px;
+}
+
+.user-detail-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--admin-border);
+    margin-bottom: 16px;
+}
+
+.user-detail-modal__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.user-detail-modal__close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--admin-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--admin-text-secondary);
+}
+
+.user-detail-modal__content {
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}

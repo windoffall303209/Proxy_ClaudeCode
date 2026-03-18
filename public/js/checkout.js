@@ -4,6 +4,52 @@ let addressMarker = null;
 let provincesData = [];
 let districtsData = [];
 let wardsData = [];
+let checkoutRuntimeData = null;
+
+function readCheckoutBootstrapData() {
+    if (checkoutRuntimeData) {
+        return checkoutRuntimeData;
+    }
+
+    const bootstrapElement = document.getElementById('checkoutBootstrapData');
+    if (!bootstrapElement?.textContent) {
+        checkoutRuntimeData = {};
+        return checkoutRuntimeData;
+    }
+
+    try {
+        checkoutRuntimeData = JSON.parse(bootstrapElement.textContent);
+    } catch (error) {
+        console.error('Checkout bootstrap parse error:', error);
+        checkoutRuntimeData = {};
+    }
+
+    return checkoutRuntimeData;
+}
+
+function setVoucherMessage(message, type = '') {
+    const messageEl = document.getElementById('voucherMessage');
+    if (!messageEl) {
+        return;
+    }
+
+    messageEl.textContent = message || '';
+    if (type) {
+        messageEl.dataset.state = type;
+    } else {
+        delete messageEl.dataset.state;
+    }
+}
+
+function syncSelectedWardName() {
+    const wardSelect = document.getElementById('newWard');
+    if (!wardSelect) {
+        return;
+    }
+
+    const wardName = wardSelect.options[wardSelect.selectedIndex]?.dataset?.name || '';
+    document.getElementById('newWardName').value = wardName;
+}
 
 async function loadProvinces() {
     try {
@@ -89,11 +135,6 @@ async function loadWards() {
         });
 
         wardSelect.disabled = false;
-
-        wardSelect.onchange = function() {
-            const wardName = wardSelect.options[wardSelect.selectedIndex]?.dataset?.name || '';
-            document.getElementById('newWardName').value = wardName;
-        };
     } catch (error) {
         console.error('Load wards error:', error);
     }
@@ -101,8 +142,9 @@ async function loadWards() {
 
 function toggleAddressForm() {
     const form = document.getElementById('newAddressForm');
-    const isHidden = form.style.display === 'none';
-    form.style.display = isHidden ? 'block' : 'none';
+    if (!form) return;
+    const isHidden = form.hidden;
+    form.hidden = !isHidden;
 
     if (isHidden && !addressMap) {
         setTimeout(initAddressMap, 100);
@@ -281,20 +323,20 @@ async function saveNewAddress() {
 
 async function applyVoucher() {
     const code = document.getElementById('voucherCode').value.trim();
-    const messageEl = document.getElementById('voucherMessage');
     const discountRowEl = document.getElementById('discountRow');
     const discountAmountEl = document.getElementById('discountAmount');
     const discountInput = document.getElementById('discountInput');
     const totalEl = document.getElementById('totalAmount');
 
-    const checkoutSubtotal = window.checkoutData?.subtotal || window.buyNowData?.subtotal || 0;
-    const checkoutShippingFee = window.checkoutData?.shippingFee ?? window.buyNowData?.shippingFee ?? 30000;
-    const mode = window.buyNowData ? 'buy-now' : 'cart';
+    const bootstrap = readCheckoutBootstrapData();
+    const checkoutSubtotal = bootstrap.subtotal || 0;
+    const checkoutShippingFee = bootstrap.shippingFee ?? 30000;
+    const mode = bootstrap.mode || 'cart';
 
     let currentDiscount = 0;
 
     if (!code) {
-        messageEl.innerHTML = '<span style="color: #f44336;">Vui lòng nhập mã giảm giá</span>';
+        setVoucherMessage('Vui lòng nhập mã giảm giá', 'error');
         return;
     }
 
@@ -314,14 +356,14 @@ async function applyVoucher() {
 
         if (data.success) {
             currentDiscount = data.discount_amount;
-            messageEl.innerHTML = '<span style="color: #2e7d32;">Đã áp dụng voucher - Giảm ' + currentDiscount.toLocaleString('vi-VN') + 'đ</span>';
+            setVoucherMessage('Đã áp dụng voucher - Giảm ' + currentDiscount.toLocaleString('vi-VN') + 'đ', 'success');
         } else {
-            messageEl.innerHTML = '<span style="color: #f44336;">' + data.message + '</span>';
+            setVoucherMessage(data.message, 'error');
             currentDiscount = 0;
         }
     } catch (error) {
         console.error('Voucher validation error:', error);
-        messageEl.innerHTML = '<span style="color: #f44336;">Có lỗi xảy ra khi kiểm tra voucher</span>';
+        setVoucherMessage('Có lỗi xảy ra khi kiểm tra voucher', 'error');
         currentDiscount = 0;
     }
 
@@ -339,7 +381,30 @@ async function applyVoucher() {
 }
 
 function initCheckout() {
+    const bootstrap = readCheckoutBootstrapData();
     loadProvinces();
+
+    document.querySelectorAll('[data-checkout-action="toggle-address-form"]').forEach((button) => {
+        button.addEventListener('click', toggleAddressForm);
+    });
+
+    document.querySelectorAll('[data-checkout-action="save-address"]').forEach((button) => {
+        button.addEventListener('click', saveNewAddress);
+    });
+
+    if (bootstrap.mode !== 'buy-now') {
+        document.querySelectorAll('[data-checkout-action="apply-voucher"]').forEach((button) => {
+            button.addEventListener('click', applyVoucher);
+        });
+
+        document.querySelectorAll('.voucher-card').forEach((card) => {
+            card.addEventListener('click', () => selectVoucher(card));
+        });
+    }
+
+    document.getElementById('newCity')?.addEventListener('change', loadDistricts);
+    document.getElementById('newDistrict')?.addEventListener('change', loadWards);
+    document.getElementById('newWard')?.addEventListener('change', syncSelectedWardName);
 
     document.querySelectorAll('input[name="payment_method"]').forEach((radio) => {
         radio.addEventListener('change', function() {
@@ -386,7 +451,7 @@ function initCheckout() {
     });
 
     const addressForm = document.getElementById('newAddressForm');
-    if (addressForm && addressForm.style.display !== 'none') {
+    if (addressForm && !addressForm.hidden) {
         setTimeout(initAddressMap, 300);
     }
 }
