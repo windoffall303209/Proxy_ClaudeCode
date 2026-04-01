@@ -232,7 +232,13 @@ CREATE TABLE addresses (
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    address_id INT NOT NULL,
+    address_id INT NULL,
+    shipping_name VARCHAR(255) NOT NULL,
+    shipping_phone VARCHAR(20),
+    shipping_address_line VARCHAR(500) NOT NULL,
+    shipping_ward VARCHAR(255),
+    shipping_district VARCHAR(255),
+    shipping_city VARCHAR(255) NOT NULL,
     voucher_id INT NULL,
     order_code VARCHAR(50) UNIQUE NOT NULL,
     total_amount DECIMAL(10, 2) NOT NULL,
@@ -246,7 +252,7 @@ CREATE TABLE orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (address_id) REFERENCES addresses(id),
+    FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE SET NULL,
     FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE SET NULL,
     INDEX idx_user (user_id),
     INDEX idx_order_code (order_code),
@@ -307,6 +313,54 @@ CREATE TABLE payments (
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     INDEX idx_order (order_id),
     INDEX idx_transaction (transaction_id)
+) ENGINE=InnoDB;
+
+-- =============================================================================
+-- SHIPMENTS TABLE
+-- =============================================================================
+CREATE TABLE shipments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    carrier VARCHAR(100) NULL,
+    tracking_code VARCHAR(100) NULL,
+    tracking_url VARCHAR(500) NULL,
+    current_status ENUM('pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled') DEFAULT 'pending',
+    current_location_text VARCHAR(255) NULL,
+    current_lat DECIMAL(10, 7) NULL,
+    current_lng DECIMAL(10, 7) NULL,
+    estimated_delivery_at DATETIME NULL,
+    last_event_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_shipments_order (order_id),
+    INDEX idx_tracking_code (tracking_code),
+    INDEX idx_shipments_status (current_status)
+) ENGINE=InnoDB;
+
+-- =============================================================================
+-- ORDER TRACKING EVENTS TABLE
+-- =============================================================================
+CREATE TABLE order_tracking_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    shipment_id INT NULL,
+    status ENUM('pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled') NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    location_text VARCHAR(255) NULL,
+    lat DECIMAL(10, 7) NULL,
+    lng DECIMAL(10, 7) NULL,
+    event_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source ENUM('system', 'admin', 'carrier') DEFAULT 'system',
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_tracking_order (order_id),
+    INDEX idx_tracking_shipment (shipment_id),
+    INDEX idx_tracking_event_time (event_time)
 ) ENGINE=InnoDB;
 
 -- =============================================================================

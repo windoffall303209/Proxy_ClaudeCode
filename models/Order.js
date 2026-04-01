@@ -1,17 +1,62 @@
-/**
- * =============================================================================
- * ORDER MODEL - Mô hình đơn hàng
- * =============================================================================
- * File này chứa các phương thức xử lý đơn hàng:
- * - Tạo đơn hàng từ giỏ hàng hoặc mua ngay
- * - Tìm kiếm đơn hàng theo ID, mã đơn, user
- * - Cập nhật trạng thái đơn hàng và thanh toán
- * - Thống kê đơn hàng (admin)
- * =============================================================================
- */
-
 const crypto = require('crypto');
 const pool = require('../config/database');
+
+const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'];
+const TRACKING_SOURCES = new Set(['system', 'admin', 'carrier']);
+
+const STATUS_EVENT_PRESETS = {
+    pending: {
+        title: 'Đơn hàng đã được tạo',
+        description: 'Hệ thống đã ghi nhận đơn hàng và đang chờ xác nhận.'
+    },
+    confirmed: {
+        title: 'Đơn hàng đã được xác nhận',
+        description: 'Đơn hàng đã được xác nhận và đang được chuẩn bị bàn giao vận chuyển.'
+    },
+    processing: {
+        title: 'Đơn hàng đang được xử lý',
+        description: 'Kho hàng đang đóng gói và chuẩn bị xuất kho.'
+    },
+    shipping: {
+        title: 'Đơn hàng đang được giao',
+        description: 'Đơn hàng đã rời kho và đang trên đường giao đến người nhận.'
+    },
+    delivered: {
+        title: 'Đơn hàng đã giao thành công',
+        description: 'Người nhận đã nhận được đơn hàng.'
+    },
+    cancelled: {
+        title: 'Đơn hàng đã bị hủy',
+        description: 'Đơn hàng đã được hủy theo cập nhật mới nhất.'
+    }
+};
+
+const SAFE_STATUS_EVENT_PRESETS = {
+    pending: {
+        title: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o',
+        description: 'H\u1ec7 th\u1ed1ng \u0111\u00e3 ghi nh\u1eadn \u0111\u01a1n h\u00e0ng v\u00e0 \u0111ang ch\u1edd x\u00e1c nh\u1eadn.'
+    },
+    confirmed: {
+        title: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn',
+        description: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn v\u00e0 \u0111ang \u0111\u01b0\u1ee3c chu\u1ea9n b\u1ecb b\u00e0n giao v\u1eadn chuy\u1ec3n.'
+    },
+    processing: {
+        title: '\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c x\u1eed l\u00fd',
+        description: 'Kho h\u00e0ng \u0111ang \u0111\u00f3ng g\u00f3i v\u00e0 chu\u1ea9n b\u1ecb xu\u1ea5t kho.'
+    },
+    shipping: {
+        title: '\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c giao',
+        description: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 r\u1eddi kho v\u00e0 \u0111ang tr\u00ean \u0111\u01b0\u1eddng giao \u0111\u1ebfn ng\u01b0\u1eddi nh\u1eadn.'
+    },
+    delivered: {
+        title: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 giao th\u00e0nh c\u00f4ng',
+        description: 'Ng\u01b0\u1eddi nh\u1eadn \u0111\u00e3 nh\u1eadn \u0111\u01b0\u1ee3c \u0111\u01a1n h\u00e0ng.'
+    },
+    cancelled: {
+        title: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 b\u1ecb h\u1ee7y',
+        description: '\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c h\u1ee7y theo c\u1eadp nh\u1eadt m\u1edbi nh\u1ea5t.'
+    }
+};
 
 class Order {
     static generateOrderCode() {
@@ -49,15 +94,55 @@ class Order {
         return Number(subtotal) >= 500000 ? 0 : 30000;
     }
 
+    static hasOwn(object, key) {
+        return Object.prototype.hasOwnProperty.call(object, key);
+    }
+
+    static normalizeStatus(status) {
+        const normalized = String(status || '').trim().toLowerCase();
+        if (normalized === 'shipped') {
+            return 'shipping';
+        }
+        return normalized;
+    }
+
+    static assertValidStatus(status) {
+        const normalizedStatus = this.normalizeStatus(status);
+
+        if (!ORDER_STATUSES.includes(normalizedStatus)) {
+            throw new Error('Order status is invalid');
+        }
+
+        return normalizedStatus;
+    }
+
+    static normalizeTrackingSource(source) {
+        const normalized = String(source || 'admin').trim().toLowerCase();
+        return TRACKING_SOURCES.has(normalized) ? normalized : 'admin';
+    }
+
+    static getStatusEventPreset(status) {
+        return SAFE_STATUS_EVENT_PRESETS[this.normalizeStatus(status)] || {
+            title: 'Cập nhật đơn hàng',
+            description: 'Thông tin đơn hàng đã được cập nhật.'
+        };
+    }
+
     static async assertAddressOwnership(connection, userId, addressId) {
         const [addresses] = await connection.execute(
-            'SELECT id FROM addresses WHERE id = ? AND user_id = ? LIMIT 1',
+            `SELECT id, full_name, phone, address_line, ward, district, city
+             FROM addresses
+             WHERE id = ? AND user_id = ?
+             LIMIT 1
+             FOR UPDATE`,
             [addressId, userId]
         );
 
         if (addresses.length === 0) {
             throw new Error('Address not found');
         }
+
+        return addresses[0];
     }
 
     static async assertProductStock(connection, productId, quantity) {
@@ -106,37 +191,159 @@ class Order {
         }
     }
 
-    // =========================================================================
-    // TẠO ĐƠN HÀNG
-    // =========================================================================
+    static async upsertShipment(connection, orderId, shipmentData = {}) {
+        const normalizedData = { ...shipmentData };
 
-    /**
-     * Tạo đơn hàng từ giỏ hàng
-     *
-     * @description Tạo đơn hàng mới từ các sản phẩm trong giỏ hàng của user.
-     *              Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
-     *
-     * @param {number} userId - ID người dùng
-     * @param {number} addressId - ID địa chỉ giao hàng
-     * @param {string} paymentMethod - Phương thức thanh toán (cod/vnpay/momo)
-     * @param {string|null} notes - Ghi chú đơn hàng
-     * @param {number|null} shippingFeeFromUI - Phí ship từ frontend (null = tự tính)
-     * @param {number} discountAmount - Số tiền giảm giá từ voucher
-     * @param {string|null} voucherCode - Mã voucher đã áp dụng
-     *
-     * @returns {Object} { id, order_code, final_amount }
-     * @throws {Error} Nếu giỏ hàng trống hoặc không tìm thấy
-     */
+        if (this.hasOwn(normalizedData, 'current_status') && normalizedData.current_status !== null) {
+            normalizedData.current_status = this.assertValidStatus(normalizedData.current_status);
+        }
+
+        const [shipments] = await connection.execute(
+            'SELECT * FROM shipments WHERE order_id = ? LIMIT 1 FOR UPDATE',
+            [orderId]
+        );
+
+        if (shipments.length === 0) {
+            const initialShipment = {
+                carrier: this.hasOwn(normalizedData, 'carrier') ? normalizedData.carrier : null,
+                tracking_code: this.hasOwn(normalizedData, 'tracking_code') ? normalizedData.tracking_code : null,
+                tracking_url: this.hasOwn(normalizedData, 'tracking_url') ? normalizedData.tracking_url : null,
+                current_status: this.hasOwn(normalizedData, 'current_status') && normalizedData.current_status
+                    ? normalizedData.current_status
+                    : 'pending',
+                current_location_text: this.hasOwn(normalizedData, 'current_location_text')
+                    ? normalizedData.current_location_text
+                    : null,
+                current_lat: this.hasOwn(normalizedData, 'current_lat') ? normalizedData.current_lat : null,
+                current_lng: this.hasOwn(normalizedData, 'current_lng') ? normalizedData.current_lng : null,
+                estimated_delivery_at: this.hasOwn(normalizedData, 'estimated_delivery_at')
+                    ? normalizedData.estimated_delivery_at
+                    : null,
+                last_event_at: this.hasOwn(normalizedData, 'last_event_at') ? normalizedData.last_event_at : null
+            };
+
+            const [result] = await connection.execute(
+                `INSERT INTO shipments (
+                    order_id, carrier, tracking_code, tracking_url, current_status,
+                    current_location_text, current_lat, current_lng, estimated_delivery_at, last_event_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    orderId,
+                    initialShipment.carrier,
+                    initialShipment.tracking_code,
+                    initialShipment.tracking_url,
+                    initialShipment.current_status,
+                    initialShipment.current_location_text,
+                    initialShipment.current_lat,
+                    initialShipment.current_lng,
+                    initialShipment.estimated_delivery_at,
+                    initialShipment.last_event_at
+                ]
+            );
+
+            const [createdRows] = await connection.execute(
+                'SELECT * FROM shipments WHERE id = ? LIMIT 1',
+                [result.insertId]
+            );
+
+            return createdRows[0] || null;
+        }
+
+        const shipment = shipments[0];
+        const updates = [];
+        const params = [];
+
+        ['carrier', 'tracking_code', 'tracking_url', 'current_status', 'current_location_text', 'current_lat', 'current_lng', 'estimated_delivery_at', 'last_event_at']
+            .forEach((field) => {
+                if (this.hasOwn(normalizedData, field)) {
+                    updates.push(`${field} = ?`);
+                    params.push(normalizedData[field]);
+                }
+            });
+
+        if (updates.length > 0) {
+            params.push(shipment.id);
+            await connection.execute(
+                `UPDATE shipments SET ${updates.join(', ')} WHERE id = ?`,
+                params
+            );
+        }
+
+        const [updatedRows] = await connection.execute(
+            'SELECT * FROM shipments WHERE id = ? LIMIT 1',
+            [shipment.id]
+        );
+
+        return updatedRows[0] || shipment;
+    }
+
+    static async createTrackingEvent(connection, orderId, eventData = {}) {
+        const normalizedStatus = this.assertValidStatus(eventData.status || 'pending');
+        const eventPreset = this.getStatusEventPreset(normalizedStatus);
+        const eventTime = eventData.event_time || new Date();
+
+        await connection.execute(
+            `INSERT INTO order_tracking_events (
+                order_id, shipment_id, status, title, description,
+                location_text, lat, lng, event_time, source, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                orderId,
+                eventData.shipment_id || null,
+                normalizedStatus,
+                eventData.title || eventPreset.title,
+                eventData.description || eventPreset.description,
+                this.hasOwn(eventData, 'location_text') ? eventData.location_text : null,
+                this.hasOwn(eventData, 'lat') ? eventData.lat : null,
+                this.hasOwn(eventData, 'lng') ? eventData.lng : null,
+                eventTime,
+                this.normalizeTrackingSource(eventData.source),
+                eventData.created_by || null
+            ]
+        );
+    }
+
+    static async initializeTracking(connection, orderId, status = 'pending') {
+        const normalizedStatus = this.assertValidStatus(status);
+        const shipment = await this.upsertShipment(connection, orderId, {
+            current_status: normalizedStatus,
+            last_event_at: new Date()
+        });
+
+        await this.createTrackingEvent(connection, orderId, {
+            shipment_id: shipment?.id || null,
+            status: normalizedStatus,
+            source: 'system'
+        });
+    }
+
+    static async attachTrackingData(order) {
+        const [shipments] = await pool.execute(
+            'SELECT * FROM shipments WHERE order_id = ? LIMIT 1',
+            [order.id]
+        );
+        order.shipment = shipments[0] || null;
+
+        const [events] = await pool.execute(
+            `SELECT ote.*, u.full_name AS created_by_name
+             FROM order_tracking_events ote
+             LEFT JOIN users u ON ote.created_by = u.id
+             WHERE ote.order_id = ?
+             ORDER BY ote.event_time DESC, ote.id DESC`,
+            [order.id]
+        );
+        order.tracking_events = events;
+
+        return order;
+    }
+
     static async create(userId, addressId, paymentMethod, notes = null, shippingFeeFromUI = null, discountAmount = 0, voucherCode = null, voucherId = null, selectedCartItemIds = null) {
-        // Lấy connection để sử dụng transaction
         const connection = await pool.getConnection();
 
         try {
-            // Bắt đầu transaction
             await connection.beginTransaction();
-            await this.assertAddressOwnership(connection, userId, addressId);
+            const addressSnapshot = await this.assertAddressOwnership(connection, userId, addressId);
 
-            // Lấy giỏ hàng của user
             const Cart = require('./Cart');
             const [carts] = await connection.execute(
                 'SELECT id FROM cart WHERE user_id = ?',
@@ -153,71 +360,70 @@ class Order {
                 selectedCartItemIds
             );
 
-            // Kiểm tra giỏ hàng không rỗng
             if (cartData.items.length === 0) {
                 throw new Error('Cart is empty');
             }
 
-            // Tạo mã đơn hàng unique: ORD + timestamp + random
             const orderCode = this.generateOrderCode();
-
-            // Tính phí ship: miễn phí nếu đơn >= 500k, còn lại 30k
             const shippingFee = this.calculateShippingFee(cartData.subtotal);
-
-            // Tính tổng tiền cuối: tổng sản phẩm + ship - giảm giá
             const finalAmount = Math.max(0, cartData.subtotal + shippingFee - discountAmount);
 
-            // Tạo đơn hàng trong database
-            const orderQuery = `
-                INSERT INTO orders (user_id, address_id, voucher_id, order_code, total_amount, discount_amount, shipping_fee, final_amount, payment_method, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            const [orderResult] = await connection.execute(orderQuery, [
-                userId,
-                addressId,
-                voucherId,
-                orderCode,
-                cartData.subtotal,
-                discountAmount,
-                shippingFee,
-                finalAmount,
-                paymentMethod,
-                notes
-            ]);
+            const [orderResult] = await connection.execute(
+                `INSERT INTO orders (
+                    user_id, address_id, shipping_name, shipping_phone, shipping_address_line,
+                    shipping_ward, shipping_district, shipping_city, voucher_id, order_code,
+                    total_amount, discount_amount, shipping_fee, final_amount, payment_method, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    userId,
+                    addressId,
+                    addressSnapshot.full_name,
+                    addressSnapshot.phone,
+                    addressSnapshot.address_line,
+                    addressSnapshot.ward || null,
+                    addressSnapshot.district || null,
+                    addressSnapshot.city,
+                    voucherId,
+                    orderCode,
+                    cartData.subtotal,
+                    discountAmount,
+                    shippingFee,
+                    finalAmount,
+                    paymentMethod,
+                    notes
+                ]
+            );
 
             const orderId = orderResult.insertId;
 
-            // Tạo các order_items từ giỏ hàng
             for (const item of cartData.items) {
                 await this.validateOrderItemAvailability(connection, item);
 
-                const orderItemQuery = `
-                    INSERT INTO order_items (order_id, product_id, variant_id, product_name, product_image, price, sale_applied, quantity, subtotal)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `;
-
-                // Tính số tiền đã giảm từ sale
                 const saleDiscount = item.product_price - item.unit_price;
 
-                await connection.execute(orderItemQuery, [
-                    orderId,
-                    item.product_id,
-                    item.variant_id ?? null,
-                    item.product_name,
-                    item.product_image,
-                    item.product_price,
-                    saleDiscount,
-                    item.quantity,
-                    item.subtotal
-                ]);
+                await connection.execute(
+                    `INSERT INTO order_items (
+                        order_id, product_id, variant_id, product_name, product_image,
+                        price, sale_applied, quantity, subtotal
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        orderId,
+                        item.product_id,
+                        item.variant_id ?? null,
+                        item.product_name,
+                        item.product_image,
+                        item.product_price,
+                        saleDiscount,
+                        item.quantity,
+                        item.subtotal
+                    ]
+                );
 
-                // Cập nhật tồn kho: giảm stock, tăng sold_count
                 await connection.execute(
                     'UPDATE products SET stock_quantity = stock_quantity - ?, sold_count = sold_count + ? WHERE id = ?',
                     [item.quantity, item.quantity, item.product_id]
                 );
 
-                // Cập nhật tồn kho variant nếu có
                 if (item.variant_id) {
                     await connection.execute(
                         'UPDATE product_variants SET stock_quantity = stock_quantity - ? WHERE id = ?',
@@ -238,7 +444,6 @@ class Order {
                 );
             }
 
-            // Xóa giỏ hàng sau khi đặt hàng thành công
             const itemIdsToDelete = cartData.items
                 .map((item) => Number.parseInt(item.id, 10))
                 .filter((id) => Number.isInteger(id) && id > 0);
@@ -251,40 +456,24 @@ class Order {
                 );
             }
 
-            // Commit transaction
+            await this.initializeTracking(connection, orderId, 'pending');
             await connection.commit();
 
             return { id: orderId, order_code: orderCode, final_amount: finalAmount };
         } catch (error) {
-            // Rollback nếu có lỗi
             await connection.rollback();
             throw error;
         } finally {
-            // Giải phóng connection
             connection.release();
         }
     }
 
-    /**
-     * Tạo đơn hàng từ một sản phẩm (Mua ngay)
-     *
-     * @description Tạo đơn hàng trực tiếp từ 1 sản phẩm mà không qua giỏ hàng
-     *
-     * @param {number} userId - ID người dùng
-     * @param {number} addressId - ID địa chỉ giao hàng
-     * @param {Object} product - Object sản phẩm (từ Product.findById)
-     * @param {number} quantity - Số lượng mua
-     * @param {string} paymentMethod - Phương thức thanh toán
-     * @param {string|null} notes - Ghi chú
-     *
-     * @returns {Object} { id, order_code, final_amount }
-     */
     static async createFromProduct(userId, addressId, product, quantity, paymentMethod, notes = null, variantId = null, discountAmount = 0, voucherId = null) {
         const connection = await pool.getConnection();
 
         try {
             await connection.beginTransaction();
-            await this.assertAddressOwnership(connection, userId, addressId);
+            const addressSnapshot = await this.assertAddressOwnership(connection, userId, addressId);
 
             const quantityNumber = Number.parseInt(quantity, 10);
             if (!Number.isInteger(quantityNumber) || quantityNumber <= 0) {
@@ -296,65 +485,65 @@ class Order {
                 await this.assertVariantStock(connection, product.id, variantId, quantityNumber);
             }
 
-            // Tạo mã đơn hàng
             const orderCode = this.generateOrderCode();
-
-            // Tính giá (ưu tiên giá sau sale)
             const price = product.final_price || product.price;
             const subtotal = price * quantityNumber;
-            // Phí ship: miễn phí nếu >= 500k
             const shippingFee = this.calculateShippingFee(subtotal);
             const finalAmount = Math.max(0, subtotal + shippingFee - discountAmount);
 
-            // Tạo đơn hàng
-            const orderQuery = `
-                INSERT INTO orders (user_id, address_id, voucher_id, order_code, total_amount, discount_amount, shipping_fee, final_amount, payment_method, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            const [orderResult] = await connection.execute(orderQuery, [
-                userId,
-                addressId,
-                voucherId,
-                orderCode,
-                subtotal,
-                discountAmount,
-                shippingFee,
-                finalAmount,
-                paymentMethod,
-                notes
-            ]);
+            const [orderResult] = await connection.execute(
+                `INSERT INTO orders (
+                    user_id, address_id, shipping_name, shipping_phone, shipping_address_line,
+                    shipping_ward, shipping_district, shipping_city, voucher_id, order_code,
+                    total_amount, discount_amount, shipping_fee, final_amount, payment_method, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    userId,
+                    addressId,
+                    addressSnapshot.full_name,
+                    addressSnapshot.phone,
+                    addressSnapshot.address_line,
+                    addressSnapshot.ward || null,
+                    addressSnapshot.district || null,
+                    addressSnapshot.city,
+                    voucherId,
+                    orderCode,
+                    subtotal,
+                    discountAmount,
+                    shippingFee,
+                    finalAmount,
+                    paymentMethod,
+                    notes
+                ]
+            );
 
             const orderId = orderResult.insertId;
-
-            // Tạo order item
-            const orderItemQuery = `
-                INSERT INTO order_items (order_id, product_id, variant_id, product_name, product_image, price, sale_applied, quantity, subtotal)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-
-            // Lấy ảnh sản phẩm
             const productImage = product.images && product.images.length > 0 ? product.images[0].image_url : null;
             const saleDiscount = product.price - price;
 
-            await connection.execute(orderItemQuery, [
-                orderId,
-                product.id,
-                variantId ?? null,
-                product.name,
-                productImage,
-                product.price,
-                saleDiscount,
-                quantityNumber,
-                subtotal
-            ]);
+            await connection.execute(
+                `INSERT INTO order_items (
+                    order_id, product_id, variant_id, product_name, product_image,
+                    price, sale_applied, quantity, subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    orderId,
+                    product.id,
+                    variantId ?? null,
+                    product.name,
+                    productImage,
+                    product.price,
+                    saleDiscount,
+                    quantityNumber,
+                    subtotal
+                ]
+            );
 
-            // Cập nhật tồn kho
             await connection.execute(
                 'UPDATE products SET stock_quantity = stock_quantity - ?, sold_count = sold_count + ? WHERE id = ?',
                 [quantityNumber, quantityNumber, product.id]
             );
 
-            // Cập nhật tồn kho variant nếu có
             if (variantId) {
                 await connection.execute(
                     'UPDATE product_variants SET stock_quantity = stock_quantity - ? WHERE id = ?',
@@ -374,6 +563,7 @@ class Order {
                 );
             }
 
+            await this.initializeTracking(connection, orderId, 'pending');
             await connection.commit();
 
             return { id: orderId, order_code: orderCode, final_amount: finalAmount };
@@ -385,47 +575,31 @@ class Order {
         }
     }
 
-    // =========================================================================
-    // TÌM KIẾM ĐƠN HÀNG
-    // =========================================================================
-
-    /**
-     * Lấy đơn hàng theo ID với đầy đủ thông tin
-     *
-     * @description Lấy thông tin chi tiết đơn hàng bao gồm:
-     *              - Thông tin đơn hàng
-     *              - Địa chỉ giao hàng
-     *              - Thông tin user
-     *              - Danh sách sản phẩm
-     *              - Thông tin thanh toán
-     *
-     * @param {number} orderId - ID đơn hàng
-     *
-     * @returns {Object|null} Đơn hàng đầy đủ hoặc null nếu không tìm thấy
-     */
     static async findById(orderId) {
-        // Query lấy thông tin đơn hàng kèm địa chỉ và user
-        const query = `
-            SELECT o.*,
-                   a.full_name as shipping_name,
-                   a.phone as shipping_phone,
-                   a.address_line, a.ward, a.district, a.city,
-                   u.email as user_email,
-                   u.full_name as user_name
-            FROM orders o
-            JOIN addresses a ON o.address_id = a.id
-            JOIN users u ON o.user_id = u.id
-            WHERE o.id = ?
-        `;
-
-        const [orders] = await pool.execute(query, [orderId]);
+        const [orders] = await pool.execute(
+            `SELECT o.*,
+                    COALESCE(o.shipping_name, a.full_name) AS shipping_name,
+                    COALESCE(o.shipping_phone, a.phone) AS shipping_phone,
+                    COALESCE(o.shipping_address_line, a.address_line) AS address_line,
+                    COALESCE(o.shipping_ward, a.ward) AS ward,
+                    COALESCE(o.shipping_district, a.district) AS district,
+                    COALESCE(o.shipping_city, a.city) AS city,
+                    u.email AS user_email,
+                    u.full_name AS user_name
+             FROM orders o
+             LEFT JOIN addresses a ON o.address_id = a.id
+             JOIN users u ON o.user_id = u.id
+             WHERE o.id = ?`,
+            [orderId]
+        );
         const order = orders[0];
 
-        if (!order) return null;
+        if (!order) {
+            return null;
+        }
 
-        // Lấy danh sách sản phẩm trong đơn
         const [items] = await pool.execute(
-            `SELECT oi.*, pv.size as variant_size, pv.color as variant_color
+            `SELECT oi.*, pv.size AS variant_size, pv.color AS variant_color
              FROM order_items oi
              LEFT JOIN product_variants pv ON oi.variant_id = pv.id
              WHERE oi.order_id = ?`,
@@ -433,165 +607,178 @@ class Order {
         );
         order.items = items;
 
-        // Lấy thông tin thanh toán gần nhất
         const [payments] = await pool.execute(
             'SELECT * FROM payments WHERE order_id = ? ORDER BY created_at DESC LIMIT 1',
             [orderId]
         );
         order.payment = payments[0] || null;
 
+        await this.attachTrackingData(order);
         return order;
     }
 
-    /**
-     * Lấy đơn hàng theo mã đơn hàng
-     *
-     * @param {string} orderCode - Mã đơn hàng (VD: ORD1234567890123)
-     *
-     * @returns {Object|null} Đơn hàng đầy đủ hoặc null
-     */
     static async findByOrderCode(orderCode) {
         const [orders] = await pool.execute('SELECT id FROM orders WHERE order_code = ?', [orderCode]);
         if (orders.length > 0) {
-            return await this.findById(orders[0].id);
+            return this.findById(orders[0].id);
         }
         return null;
     }
 
-    /**
-     * Lấy danh sách đơn hàng của user
-     *
-     * @description Lấy lịch sử đơn hàng của người dùng với phân trang
-     *
-     * @param {number} userId - ID người dùng
-     * @param {number} limit - Số lượng đơn hàng tối đa (mặc định: 20)
-     * @param {number} offset - Vị trí bắt đầu (mặc định: 0)
-     *
-     * @returns {Array} Danh sách đơn hàng kèm sản phẩm
-     */
     static async findByUser(userId, limit = 20, offset = 0) {
-        // Lấy danh sách đơn hàng
-        const query = `
-            SELECT o.*
-            FROM orders o
-            WHERE o.user_id = ?
-            ORDER BY o.created_at DESC
-            LIMIT ? OFFSET ?
-        `;
+        const [orders] = await pool.execute(
+            `SELECT o.*,
+                    s.current_location_text AS shipment_current_location_text,
+                    s.estimated_delivery_at AS shipment_estimated_delivery_at,
+                    s.tracking_code AS shipment_tracking_code,
+                    s.carrier AS shipment_carrier
+             FROM orders o
+             LEFT JOIN shipments s ON s.order_id = o.id
+             WHERE o.user_id = ?
+             ORDER BY o.created_at DESC
+             LIMIT ? OFFSET ?`,
+            [userId, String(limit), String(offset)]
+        );
 
-        const [orders] = await pool.execute(query, [userId, String(limit), String(offset)]);
-
-        // Lấy sản phẩm cho từng đơn hàng
-        for (let order of orders) {
-            const [items] = await pool.execute(`
-                SELECT oi.*, p.name as product_name,
-                       pv.size as variant_size, pv.color as variant_color,
-                       (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = oi.product_id AND pi.is_primary = TRUE LIMIT 1) as image_url
-                FROM order_items oi
-                LEFT JOIN products p ON oi.product_id = p.id
-                LEFT JOIN product_variants pv ON oi.variant_id = pv.id
-                WHERE oi.order_id = ?
-            `, [order.id]);
+        for (const order of orders) {
+            const [items] = await pool.execute(
+                `SELECT oi.*, p.name AS product_name,
+                        pv.size AS variant_size, pv.color AS variant_color,
+                        (
+                            SELECT pi.image_url
+                            FROM product_images pi
+                            WHERE pi.product_id = oi.product_id AND pi.is_primary = TRUE
+                            LIMIT 1
+                        ) AS image_url
+                 FROM order_items oi
+                 LEFT JOIN products p ON oi.product_id = p.id
+                 LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+                 WHERE oi.order_id = ?`,
+                [order.id]
+            );
             order.items = items;
         }
 
         return orders;
     }
 
-    // =========================================================================
-    // CẬP NHẬT TRẠNG THÁI
-    // =========================================================================
+    static async updateStatus(orderId, status, trackingData = {}, options = {}) {
+        const normalizedStatus = this.assertValidStatus(status);
+        const connection = await pool.getConnection();
 
-    /**
-     * Cập nhật trạng thái đơn hàng
-     *
-     * @description Thay đổi trạng thái đơn hàng:
-     *              pending -> confirmed -> shipping -> delivered
-     *              hoặc cancelled
-     *
-     * @param {number} orderId - ID đơn hàng
-     * @param {string} status - Trạng thái mới
-     *
-     * @returns {Object} Đơn hàng đã cập nhật
-     */
-    static async updateStatus(orderId, status) {
-        const query = 'UPDATE orders SET status = ? WHERE id = ?';
-        await pool.execute(query, [status, orderId]);
-        return await this.findById(orderId);
+        try {
+            await connection.beginTransaction();
+
+            const [orders] = await connection.execute(
+                'SELECT id, status FROM orders WHERE id = ? LIMIT 1 FOR UPDATE',
+                [orderId]
+            );
+            const order = orders[0];
+
+            if (!order) {
+                throw new Error('Order not found');
+            }
+
+            const previousStatus = this.normalizeStatus(order.status);
+            const statusChanged = previousStatus !== normalizedStatus;
+
+            if (statusChanged) {
+                await connection.execute(
+                    'UPDATE orders SET status = ? WHERE id = ?',
+                    [normalizedStatus, orderId]
+                );
+            }
+
+            const trackingFields = ['carrier', 'tracking_code', 'tracking_url', 'current_location_text', 'current_lat', 'current_lng', 'estimated_delivery_at'];
+            const hasTrackingPatch = trackingFields.some((field) => this.hasOwn(trackingData, field));
+            const hasExplicitEventText = this.hasOwn(trackingData, 'title') || this.hasOwn(trackingData, 'description');
+            const eventTime = trackingData.event_time || new Date();
+
+            const shipmentPatch = {
+                current_status: normalizedStatus,
+                ...(hasTrackingPatch ? trackingData : {})
+            };
+
+            if (statusChanged || hasTrackingPatch || hasExplicitEventText) {
+                shipmentPatch.last_event_at = eventTime;
+            }
+
+            const shipment = await this.upsertShipment(connection, orderId, shipmentPatch);
+
+            if (statusChanged || hasTrackingPatch || hasExplicitEventText || this.hasOwn(trackingData, 'event_time')) {
+                const statusPreset = this.getStatusEventPreset(normalizedStatus);
+                const defaultTrackingDescription = 'Thông tin vận chuyển của đơn hàng đã được cập nhật.';
+
+                await this.createTrackingEvent(connection, orderId, {
+                    shipment_id: shipment?.id || null,
+                    status: normalizedStatus,
+                    title: trackingData.title || (statusChanged ? statusPreset.title : 'Cập nhật thông tin vận chuyển'),
+                    description: trackingData.description || (statusChanged ? statusPreset.description : defaultTrackingDescription),
+                    location_text: this.hasOwn(trackingData, 'current_location_text')
+                        ? trackingData.current_location_text
+                        : shipment?.current_location_text ?? null,
+                    lat: this.hasOwn(trackingData, 'current_lat')
+                        ? trackingData.current_lat
+                        : shipment?.current_lat ?? null,
+                    lng: this.hasOwn(trackingData, 'current_lng')
+                        ? trackingData.current_lng
+                        : shipment?.current_lng ?? null,
+                    event_time: eventTime,
+                    source: trackingData.source || 'admin',
+                    created_by: options.actorUserId || null
+                });
+            }
+
+            await connection.commit();
+            return this.findById(orderId);
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 
-    /**
-     * Cập nhật trạng thái thanh toán
-     *
-     * @description Thay đổi trạng thái thanh toán:
-     *              pending -> paid hoặc failed
-     *
-     * @param {number} orderId - ID đơn hàng
-     * @param {string} paymentStatus - Trạng thái thanh toán mới
-     *
-     * @returns {void}
-     */
     static async updatePaymentStatus(orderId, paymentStatus) {
-        const query = 'UPDATE orders SET payment_status = ? WHERE id = ?';
-        await pool.execute(query, [paymentStatus, orderId]);
+        await pool.execute(
+            'UPDATE orders SET payment_status = ? WHERE id = ?',
+            [paymentStatus, orderId]
+        );
     }
 
-    // =========================================================================
-    // ADMIN - QUẢN LÝ ĐƠN HÀNG
-    // =========================================================================
-
-    /**
-     * Lấy tất cả đơn hàng với bộ lọc (Admin)
-     *
-     * @description Lấy danh sách đơn hàng cho trang quản trị với các bộ lọc
-     *
-     * @param {Object} filters - Bộ lọc
-     * @param {string} [filters.status] - Lọc theo trạng thái đơn hàng
-     * @param {string} [filters.payment_status] - Lọc theo trạng thái thanh toán
-     * @param {string} [filters.search] - Tìm theo mã đơn, tên, email
-     * @param {number} [filters.limit] - Giới hạn số lượng
-     * @param {number} [filters.offset] - Vị trí bắt đầu
-     *
-     * @returns {Array} Danh sách đơn hàng
-     */
     static async findAll(filters = {}) {
         let query = `
             SELECT o.*,
-                   u.full_name as user_name,
-                   u.email as user_email,
-                   (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+                   u.full_name AS user_name,
+                   u.email AS user_email,
+                   (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS item_count
             FROM orders o
             JOIN users u ON o.user_id = u.id
-            WHERE 1=1
+            WHERE 1 = 1
         `;
         const params = [];
 
-        // Lọc theo trạng thái đơn hàng
         if (filters.status) {
             query += ' AND o.status = ?';
-            params.push(filters.status);
+            params.push(this.assertValidStatus(filters.status));
         }
 
-        // Lọc theo trạng thái thanh toán
         if (filters.payment_status) {
             query += ' AND o.payment_status = ?';
             params.push(filters.payment_status);
         }
 
-        // Tìm kiếm theo mã đơn, tên, email
         if (filters.search) {
-            query += ' AND (o.order_code LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR COALESCE(o.recipient_name, \'\') LIKE ? OR COALESCE(o.recipient_phone, \'\') LIKE ?)';
+            query += ' AND (o.order_code LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR COALESCE(o.shipping_name, \'\') LIKE ? OR COALESCE(o.shipping_phone, \'\') LIKE ?)';
             const searchTerm = `%${filters.search}%`;
             params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
         }
 
-        // Sắp xếp theo thời gian mới nhất
         query += ' ORDER BY o.created_at DESC';
 
-        // Phân trang
         if (filters.limit) {
-            const limit = parseInt(filters.limit) || 50;
-            const offset = parseInt(filters.offset) || 0;
+            const limit = parseInt(filters.limit, 10) || 50;
+            const offset = parseInt(filters.offset, 10) || 0;
             query += ` LIMIT ${limit} OFFSET ${offset}`;
         }
 
@@ -599,26 +786,16 @@ class Order {
         return orders;
     }
 
-    /**
-     * Lấy thống kê đơn hàng (Admin Dashboard)
-     *
-     * @description Lấy các số liệu thống kê tổng quan:
-     *              - Tổng số đơn hàng
-     *              - Số đơn theo trạng thái
-     *              - Doanh thu tổng, hôm nay, tháng này
-     *
-     * @returns {Object} Thống kê đơn hàng
-     */
     static async getStatistics() {
         const [stats] = await pool.execute(`
             SELECT
-                COUNT(*) as total_orders,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
-                SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_orders,
-                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
-                SUM(final_amount) as total_revenue,
-                SUM(CASE WHEN DATE(created_at) = CURDATE() THEN final_amount ELSE 0 END) as today_revenue,
-                SUM(CASE WHEN YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) THEN final_amount ELSE 0 END) as month_revenue
+                COUNT(*) AS total_orders,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_orders,
+                SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS delivered_orders,
+                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders,
+                SUM(final_amount) AS total_revenue,
+                SUM(CASE WHEN DATE(created_at) = CURDATE() THEN final_amount ELSE 0 END) AS today_revenue,
+                SUM(CASE WHEN YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) THEN final_amount ELSE 0 END) AS month_revenue
             FROM orders
         `);
 

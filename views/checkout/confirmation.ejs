@@ -22,7 +22,7 @@
                 <h3>Chi tiết đơn hàng</h3>
                 <div class="confirmation-items">
                     <% if (order.items && order.items.length > 0) { %>
-                        <% order.items.forEach(item => { %>
+                        <% order.items.forEach((item) => { %>
                             <div class="order-item">
                                 <div class="order-item__image">
                                     <% if (item.product_image) { %>
@@ -98,6 +98,7 @@
 
         <div class="confirmation-actions">
             <a href="/" class="btn btn-primary">Về trang chủ</a>
+            <a href="/orders/<%= order.order_code %>/tracking" class="btn btn-secondary">Theo dõi đơn hàng</a>
             <a href="/orders/history" class="btn btn-secondary">Xem lịch sử đơn hàng</a>
         </div>
     </div>

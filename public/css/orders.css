@@ -66,7 +66,8 @@
     color: var(--success);
 }
 
-.order-status.is-shipped {
+.order-status.is-shipped,
+.order-status.is-shipping {
     background: rgba(24, 20, 13, 0.1);
     color: var(--ink);
 }
@@ -142,6 +143,20 @@
     background: rgba(255, 248, 232, 0.55);
 }
 
+.order-card__tracking-summary {
+    display: grid;
+    gap: 8px;
+    padding: 18px 24px;
+    border-top: 1px solid rgba(215, 197, 154, 0.6);
+    background: rgba(255, 251, 241, 0.8);
+}
+
+.order-card__tracking-summary p {
+    margin: 0;
+    color: var(--gray-700);
+    font-size: 14px;
+}
+
 .order-card__payment span,
 .order-card__total span {
     display: block;
@@ -162,6 +177,13 @@
 
 .order-card__total {
     text-align: right;
+}
+
+.order-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0 24px 24px;
 }
 
 .order-card__empty {
@@ -319,6 +341,7 @@
     .confirmation-card,
     .confirmation-hero,
     .order-card__items,
+    .order-card__tracking-summary,
     .confirmation-items {
         padding: 18px;
     }
@@ -335,5 +358,9 @@
 
     .order-item__price {
         grid-column: 2;
+    }
+
+    .order-card__actions {
+        padding: 0 18px 18px;
     }
 }

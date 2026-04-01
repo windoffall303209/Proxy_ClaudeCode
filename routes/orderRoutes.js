@@ -17,6 +17,9 @@ router.post('/buy-now/create', verifyToken, orderController.createBuyNowOrder);
 // Order history (requires login) - must be before :orderCode route
 router.get('/history', verifyToken, orderController.getOrderHistory);
 
+// Order tracking (requires login and owner access)
+router.get('/:orderCode/tracking', verifyToken, orderController.showOrderTracking);
+
 // Order confirmation (requires login and owner access)
 router.get('/:orderCode/confirmation', verifyToken, orderController.orderConfirmation);
 

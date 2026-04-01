@@ -21,6 +21,8 @@ router.post('/change-password', verifyToken, authController.changePassword);
 
 // Address management
 router.post('/address', verifyToken, authController.createAddress);
+router.put('/address/:id', verifyToken, authController.updateAddress);
+router.delete('/address/:id', verifyToken, authController.deleteAddress);
 
 // Email verification
 router.get('/verify-email', verifyToken, authController.showVerifyEmail);

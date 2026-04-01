@@ -217,8 +217,16 @@ function updateCartItemUI(itemId, newQuantity, itemData) {
     updateSelectedTotal();
 }
 
-function removeItem(itemId) {
-    if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return;
+async function removeItem(itemId) {
+    const confirmed = await window.showGlobalConfirm({
+        title: 'Xóa sản phẩm',
+        message: 'Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng không?',
+        confirmText: 'Xóa sản phẩm',
+        cancelText: 'Giữ lại',
+        tone: 'danger'
+    });
+
+    if (!confirmed) return;
 
     const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
     if (!cartItem) return;

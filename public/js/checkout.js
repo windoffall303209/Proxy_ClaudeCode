@@ -8,6 +8,7 @@ let wardsData = [];
 let checkoutRuntimeData = null;
 let provincesLoadPromise = null;
 let reverseGeocodeRequestId = 0;
+let editingAddressId = null;
 const districtsCache = new Map();
 const wardsCache = new Map();
 const provinceDistrictTreeCache = new Map();
@@ -118,6 +119,212 @@ function readCheckoutBootstrapData() {
     }
 
     return checkoutRuntimeData;
+}
+
+function getSavedAddresses() {
+    const bootstrap = readCheckoutBootstrapData();
+    return Array.isArray(bootstrap.addresses) ? bootstrap.addresses : [];
+}
+
+function getSavedAddressById(addressId) {
+    const normalizedId = Number.parseInt(addressId, 10);
+    if (!Number.isInteger(normalizedId) || normalizedId <= 0) {
+        return null;
+    }
+
+    return getSavedAddresses().find((address) => Number.parseInt(address.id, 10) === normalizedId) || null;
+}
+
+function getAddressFormElement() {
+    return document.getElementById('newAddressForm');
+}
+
+function closeAddressForm() {
+    const form = getAddressFormElement();
+    if (!form) {
+        return;
+    }
+
+    form.hidden = true;
+    document.body.classList.remove('address-form-open');
+    setAddressFormEditingState(null);
+}
+
+function setAddressFormEditingState(address = null) {
+    editingAddressId = address ? Number.parseInt(address.id, 10) : null;
+
+    const editingAddressIdInput = document.getElementById('editingAddressId');
+    const editingAddressDefaultInput = document.getElementById('editingAddressDefault');
+    const formTitle = document.getElementById('addressFormTitle');
+    const saveButton = document.getElementById('saveAddressBtn');
+    const deleteButton = document.getElementById('deleteAddressInlineBtn');
+
+    if (editingAddressIdInput) {
+        editingAddressIdInput.value = editingAddressId || '';
+    }
+
+    if (editingAddressDefaultInput) {
+        editingAddressDefaultInput.value = address ? String(Boolean(address.is_default)) : 'true';
+    }
+
+    if (formTitle) {
+        formTitle.textContent = address ? 'Chỉnh sửa địa chỉ' : 'Địa chỉ mới';
+    }
+
+    if (saveButton) {
+        saveButton.textContent = 'Lưu địa chỉ';
+    }
+
+    if (deleteButton) {
+        deleteButton.hidden = !address;
+        deleteButton.dataset.addressId = address ? String(address.id) : '';
+    }
+}
+
+function resetAddressFormFields() {
+    const fullNameInput = document.getElementById('newFullName');
+    const phoneInput = document.getElementById('newPhone');
+    const addressLineInput = document.getElementById('newAddressLine');
+    const cityNameInput = document.getElementById('newCityName');
+    const districtNameInput = document.getElementById('newDistrictName');
+    const wardNameInput = document.getElementById('newWardName');
+    const latitudeInput = document.getElementById('newLatitude');
+    const longitudeInput = document.getElementById('newLongitude');
+    const citySelect = document.getElementById('newCity');
+    const districtSelect = document.getElementById('newDistrict');
+    const wardSelect = document.getElementById('newWard');
+
+    if (fullNameInput) fullNameInput.value = '';
+    if (phoneInput) phoneInput.value = '';
+    if (addressLineInput) addressLineInput.value = '';
+    if (cityNameInput) cityNameInput.value = '';
+    if (districtNameInput) districtNameInput.value = '';
+    if (wardNameInput) wardNameInput.value = '';
+    if (latitudeInput) latitudeInput.value = '';
+    if (longitudeInput) longitudeInput.value = '';
+
+    if (citySelect) {
+        removeDetectedOptions(citySelect);
+        citySelect.value = '';
+    }
+
+    if (districtSelect) {
+        removeDetectedOptions(districtSelect);
+        districtSelect.innerHTML = `<option value="">${DISTRICT_PLACEHOLDER}</option>`;
+        districtSelect.disabled = true;
+    }
+
+    if (wardSelect) {
+        removeDetectedOptions(wardSelect);
+        wardSelect.innerHTML = `<option value="">${WARD_PLACEHOLDER}</option>`;
+        wardSelect.disabled = true;
+    }
+
+    districtsData = [];
+    wardsData = [];
+
+    clearFieldError('newFullName', 'newFullNameError');
+    clearFieldError('newPhone', 'newPhoneError');
+
+    if (addressMarker && addressMap) {
+        addressMap.removeLayer(addressMarker);
+        addressMarker = null;
+    }
+}
+
+function openAddressForm() {
+    const form = getAddressFormElement();
+    if (!form) {
+        return;
+    }
+
+    const panel = form.querySelector('.address-form');
+    const wasHidden = form.hidden;
+    form.hidden = false;
+    document.body.classList.add('address-form-open');
+    if (panel) {
+        panel.scrollTop = 0;
+    }
+
+    if (wasHidden && !addressMap) {
+        setTimeout(initAddressMap, 100);
+    } else if (addressMap) {
+        setTimeout(() => addressMap.invalidateSize(), 100);
+    }
+}
+
+async function openCreateAddressForm() {
+    resetAddressFormFields();
+    setAddressFormEditingState(null);
+    openAddressForm();
+    await loadProvinces();
+    document.getElementById('newFullName')?.focus();
+}
+
+async function populateAddressAdministrativeFields(address) {
+    const citySelect = document.getElementById('newCity');
+    const districtSelect = document.getElementById('newDistrict');
+    const wardSelect = document.getElementById('newWard');
+    const cityNameInput = document.getElementById('newCityName');
+    const districtNameInput = document.getElementById('newDistrictName');
+    const wardNameInput = document.getElementById('newWardName');
+
+    if (!citySelect || !districtSelect || !wardSelect || !cityNameInput || !districtNameInput || !wardNameInput) {
+        return;
+    }
+
+    await loadProvinces();
+
+    const provinceMatch = findAdministrativeMatch(provincesData, [address.city]);
+    if (provinceMatch) {
+        removeDetectedOptions(citySelect);
+        citySelect.value = String(provinceMatch.code);
+        cityNameInput.value = provinceMatch.name;
+        await loadDistricts();
+    } else {
+        setDetectedSelection(citySelect, address.city, 'province');
+        cityNameInput.value = address.city;
+    }
+
+    const districtMatch = findAdministrativeMatch(districtsData, [address.district]);
+    if (districtMatch) {
+        removeDetectedOptions(districtSelect);
+        districtSelect.value = String(districtMatch.code);
+        districtNameInput.value = districtMatch.name;
+        await loadWards();
+    } else if (address.district) {
+        setDetectedSelection(districtSelect, address.district, 'district');
+        districtNameInput.value = address.district;
+    }
+
+    const wardMatch = findAdministrativeMatch(wardsData, [address.ward]);
+    if (wardMatch) {
+        removeDetectedOptions(wardSelect);
+        wardSelect.value = String(wardMatch.code);
+        wardNameInput.value = wardMatch.name;
+    } else if (address.ward) {
+        setDetectedSelection(wardSelect, address.ward, 'ward');
+        wardNameInput.value = address.ward;
+    }
+}
+
+async function editAddress(addressId) {
+    const address = getSavedAddressById(addressId);
+    if (!address) {
+        showGlobalToast('Không tìm thấy địa chỉ để chỉnh sửa', 'error');
+        return;
+    }
+
+    resetAddressFormFields();
+    setAddressFormEditingState(address);
+    openAddressForm();
+
+    document.getElementById('newFullName').value = address.full_name || '';
+    document.getElementById('newPhone').value = address.phone || '';
+    document.getElementById('newAddressLine').value = address.address_line || '';
+
+    await populateAddressAdministrativeFields(address);
+    document.getElementById('newFullName')?.focus();
 }
 
 function setVoucherMessage(message, type = '') {
@@ -770,15 +977,8 @@ async function loadWards() {
     return wardsData;
 }
 
-function toggleAddressForm() {
-    const form = document.getElementById('newAddressForm');
-    if (!form) return;
-    const isHidden = form.hidden;
-    form.hidden = !isHidden;
-
-    if (isHidden && !addressMap) {
-        setTimeout(initAddressMap, 100);
-    }
+async function toggleAddressForm() {
+    await openCreateAddressForm();
 }
 
 function initAddressMap() {
@@ -980,6 +1180,8 @@ async function saveNewAddress() {
     const fullName = document.getElementById('newFullName').value.trim();
     const phone = document.getElementById('newPhone').value.trim();
     const addressLine = document.getElementById('newAddressLine').value;
+    const currentEditingAddressId = editingAddressId || Number.parseInt(document.getElementById('editingAddressId')?.value, 10) || null;
+    const currentEditingDefault = document.getElementById('editingAddressDefault')?.value === 'true';
 
     const ward = document.getElementById('newWardName').value ||
         document.getElementById('newWard').options[document.getElementById('newWard').selectedIndex]?.text || '';
@@ -1006,8 +1208,8 @@ async function saveNewAddress() {
     }
 
     try {
-        const response = await fetch('/auth/address', {
-            method: 'POST',
+        const response = await fetch(currentEditingAddressId ? `/auth/address/${currentEditingAddressId}` : '/auth/address', {
+            method: currentEditingAddressId ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({
@@ -1017,22 +1219,64 @@ async function saveNewAddress() {
                 ward,
                 district,
                 city,
-                is_default: true
+                is_default: currentEditingAddressId ? currentEditingDefault : true
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showGlobalToast('Đã lưu địa chỉ thành công!', 'success');
+            showGlobalToast(currentEditingAddressId ? 'Đã cập nhật địa chỉ thành công' : 'Đã lưu địa chỉ thành công', 'success');
             location.reload();
         } else {
             showGlobalToast(data.message || 'Có lỗi xảy ra', 'error');
         }
     } catch (error) {
         console.error('Save address error:', error);
-        showGlobalToast('Có lỗi xảy ra khi lưu địa chỉ', 'error');
+        showGlobalToast(currentEditingAddressId ? 'Có lỗi xảy ra khi cập nhật địa chỉ' : 'Có lỗi xảy ra khi lưu địa chỉ', 'error');
     }
+}
+
+async function deleteAddress(addressId) {
+    const confirmed = await window.showGlobalConfirm({
+        title: 'Xóa địa chỉ',
+        message: 'Bạn muốn xóa địa chỉ này không?',
+        confirmText: 'Xóa địa chỉ',
+        cancelText: 'Giữ lại',
+        tone: 'danger'
+    });
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/auth/address/${addressId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            showGlobalToast(data.message || 'Không thể xóa địa chỉ', 'error');
+            return;
+        }
+
+        showGlobalToast('Đã xóa địa chỉ thành công', 'success');
+        window.location.reload();
+    } catch (error) {
+        console.error('Delete address error:', error);
+        showGlobalToast('Có lỗi xảy ra khi xóa địa chỉ', 'error');
+    }
+}
+
+async function deleteEditingAddress() {
+    const currentEditingAddressId = editingAddressId || Number.parseInt(document.getElementById('editingAddressId')?.value, 10) || null;
+    if (!currentEditingAddressId) {
+        return;
+    }
+
+    await deleteAddress(currentEditingAddressId);
 }
 
 async function applyVoucher() {
@@ -1102,11 +1346,35 @@ function initCheckout() {
     loadProvinces();
 
     document.querySelectorAll('[data-checkout-action="toggle-address-form"]').forEach((button) => {
-        button.addEventListener('click', toggleAddressForm);
+        button.addEventListener('click', async () => {
+            await toggleAddressForm();
+        });
     });
 
     document.querySelectorAll('[data-checkout-action="save-address"]').forEach((button) => {
         button.addEventListener('click', saveNewAddress);
+    });
+
+    document.querySelectorAll('[data-checkout-action="edit-address"]').forEach((button) => {
+        button.addEventListener('click', async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            await editAddress(this.dataset.addressId);
+        });
+    });
+
+    document.querySelectorAll('[data-checkout-action="delete-address-inline"]').forEach((button) => {
+        button.addEventListener('click', async function(event) {
+            event.preventDefault();
+            await deleteEditingAddress();
+        });
+    });
+
+    document.querySelectorAll('[data-checkout-action="close-address-form"]').forEach((button) => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            closeAddressForm();
+        });
     });
 
     if (bootstrap.mode !== 'buy-now') {
@@ -1149,7 +1417,7 @@ function initCheckout() {
             document.querySelectorAll('.address-card').forEach((card) => {
                 card.classList.remove('address-card--selected');
             });
-            this.closest('label')?.classList.add('address-card--selected');
+            this.closest('.address-card')?.classList.add('address-card--selected');
         });
     });
 
@@ -1181,8 +1449,19 @@ function initCheckout() {
 
     const addressForm = document.getElementById('newAddressForm');
     if (addressForm && !addressForm.hidden) {
+        document.body.classList.add('address-form-open');
+        setAddressFormEditingState(null);
         setTimeout(initAddressMap, 300);
+    } else {
+        document.body.classList.remove('address-form-open');
+        setAddressFormEditingState(null);
     }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !getAddressFormElement()?.hidden) {
+            closeAddressForm();
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', initCheckout);

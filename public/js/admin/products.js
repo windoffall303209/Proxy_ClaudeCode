@@ -511,7 +511,15 @@ async function loadProductImages(productId) {
 }
 
 async function deleteImage(imageId) {
-    if (!confirm('Bạn có chắc muốn xóa ảnh này?')) return;
+    const confirmed = await window.showGlobalConfirm({
+        title: 'Xóa ảnh sản phẩm',
+        message: 'Bạn có chắc muốn xóa ảnh này không?',
+        confirmText: 'Xóa ảnh',
+        cancelText: 'Giữ lại',
+        tone: 'danger'
+    });
+
+    if (!confirmed) return;
 
     const productId = document.getElementById('imageModalProductId').value;
 

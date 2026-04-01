@@ -440,13 +440,25 @@ exports.showLogin = (req, res) => {
  *
  * @returns {JSON} Trả về JSON với địa chỉ vừa tạo
  */
+function normalizeAddressPayload(body = {}) {
+    return {
+        full_name: String(body.full_name || '').trim(),
+        phone: String(body.phone || '').trim(),
+        address_line: String(body.address_line || '').trim(),
+        ward: String(body.ward || '').trim(),
+        district: String(body.district || '').trim(),
+        city: String(body.city || '').trim(),
+        is_default: body.is_default === true || body.is_default === 'true' || body.is_default === 'on'
+    };
+}
+
 exports.createAddress = async (req, res) => {
     try {
         const Address = require('../models/Address');
-        const { full_name, phone, address_line, ward, district, city, is_default } = req.body;
+        const addressPayload = normalizeAddressPayload(req.body);
 
         // Validate dữ liệu bắt buộc
-        if (!full_name || !phone || !address_line || !city) {
+        if (!addressPayload.full_name || !addressPayload.phone || !addressPayload.address_line || !addressPayload.city) {
             return res.status(400).json({
                 success: false,
                 message: 'Vui lòng điền đầy đủ thông tin bắt buộc'
@@ -454,15 +466,7 @@ exports.createAddress = async (req, res) => {
         }
 
         // Tạo địa chỉ mới
-        const address = await Address.create(req.user.id, {
-            full_name,
-            phone,
-            address_line,
-            ward,
-            district,
-            city,
-            is_default: is_default === true || is_default === 'true' || is_default === 'on'
-        });
+        const address = await Address.create(req.user.id, addressPayload);
 
         res.json({
             success: true,
@@ -489,6 +493,66 @@ exports.createAddress = async (req, res) => {
  *
  * @returns {JSON} Trả về JSON với thông tin user đã cập nhật
  */
+exports.updateAddress = async (req, res) => {
+    try {
+        const Address = require('../models/Address');
+        const addressId = Number.parseInt(req.params.id, 10);
+        const addressPayload = normalizeAddressPayload(req.body);
+
+        if (!Number.isInteger(addressId) || addressId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Địa chỉ không hợp lệ'
+            });
+        }
+
+        if (!addressPayload.full_name || !addressPayload.phone || !addressPayload.address_line || !addressPayload.city) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng điền đầy đủ thông tin bắt buộc'
+            });
+        }
+
+        const address = await Address.update(addressId, req.user.id, addressPayload);
+
+        res.json({
+            success: true,
+            message: 'Đã cập nhật địa chỉ thành công',
+            address
+        });
+    } catch (error) {
+        console.error('Update address error:', error);
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.deleteAddress = async (req, res) => {
+    try {
+        const Address = require('../models/Address');
+        const addressId = Number.parseInt(req.params.id, 10);
+
+        if (!Number.isInteger(addressId) || addressId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Địa chỉ không hợp lệ'
+            });
+        }
+
+        await Address.delete(addressId, req.user.id);
+
+        res.json({
+            success: true,
+            message: 'Đã xóa địa chỉ thành công'
+        });
+    } catch (error) {
+        console.error('Delete address error:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 exports.updateFullProfile = async (req, res) => {
     try {
         const { full_name, phone, birthday } = req.body;

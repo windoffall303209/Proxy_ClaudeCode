@@ -1,0 +1,303 @@
+.tracking-page__container {
+    display: grid;
+    gap: 22px;
+}
+
+.tracking-hero,
+.tracking-card {
+    border-radius: 30px;
+    border: 1px solid rgba(215, 197, 154, 0.8);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-soft);
+}
+
+.tracking-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 28px 32px;
+    background:
+        linear-gradient(135deg, rgba(242, 201, 76, 0.2), rgba(255, 255, 255, 0.96)),
+        rgba(255, 255, 255, 0.96);
+}
+
+.tracking-hero__eyebrow {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+}
+
+.tracking-hero__title {
+    margin-top: 10px;
+    font-size: clamp(32px, 4vw, 52px);
+    letter-spacing: -0.05em;
+    line-height: 1;
+}
+
+.tracking-hero__copy,
+.tracking-hero__meta span {
+    color: var(--muted);
+}
+
+.tracking-hero__meta {
+    min-width: 220px;
+    padding: 18px 20px;
+    border-radius: 22px;
+    border: 1px solid rgba(215, 197, 154, 0.72);
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.tracking-hero__meta strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 20px;
+}
+
+.tracking-card {
+    padding: 24px;
+}
+
+.tracking-card__header h2 {
+    font-size: 24px;
+    line-height: 1.08;
+}
+
+.tracking-progress {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.tracking-progress__step {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.tracking-progress__step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 17px;
+    left: calc(50% + 26px);
+    width: calc(100% - 52px);
+    height: 2px;
+    background: rgba(215, 197, 154, 0.82);
+}
+
+.tracking-progress__step.is-complete:not(:last-child)::after,
+.tracking-progress__step.is-current:not(:last-child)::after {
+    background: var(--success);
+}
+
+.tracking-progress__dot {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(24, 20, 13, 0.08);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.tracking-progress__step.is-complete .tracking-progress__dot,
+.tracking-progress__step.is-current .tracking-progress__dot {
+    background: var(--success);
+    color: #fff;
+}
+
+.tracking-progress__label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-700);
+}
+
+.tracking-progress__cancelled-note,
+.tracking-empty {
+    margin-top: 14px;
+    color: var(--danger);
+}
+
+.tracking-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+    gap: 22px;
+}
+
+.tracking-side {
+    display: grid;
+    gap: 22px;
+}
+
+.tracking-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.tracking-info-grid--single {
+    grid-template-columns: 1fr;
+}
+
+.tracking-info,
+.tracking-map-preview,
+.tracking-address {
+    padding: 16px 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(215, 197, 154, 0.72);
+    background: #faf4e8;
+}
+
+.tracking-info span {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+}
+
+.tracking-info strong,
+.tracking-address strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 16px;
+}
+
+.tracking-address p,
+.tracking-map-preview p {
+    margin: 8px 0 0;
+    color: var(--gray-700);
+}
+
+.tracking-info-note {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(242, 201, 76, 0.14);
+    border: 1px solid rgba(216, 166, 23, 0.2);
+    color: var(--gray-700);
+}
+
+.tracking-map-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.tracking-timeline {
+    display: grid;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.tracking-event {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 16px;
+}
+
+.tracking-event:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 8px;
+    width: 2px;
+    height: calc(100% - 10px);
+    background: rgba(215, 197, 154, 0.88);
+}
+
+.tracking-event__dot {
+    width: 18px;
+    height: 18px;
+    margin-top: 4px;
+    border-radius: 999px;
+    background: var(--accent);
+    border: 4px solid rgba(24, 20, 13, 0.08);
+}
+
+.tracking-event__body {
+    padding: 16px 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(215, 197, 154, 0.72);
+    background: #fffaf0;
+}
+
+.tracking-event__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.tracking-event__top h3 {
+    font-size: 18px;
+    line-height: 1.15;
+}
+
+.tracking-event__top time,
+.tracking-event__body p {
+    color: var(--gray-700);
+}
+
+.tracking-event__body p {
+    margin-top: 10px;
+}
+
+@media (max-width: 980px) {
+    .tracking-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .tracking-hero {
+        flex-direction: column;
+        padding: 22px;
+    }
+
+    .tracking-card {
+        padding: 18px;
+    }
+
+    .tracking-progress {
+        grid-template-columns: 1fr;
+    }
+
+    .tracking-progress__step {
+        justify-items: start;
+        text-align: left;
+        grid-template-columns: 34px 1fr;
+        align-items: center;
+    }
+
+    .tracking-progress__step:not(:last-child)::after {
+        top: 34px;
+        left: 16px;
+        width: 2px;
+        height: calc(100% - 18px);
+    }
+
+    .tracking-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tracking-map-preview,
+    .tracking-event__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

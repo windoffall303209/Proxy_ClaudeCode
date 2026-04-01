@@ -1,0 +1,187 @@
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/orders.css">
+<link rel="stylesheet" href="/css/tracking.css">
+
+<%
+    const shipment = order.shipment || {};
+    const trackingEvents = Array.isArray(order.tracking_events) ? order.tracking_events : [];
+    const statusMap = {
+        pending: 'Chờ xác nhận',
+        confirmed: 'Đã xác nhận',
+        processing: 'Đang xử lý',
+        shipping: 'Đang giao',
+        delivered: 'Đã giao',
+        cancelled: 'Đã hủy'
+    };
+    const paymentLabels = {
+        cod: 'Thanh toán khi nhận hàng',
+        vnpay: 'VNPay',
+        momo: 'MoMo'
+    };
+    const progressStepMap = {
+        pending: 0,
+        confirmed: 1,
+        processing: 1,
+        shipping: 2,
+        delivered: 3,
+        cancelled: 0
+    };
+    const steps = [
+        { key: 'pending', label: 'Tạo đơn' },
+        { key: 'confirmed', label: 'Xác nhận' },
+        { key: 'shipping', label: 'Vận chuyển' },
+        { key: 'delivered', label: 'Hoàn tất' }
+    ];
+    const currentStep = progressStepMap[order.status] ?? 0;
+    const hasCoordinates = shipment.current_lat !== null && shipment.current_lat !== undefined && shipment.current_lng !== null && shipment.current_lng !== undefined;
+    const mapsUrl = hasCoordinates ? `https://www.google.com/maps?q=${shipment.current_lat},${shipment.current_lng}` : null;
+%>
+
+<div class="tracking-page page-shell">
+    <div class="container tracking-page__container">
+        <section class="tracking-hero">
+            <div class="tracking-hero__content">
+                <p class="tracking-hero__eyebrow">Theo dõi đơn hàng</p>
+                <h1 class="tracking-hero__title"><%= order.order_code %></h1>
+                <p class="tracking-hero__copy">
+                    Trạng thái hiện tại: <strong><%= statusMap[order.status] || order.status %></strong>
+                </p>
+            </div>
+            <div class="tracking-hero__meta">
+                <span>Đặt lúc</span>
+                <strong><%= new Date(order.created_at).toLocaleString('vi-VN') %></strong>
+            </div>
+        </section>
+
+        <section class="tracking-card">
+            <div class="tracking-progress <%= order.status === 'cancelled' ? 'is-cancelled' : '' %>">
+                <% steps.forEach((step, index) => { %>
+                    <div class="tracking-progress__step <%= index < currentStep ? 'is-complete' : '' %> <%= index === currentStep && order.status !== 'cancelled' ? 'is-current' : '' %>">
+                        <span class="tracking-progress__dot"><%= index + 1 %></span>
+                        <span class="tracking-progress__label"><%= step.label %></span>
+                    </div>
+                <% }) %>
+            </div>
+
+            <% if (order.status === 'cancelled') { %>
+                <p class="tracking-progress__cancelled-note">Đơn hàng đã bị hủy. Timeline bên dưới vẫn giữ lịch sử cập nhật gần nhất.</p>
+            <% } %>
+        </section>
+
+        <div class="tracking-layout">
+            <section class="tracking-card">
+                <div class="tracking-card__header">
+                    <h2>Thông tin vận chuyển</h2>
+                </div>
+                <div class="tracking-info-grid">
+                    <div class="tracking-info">
+                        <span>Đơn vị vận chuyển</span>
+                        <strong><%= shipment.carrier || 'Đang cập nhật' %></strong>
+                    </div>
+                    <div class="tracking-info">
+                        <span>Mã vận đơn</span>
+                        <strong><%= shipment.tracking_code || 'Chưa có' %></strong>
+                    </div>
+                    <div class="tracking-info">
+                        <span>Vị trí hiện tại</span>
+                        <strong><%= shipment.current_location_text || 'Chưa có cập nhật vị trí' %></strong>
+                    </div>
+                    <div class="tracking-info">
+                        <span>Dự kiến giao</span>
+                        <strong><%= shipment.estimated_delivery_at ? new Date(shipment.estimated_delivery_at).toLocaleString('vi-VN') : 'Chưa có ETA' %></strong>
+                    </div>
+                </div>
+
+                <p class="tracking-info-note">
+                    Dữ liệu vận chuyển được cập nhật từ quản trị hoặc đồng bộ từ đơn vị vận chuyển. Nếu mã vận đơn, ETA hay vị trí còn trống, đơn hàng có thể vẫn đang chờ bàn giao cho hãng giao hàng.
+                </p>
+
+                <% if (hasCoordinates) { %>
+                    <div class="tracking-map-preview">
+                        <p>Tọa độ hiện tại: <strong><%= shipment.current_lat %>, <%= shipment.current_lng %></strong></p>
+                        <a href="<%= mapsUrl %>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Mở vị trí trên bản đồ</a>
+                    </div>
+                <% } %>
+
+                <% if (shipment.tracking_url) { %>
+                    <div class="tracking-map-preview">
+                        <a href="<%= shipment.tracking_url %>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Tra cứu trên trang vận chuyển</a>
+                    </div>
+                <% } %>
+            </section>
+
+            <aside class="tracking-side">
+                <section class="tracking-card">
+                    <div class="tracking-card__header">
+                        <h2>Địa chỉ nhận hàng</h2>
+                    </div>
+                    <div class="tracking-address">
+                        <strong><%= order.shipping_name %> - <%= order.shipping_phone %></strong>
+                        <p><%= order.address_line %><%= order.ward ? ', ' + order.ward : '' %><%= order.district ? ', ' + order.district : '' %>, <%= order.city %></p>
+                    </div>
+                </section>
+
+                <section class="tracking-card">
+                    <div class="tracking-card__header">
+                        <h2>Thanh toán</h2>
+                    </div>
+                    <div class="tracking-info-grid tracking-info-grid--single">
+                        <div class="tracking-info">
+                            <span>Phương thức</span>
+                            <strong><%= paymentLabels[order.payment_method] || order.payment_method %></strong>
+                        </div>
+                        <div class="tracking-info">
+                            <span>Trạng thái</span>
+                            <strong><%= order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' %></strong>
+                        </div>
+                        <div class="tracking-info">
+                            <span>Tổng thanh toán</span>
+                            <strong><%= (order.final_amount || order.total_amount).toLocaleString('vi-VN') %>đ</strong>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+        </div>
+
+        <section class="tracking-card">
+            <div class="tracking-card__header">
+                <h2>Tiến trình vận chuyển</h2>
+            </div>
+
+            <% if (trackingEvents.length > 0) { %>
+                <div class="tracking-timeline">
+                    <% trackingEvents.forEach((event) => { %>
+                        <article class="tracking-event">
+                            <div class="tracking-event__dot"></div>
+                            <div class="tracking-event__body">
+                                <div class="tracking-event__top">
+                                    <h3><%= event.title %></h3>
+                                    <time><%= new Date(event.event_time).toLocaleString('vi-VN') %></time>
+                                </div>
+                                <% if (event.description) { %>
+                                    <p><%= event.description %></p>
+                                <% } %>
+                                <% if (event.location_text) { %>
+                                    <p><strong>Địa điểm:</strong> <%= event.location_text %></p>
+                                <% } %>
+                                <% if (event.created_by_name) { %>
+                                    <p><strong>Cập nhật bởi:</strong> <%= event.created_by_name %></p>
+                                <% } %>
+                            </div>
+                        </article>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <p class="tracking-empty">Chưa có mốc vận chuyển nào được ghi nhận.</p>
+            <% } %>
+        </section>
+
+        <div class="confirmation-actions">
+            <a href="/orders/history" class="btn btn-secondary">Quay lại lịch sử đơn</a>
+            <a href="/orders/<%= order.order_code %>/confirmation" class="btn btn-primary">Xem chi tiết đơn</a>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

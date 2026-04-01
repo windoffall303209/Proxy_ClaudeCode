@@ -70,13 +70,13 @@
                     <div class="checkout-section">
                         <div class="checkout-section__heading">
                             <div>
-                                <h3 class="checkout-section__title">Địa chỉ giao hàng</h3>
+                                <h3 class="checkout-section__title">Địa chỉ thanh toán / giao hàng</h3>
                             </div>
                         </div>
 
                         <% if (addresses && addresses.length > 0) { %>
-                            <div class="address-list">
-                                <% addresses.forEach(addr => { %>
+                            <div class="address-list <%= addresses.length > 3 ? 'address-list--scrollable' : '' %>">
+                                <% addresses.forEach((addr) => { %>
                                     <label class="address-card <%= addr.is_default ? 'address-card--selected' : '' %>">
                                         <input type="radio" name="address_id" value="<%= addr.id %>" <%= addr.is_default ? 'checked' : '' %> required class="address-card__radio">
                                         <div class="address-card__content">
@@ -86,16 +86,33 @@
                                                 <span class="address-card__badge">Mặc định</span>
                                             <% } %>
                                         </div>
+                                        <button
+                                            type="button"
+                                            class="address-card__edit"
+                                            data-checkout-action="edit-address"
+                                            data-address-id="<%= addr.id %>"
+                                            aria-label="Sửa địa chỉ <%= addr.full_name %>"
+                                        >
+                                            Sửa
+                                        </button>
                                     </label>
                                 <% }) %>
                             </div>
                             <button type="button" data-checkout-action="toggle-address-form" class="address-add-btn">Thêm địa chỉ mới</button>
                         <% } else { %>
                             <p class="checkout-section__text">Bạn chưa có địa chỉ giao hàng. Hãy tạo địa chỉ mới ở bên dưới.</p>
+                            <button type="button" data-checkout-action="toggle-address-form" class="address-add-btn">Thêm địa chỉ mới</button>
                         <% } %>
 
-                        <div id="newAddressForm" class="address-form" <%= (!addresses || addresses.length === 0) ? "" : "hidden" %>>
-                            <h4 class="address-form__title">Địa chỉ mới</h4>
+                        <div id="newAddressForm" class="address-form-modal" <%= (!addresses || addresses.length === 0) ? '' : 'hidden' %>>
+                            <div class="address-form-modal__backdrop" data-checkout-action="close-address-form"></div>
+                            <div class="address-form" role="dialog" aria-modal="true" aria-labelledby="addressFormTitle">
+                            <button type="button" class="address-form__close" data-checkout-action="close-address-form" aria-label="Đóng biểu mẫu địa chỉ">
+                                <span>&times;</span>
+                            </button>
+                            <input type="hidden" id="editingAddressId" value="">
+                            <input type="hidden" id="editingAddressDefault" value="true">
+                            <h4 id="addressFormTitle" class="address-form__title">Địa chỉ mới</h4>
                             <div class="address-form__grid">
                                 <div>
                                     <label class="address-form__label">Họ tên*</label>
@@ -108,6 +125,7 @@
                                     <span id="newPhoneError" class="address-form__error"></span>
                                 </div>
                             </div>
+
                             <div class="address-form__grid-3">
                                 <div>
                                     <label class="address-form__label">Tỉnh / Thành phố*</label>
@@ -137,11 +155,16 @@
                                     </div>
                                 </div>
                             </div>
+
                             <div class="address-form__field">
                                 <label class="address-form__label">Địa chỉ chi tiết*</label>
                                 <input type="text" id="newAddressLine" placeholder="Số nhà, tên đường, tòa nhà..." class="address-form__input">
                             </div>
-                            <button type="button" data-checkout-action="save-address" class="address-form__submit">Lưu địa chỉ</button>
+
+                            <div class="address-form__actions">
+                                <button type="button" data-checkout-action="delete-address-inline" id="deleteAddressInlineBtn" class="address-form__delete" hidden>Xóa địa chỉ</button>
+                                <button type="button" data-checkout-action="save-address" id="saveAddressBtn" class="address-form__submit">Lưu địa chỉ</button>
+                            </div>
 
                             <div class="address-form__map-section">
                                 <label class="address-form__label">Bản đồ giao hàng (tùy chọn)</label>
@@ -149,6 +172,7 @@
                                 <p class="address-form__map-hint">Bấm vào bản đồ để chọn vị trí giao hàng chính xác hơn.</p>
                                 <input type="hidden" id="newLatitude" name="latitude">
                                 <input type="hidden" id="newLongitude" name="longitude">
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -265,7 +289,17 @@
     quantity: 1,
     variantId: typeof variantId !== 'undefined' && variantId ? variantId : null,
     subtotal: productPrice,
-    shippingFee
+    shippingFee,
+    addresses: Array.isArray(addresses) ? addresses.map((addr) => ({
+        id: addr.id,
+        full_name: addr.full_name,
+        phone: addr.phone,
+        address_line: addr.address_line,
+        ward: addr.ward,
+        district: addr.district,
+        city: addr.city,
+        is_default: !!addr.is_default
+    })) : []
 }).replace(/</g, '\u003c') %></script>
 <script src="/js/checkout.js"></script>
 <script src="/js/buy-now.js"></script>

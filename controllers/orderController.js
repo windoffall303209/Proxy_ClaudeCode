@@ -449,6 +449,33 @@ exports.orderConfirmation = async (req, res) => {
  *
  * @returns {Render|Redirect} Render trang lịch sử đơn hàng
  */
+exports.showOrderTracking = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.redirect('/auth/login');
+        }
+
+        const { orderCode } = req.params;
+        const order = await Order.findByOrderCode(orderCode);
+
+        if (!order) {
+            return res.status(404).render('error', { message: 'Order not found' });
+        }
+
+        if (order.user_id !== req.user.id) {
+            return res.status(403).render('error', { message: 'Access denied' });
+        }
+
+        res.render('user/order-tracking', {
+            order,
+            user: req.user
+        });
+    } catch (error) {
+        console.error('Order tracking error:', error);
+        res.status(500).render('error', { message: 'Unable to load order tracking' });
+    }
+};
+
 exports.getOrderHistory = async (req, res) => {
     try {
         // Kiểm tra đăng nhập

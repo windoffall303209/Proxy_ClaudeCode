@@ -1,8 +1,19 @@
 <%- include('../partials/admin-header', { currentPage: 'orders', pageStyles: ['/css/admin/order-detail.css'] }) %>
 
-<div class="admin-page" data-order-id="<%= order ? order.id : "" %>">
+<%
+    const shipment = order && order.shipment ? order.shipment : {};
+    const trackingEvents = order && Array.isArray(order.tracking_events) ? order.tracking_events : [];
+    const toDatetimeLocalValue = (value) => {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 16);
+    };
+%>
+
+<div class="admin-page" data-order-id="<%= order ? order.id : '' %>">
     <div class="container">
-        <!-- Back Button -->
         <a href="/admin/orders" class="back-link">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6"/>
@@ -11,233 +22,324 @@
         </a>
 
         <% if (order) { %>
-
-        <!-- Order Header -->
-        <div class="order-detail-header">
-            <div class="order-detail-header__left">
-                <h1>Đơn hàng #<%= order.order_code %></h1>
-                <p>Ngày đặt: <%= new Date(order.created_at).toLocaleString('vi-VN') %></p>
-            </div>
-            <div class="order-detail-header__right">
-                <%
-                    let statusClass = '';
-                    let statusText = '';
-                    switch(order.status) {
-                        case 'pending': statusClass = 'admin-table__badge--pending'; statusText = 'Chờ xử lý'; break;
-                        case 'confirmed': statusClass = 'admin-table__badge--processing'; statusText = 'Đã xác nhận'; break;
-                        case 'shipping': statusClass = 'admin-table__badge--shipped'; statusText = 'Đang giao'; break;
-                        case 'delivered': statusClass = 'admin-table__badge--delivered'; statusText = 'Đã giao'; break;
-                        case 'cancelled': statusClass = 'admin-table__badge--cancelled'; statusText = 'Đã hủy'; break;
-                        default: statusText = order.status;
-                    }
-                %>
-                <span class="admin-table__badge admin-table__badge--detail <%= statusClass %>"><%= statusText %></span>
-            </div>
-        </div>
-
-        <!-- Info Grid -->
-        <div class="order-detail-grid">
-            <!-- Customer Info -->
-            <div class="admin-section">
-                <h3 class="admin-section__title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                    </svg>
-                    Thông tin khách hàng
-                </h3>
-                <div class="info-list">
-                    <div class="info-item">
-                        <span class="info-item__label">Họ tên</span>
-                        <span class="info-item__value"><%= order.user_name || 'N/A' %></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-item__label">Email</span>
-                        <span class="info-item__value"><%= order.user_email || 'N/A' %></span>
-                    </div>
+            <div class="order-detail-header">
+                <div class="order-detail-header__left">
+                    <h1>Đơn hàng #<%= order.order_code %></h1>
+                    <p>Ngày đặt: <%= new Date(order.created_at).toLocaleString('vi-VN') %></p>
+                </div>
+                <div class="order-detail-header__right">
+                    <%
+                        let statusClass = '';
+                        let statusText = '';
+                        switch (order.status) {
+                            case 'pending': statusClass = 'admin-table__badge--pending'; statusText = 'Chờ xử lý'; break;
+                            case 'confirmed': statusClass = 'admin-table__badge--processing'; statusText = 'Đã xác nhận'; break;
+                            case 'processing': statusClass = 'admin-table__badge--processing'; statusText = 'Đang xử lý'; break;
+                            case 'shipping': statusClass = 'admin-table__badge--shipped'; statusText = 'Đang giao'; break;
+                            case 'delivered': statusClass = 'admin-table__badge--delivered'; statusText = 'Đã giao'; break;
+                            case 'cancelled': statusClass = 'admin-table__badge--cancelled'; statusText = 'Đã hủy'; break;
+                            default: statusText = order.status;
+                        }
+                    %>
+                    <span class="admin-table__badge admin-table__badge--detail <%= statusClass %>"><%= statusText %></span>
                 </div>
             </div>
 
-            <!-- Shipping Info -->
-            <div class="admin-section">
-                <h3 class="admin-section__title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="1" y="3" width="15" height="13"/>
-                        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-                        <circle cx="5.5" cy="18.5" r="2.5"/>
-                        <circle cx="18.5" cy="18.5" r="2.5"/>
-                    </svg>
-                    Địa chỉ giao hàng
-                </h3>
-                <div class="info-list">
-                    <div class="info-item">
-                        <span class="info-item__label">Người nhận</span>
-                        <span class="info-item__value"><%= order.shipping_name || order.recipient_name || 'N/A' %></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-item__label">SĐT</span>
-                        <span class="info-item__value"><%= order.shipping_phone || order.recipient_phone || 'N/A' %></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-item__label">Địa chỉ</span>
-                        <span class="info-item__value">
-                            <%= order.address_line || '' %><% if (order.ward) { %>, <%= order.ward %><% } %><% if (order.district) { %>, <%= order.district %><% } %><% if (order.city) { %>, <%= order.city %><% } %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Order Items -->
-        <div class="admin-section admin-section--spaced">
-            <h3 class="admin-section__title">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                    <line x1="3" y1="6" x2="21" y2="6"/>
-                    <path d="M16 10a4 4 0 0 1-8 0"/>
-                </svg>
-                Sản phẩm (<%= order.items ? order.items.length : 0 %>)
-            </h3>
-            <% if (order.items && order.items.length > 0) { %>
-                <div class="admin-table-wrapper">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Sản phẩm</th>
-                                <th class="text-right">Đơn giá</th>
-                                <th class="text-center">SL</th>
-                                <th class="text-right">Thành tiền</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% order.items.forEach(item => { %>
-                                <tr>
-                                    <td>
-                                        <div class="item-info">
-                                            <% if (item.product_image) { %>
-                                                <img src="<%= item.product_image %>" alt="<%= item.product_name %>" class="item-info__img">
-                                            <% } %>
-                                            <div>
-                                                <strong><%= item.product_name || 'Sản phẩm #' + item.product_id %></strong>
-                                                <% if (item.sku) { %><br><small class="order-detail__sku">SKU: <%= item.sku %></small><% } %>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-right"><%= (item.price || 0).toLocaleString('vi-VN') %>đ</td>
-                                    <td class="text-center"><%= item.quantity %></td>
-                                    <td class="text-right"><strong><%= ((item.price || 0) * (item.quantity || 1)).toLocaleString('vi-VN') %>đ</strong></td>
-                                </tr>
-                            <% }) %>
-                        </tbody>
-                    </table>
-                </div>
-            <% } else { %>
-                <p class="order-detail__empty-text">Không có sản phẩm</p>
-            <% } %>
-        </div>
-
-        <!-- Order Summary + Payment + Status Update -->
-        <div class="order-detail-grid order-detail-grid--spaced">
-            <!-- Payment & Total -->
-            <div class="admin-section">
-                <h3 class="admin-section__title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="1" x2="12" y2="23"/>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                    Thanh toán
-                </h3>
-                <div class="summary-list">
-                    <div class="summary-item">
-                        <span>Tạm tính</span>
-                        <span><%= (order.total_amount || 0).toLocaleString('vi-VN') %>đ</span>
-                    </div>
-                    <% if (order.shipping_fee) { %>
-                    <div class="summary-item">
-                        <span>Phí vận chuyển</span>
-                        <span><%= (order.shipping_fee || 0).toLocaleString('vi-VN') %>đ</span>
-                    </div>
-                    <% } %>
-                    <% if (order.discount_amount > 0) { %>
-                    <div class="summary-item summary-item--success">
-                        <span>Giảm giá</span>
-                        <span>-<%= (order.discount_amount || 0).toLocaleString('vi-VN') %>đ</span>
-                    </div>
-                    <% } %>
-                    <div class="summary-item summary-item--total">
-                        <span>Tổng thanh toán</span>
-                        <span><%= (order.final_amount || order.total_amount || 0).toLocaleString('vi-VN') %>đ</span>
-                    </div>
-                    <div class="summary-item">
-                        <span>Phương thức</span>
-                        <span>
-                            <% if (order.payment_method === 'cod') { %>Thanh toán khi nhận hàng
-                            <% } else if (order.payment_method === 'bank_transfer') { %>Chuyển khoản
-                            <% } else { %><%= order.payment_method || 'N/A' %><% } %>
-                        </span>
-                    </div>
-                    <div class="summary-item">
-                        <span>Trạng thái TT</span>
-                        <span>
-                            <% if (order.payment_status === 'paid') { %>
-                                <span class="admin-table__badge admin-table__badge--delivered">Đã thanh toán</span>
-                            <% } else { %>
-                                <span class="admin-table__badge admin-table__badge--pending">Chưa thanh toán</span>
-                            <% } %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Update Status -->
-            <div class="admin-section">
-                <h3 class="admin-section__title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="23 4 23 10 17 10"/>
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                    </svg>
-                    Cập nhật trạng thái
-                </h3>
-                <div class="status-update">
-                    <select id="statusSelect" class="admin-form__select order-status-select order-status-select--<%= order.status %>">
-                        <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
-                        <option value="confirmed" <%= order.status === 'confirmed' ? 'selected' : '' %>>Đã xác nhận</option>
-                        <option value="shipping" <%= order.status === 'shipping' ? 'selected' : '' %>>Đang giao</option>
-                        <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Đã giao</option>
-                        <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Đã hủy</option>
-                    </select>
-                    <button data-order-detail-action="update-status" class="admin-btn admin-btn--primary order-detail__update-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
+            <div class="order-detail-grid">
+                <div class="admin-section">
+                    <h3 class="admin-section__title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
                         </svg>
-                        Cập nhật
-                    </button>
+                        Thông tin khách hàng
+                    </h3>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="info-item__label">Họ tên</span>
+                            <span class="info-item__value"><%= order.user_name || 'N/A' %></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-item__label">Email</span>
+                            <span class="info-item__value"><%= order.user_email || 'N/A' %></span>
+                        </div>
+                    </div>
                 </div>
 
-                <% if (order.notes) { %>
-                <div class="order-detail__notes">
-                    <h4 class="order-detail__notes-title">Ghi chú</h4>
-                    <p class="order-detail__notes-content"><%= order.notes %></p>
+                <div class="admin-section">
+                    <h3 class="admin-section__title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="3" width="15" height="13"/>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                            <circle cx="5.5" cy="18.5" r="2.5"/>
+                            <circle cx="18.5" cy="18.5" r="2.5"/>
+                        </svg>
+                        Địa chỉ giao hàng
+                    </h3>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="info-item__label">Người nhận</span>
+                            <span class="info-item__value"><%= order.shipping_name || 'N/A' %></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-item__label">SĐT</span>
+                            <span class="info-item__value"><%= order.shipping_phone || 'N/A' %></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-item__label">Địa chỉ</span>
+                            <span class="info-item__value">
+                                <%= order.address_line || '' %><% if (order.ward) { %>, <%= order.ward %><% } %><% if (order.district) { %>, <%= order.district %><% } %><% if (order.city) { %>, <%= order.city %><% } %>
+                            </span>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="admin-section admin-section--spaced">
+                <h3 class="admin-section__title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                    Sản phẩm (<%= order.items ? order.items.length : 0 %>)
+                </h3>
+                <% if (order.items && order.items.length > 0) { %>
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th class="text-right">Đơn giá</th>
+                                    <th class="text-center">SL</th>
+                                    <th class="text-right">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% order.items.forEach((item) => { %>
+                                    <tr>
+                                        <td>
+                                            <div class="item-info">
+                                                <% if (item.product_image) { %>
+                                                    <img src="<%= item.product_image %>" alt="<%= item.product_name %>" class="item-info__img">
+                                                <% } %>
+                                                <div>
+                                                    <strong><%= item.product_name || 'Sản phẩm #' + item.product_id %></strong>
+                                                    <% if (item.variant_color || item.variant_size) { %>
+                                                        <br>
+                                                        <small class="order-detail__sku">
+                                                            <% if (item.variant_color) { %>Màu: <%= item.variant_color %><% } %>
+                                                            <% if (item.variant_color && item.variant_size) { %> | <% } %>
+                                                            <% if (item.variant_size) { %>Size: <%= item.variant_size %><% } %>
+                                                        </small>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-right"><%= (item.price || 0).toLocaleString('vi-VN') %>đ</td>
+                                        <td class="text-center"><%= item.quantity %></td>
+                                        <td class="text-right"><strong><%= ((item.price || 0) * (item.quantity || 1)).toLocaleString('vi-VN') %>đ</strong></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <p class="order-detail__empty-text">Không có sản phẩm</p>
                 <% } %>
             </div>
-        </div>
 
+            <div class="order-detail-grid order-detail-grid--spaced">
+                <div class="admin-section">
+                    <h3 class="admin-section__title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                        Thanh toán
+                    </h3>
+                    <div class="summary-list">
+                        <div class="summary-item">
+                            <span>Tạm tính</span>
+                            <span><%= (order.total_amount || 0).toLocaleString('vi-VN') %>đ</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Phí vận chuyển</span>
+                            <span><%= (order.shipping_fee || 0).toLocaleString('vi-VN') %>đ</span>
+                        </div>
+                        <% if (order.discount_amount > 0) { %>
+                            <div class="summary-item summary-item--success">
+                                <span>Giảm giá</span>
+                                <span>-<%= (order.discount_amount || 0).toLocaleString('vi-VN') %>đ</span>
+                            </div>
+                        <% } %>
+                        <div class="summary-item summary-item--total">
+                            <span>Tổng thanh toán</span>
+                            <span><%= (order.final_amount || order.total_amount || 0).toLocaleString('vi-VN') %>đ</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Phương thức</span>
+                            <span><%= order.payment_method || 'N/A' %></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Trạng thái TT</span>
+                            <span>
+                                <% if (order.payment_status === 'paid') { %>
+                                    <span class="admin-table__badge admin-table__badge--delivered">Đã thanh toán</span>
+                                <% } else { %>
+                                    <span class="admin-table__badge admin-table__badge--pending">Chưa thanh toán</span>
+                                <% } %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <h3 class="admin-section__title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        Theo dõi vận chuyển
+                    </h3>
+
+                    <div class="summary-list order-detail__shipment-summary">
+                        <div class="summary-item">
+                            <span>Đơn vị VC</span>
+                            <span><%= shipment.carrier || 'Chưa cập nhật' %></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Mã vận đơn</span>
+                            <span><%= shipment.tracking_code || 'Chưa cập nhật' %></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Vị trí hiện tại</span>
+                            <span><%= shipment.current_location_text || 'Chưa cập nhật' %></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Dự kiến giao</span>
+                            <span><%= shipment.estimated_delivery_at ? new Date(shipment.estimated_delivery_at).toLocaleString('vi-VN') : 'Chưa cập nhật' %></span>
+                        </div>
+                    </div>
+
+                    <div class="order-detail__tracking-note">
+                        <strong>Nguồn dữ liệu vận chuyển</strong>
+                        <p>Hiện các thông tin này được cập nhật từ trang quản trị. Nếu muốn tự động lấy mã vận đơn, checkpoint, ETA hoặc vị trí, cần tích hợp API của đơn vị vận chuyển hoặc hệ thống shipper nội bộ.</p>
+                    </div>
+
+                    <div class="status-update">
+                        <select id="statusSelect" class="admin-form__select order-status-select order-status-select--<%= order.status %>">
+                            <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
+                            <option value="confirmed" <%= order.status === 'confirmed' ? 'selected' : '' %>>Đã xác nhận</option>
+                            <option value="processing" <%= order.status === 'processing' ? 'selected' : '' %>>Đang xử lý</option>
+                            <option value="shipping" <%= order.status === 'shipping' ? 'selected' : '' %>>Đang giao</option>
+                            <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Đã giao</option>
+                            <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Đã hủy</option>
+                        </select>
+
+                        <div class="order-detail-form-grid">
+                            <div class="order-detail-form-group">
+                                <label class="order-detail-form-group__label" for="carrierInput">Đơn vị vận chuyển</label>
+                                <input id="carrierInput" class="admin-form__input" type="text" value="<%= shipment.carrier || '' %>" placeholder="VD: GHN, GHTK...">
+                            </div>
+                            <div class="order-detail-form-group">
+                                <label class="order-detail-form-group__label" for="trackingCodeInput">Mã vận đơn</label>
+                                <input id="trackingCodeInput" class="admin-form__input" type="text" value="<%= shipment.tracking_code || '' %>" placeholder="Mã theo dõi">
+                            </div>
+                            <div class="order-detail-form-group order-detail-form-group--full">
+                                <label class="order-detail-form-group__label" for="trackingUrlInput">Link tra cứu</label>
+                                <input id="trackingUrlInput" class="admin-form__input" type="url" value="<%= shipment.tracking_url || '' %>" placeholder="https://...">
+                            </div>
+                            <div class="order-detail-form-group order-detail-form-group--full">
+                                <label class="order-detail-form-group__label" for="locationInput">Vị trí hiện tại</label>
+                                <input id="locationInput" class="admin-form__input" type="text" value="<%= shipment.current_location_text || '' %>" placeholder="VD: Kho Sóng Thần, Bình Dương">
+                            </div>
+                            <div class="order-detail-form-group">
+                                <label class="order-detail-form-group__label" for="latInput">Latitude</label>
+                                <input id="latInput" class="admin-form__input" type="number" step="any" value="<%= shipment.current_lat ?? '' %>" placeholder="10.8231">
+                            </div>
+                            <div class="order-detail-form-group">
+                                <label class="order-detail-form-group__label" for="lngInput">Longitude</label>
+                                <input id="lngInput" class="admin-form__input" type="number" step="any" value="<%= shipment.current_lng ?? '' %>" placeholder="106.6297">
+                            </div>
+                            <div class="order-detail-form-group">
+                                <label class="order-detail-form-group__label" for="etaInput">Dự kiến giao</label>
+                                <input id="etaInput" class="admin-form__input" type="datetime-local" value="<%= toDatetimeLocalValue(shipment.estimated_delivery_at) %>">
+                            </div>
+                            <div class="order-detail-form-group">
+                                <label class="order-detail-form-group__label" for="statusTitleInput">Tiêu đề sự kiện</label>
+                                <input id="statusTitleInput" class="admin-form__input" type="text" placeholder="Để trống để dùng tiêu đề mặc định">
+                            </div>
+                            <div class="order-detail-form-group order-detail-form-group--full">
+                                <label class="order-detail-form-group__label" for="statusNoteInput">Ghi chú tracking</label>
+                                <textarea id="statusNoteInput" class="admin-form__textarea" rows="4" placeholder="Ví dụ: Shipper đã lấy hàng từ kho và dự kiến giao trước 17:00."></textarea>
+                            </div>
+                        </div>
+
+                        <button data-order-detail-action="update-status" class="admin-btn admin-btn--primary order-detail__update-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Cập nhật tracking
+                        </button>
+                    </div>
+
+                    <% if (order.notes) { %>
+                        <div class="order-detail__notes">
+                            <h4 class="order-detail__notes-title">Ghi chú đơn hàng</h4>
+                            <p class="order-detail__notes-content"><%= order.notes %></p>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="admin-section admin-section--spaced">
+                <h3 class="admin-section__title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20V10"/>
+                        <path d="M18 20V4"/>
+                        <path d="M6 20v-4"/>
+                    </svg>
+                    Timeline tracking
+                </h3>
+
+                <% if (trackingEvents.length > 0) { %>
+                    <div class="order-tracking-timeline">
+                        <% trackingEvents.forEach((event) => { %>
+                            <article class="order-tracking-event">
+                                <div class="order-tracking-event__dot"></div>
+                                <div class="order-tracking-event__body">
+                                    <div class="order-tracking-event__top">
+                                        <h4><%= event.title %></h4>
+                                        <time><%= new Date(event.event_time).toLocaleString('vi-VN') %></time>
+                                    </div>
+                                    <% if (event.description) { %>
+                                        <p><%= event.description %></p>
+                                    <% } %>
+                                    <% if (event.location_text) { %>
+                                        <p><strong>Địa điểm:</strong> <%= event.location_text %></p>
+                                    <% } %>
+                                    <p><strong>Nguồn:</strong> <%= event.source %><% if (event.created_by_name) { %> - <%= event.created_by_name %><% } %></p>
+                                </div>
+                            </article>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <p class="order-detail__empty-text">Chưa có mốc tracking nào.</p>
+                <% } %>
+            </div>
         <% } else { %>
-        <div class="admin-empty admin-empty--spaced">
-            <div class="admin-empty__icon">📦</div>
-            <h3 class="admin-empty__title">Không tìm thấy đơn hàng</h3>
-            <p class="admin-empty__text">Đơn hàng này không tồn tại hoặc đã bị xóa.</p>
-            <a href="/admin/orders" class="admin-btn admin-btn--primary order-detail__back-btn">Quay lại</a>
-        </div>
+            <div class="admin-empty admin-empty--spaced">
+                <div class="admin-empty__icon">📦</div>
+                <h3 class="admin-empty__title">Không tìm thấy đơn hàng</h3>
+                <p class="admin-empty__text">Đơn hàng này không tồn tại hoặc đã bị xóa.</p>
+                <a href="/admin/orders" class="admin-btn admin-btn--primary order-detail__back-btn">Quay lại</a>
+            </div>
         <% } %>
     </div>
 </div>
 
-<!-- Toast Container -->
 <div id="toastContainer"></div>
-
-
 
 <script src="/js/admin/order-detail.js"></script>
 

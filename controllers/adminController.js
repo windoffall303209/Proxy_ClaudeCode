@@ -36,6 +36,97 @@ function parseSelectedProductIds(body) {
     )];
 }
 
+function parseOptionalTrimmedString(value) {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (value === null) {
+        return null;
+    }
+
+    const normalized = String(value).trim();
+    return normalized ? normalized : null;
+}
+
+function parseOptionalDecimal(value, fieldName) {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (value === null || value === '') {
+        return null;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        throw new Error(`${fieldName} is invalid`);
+    }
+
+    return parsed;
+}
+
+function parseOptionalDate(value, fieldName) {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (value === null || value === '') {
+        return null;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`${fieldName} is invalid`);
+    }
+
+    return parsed;
+}
+
+function buildOrderTrackingPayload(body = {}) {
+    const payload = {
+        source: 'admin'
+    };
+
+    if (Object.prototype.hasOwnProperty.call(body, 'carrier')) {
+        payload.carrier = parseOptionalTrimmedString(body.carrier);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'tracking_code')) {
+        payload.tracking_code = parseOptionalTrimmedString(body.tracking_code);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'tracking_url')) {
+        payload.tracking_url = parseOptionalTrimmedString(body.tracking_url);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'current_location_text')) {
+        payload.current_location_text = parseOptionalTrimmedString(body.current_location_text);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'current_lat')) {
+        payload.current_lat = parseOptionalDecimal(body.current_lat, 'Current latitude');
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'current_lng')) {
+        payload.current_lng = parseOptionalDecimal(body.current_lng, 'Current longitude');
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'estimated_delivery_at')) {
+        payload.estimated_delivery_at = parseOptionalDate(body.estimated_delivery_at, 'Estimated delivery time');
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'status_title')) {
+        payload.title = parseOptionalTrimmedString(body.status_title);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'status_note')) {
+        payload.description = parseOptionalTrimmedString(body.status_note);
+    }
+
+    return payload;
+}
+
 async function attachSaleAssignments(sales) {
     const saleIds = Array.isArray(sales) ? sales.map((sale) => sale.id) : [];
     const assignments = await Sale.getAssignedProductsMap(saleIds);
@@ -1346,5 +1437,28 @@ exports.updateBanner = async (req, res) => {
         res.json({ success: true, banner: updated });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const trackingPayload = buildOrderTrackingPayload(req.body);
+
+        if (!status) {
+            return res.status(400).json({ message: 'Status is required' });
+        }
+
+        const order = await Order.updateStatus(id, status, trackingPayload, {
+            actorUserId: req.user?.id || null
+        });
+
+        res.json({
+            message: 'Order status updated successfully',
+            order
+        });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
     }
 };

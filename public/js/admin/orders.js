@@ -14,10 +14,12 @@ async function updateOrderStatus(orderId, status) {
 
         if (response.ok) {
             showOrdersToast('Cập nhật trạng thái thành công!', 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showOrdersToast('Lỗi cập nhật trạng thái', 'error');
+            setTimeout(() => location.reload(), 1000);
+            return;
         }
+
+        const data = await response.json().catch(() => ({}));
+        showOrdersToast(data.message || 'Lỗi cập nhật trạng thái', 'error');
     } catch (error) {
         showOrdersToast(`Lỗi: ${error.message}`, 'error');
     }
@@ -48,6 +50,7 @@ function initOrderTabs() {
 function initOrderActions() {
     document.querySelectorAll('.order-status-select[data-order-id]').forEach((select) => {
         select.addEventListener('change', () => {
+            select.className = `order-status-select order-status-select--${select.value}`;
             updateOrderStatus(select.dataset.orderId, select.value);
         });
     });
