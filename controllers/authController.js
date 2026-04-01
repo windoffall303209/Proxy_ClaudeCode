@@ -99,19 +99,88 @@ const uploadAvatar = multer({
 exports.register = async (req, res) => {
     try {
         // Lấy dữ liệu từ form đăng ký
-        const { email, password, full_name, phone, marketing_consent } = req.body;
+        const { email, password, confirm_password, full_name, phone, marketing_consent } = req.body;
 
-        // Validate dữ liệu bắt buộc
-        if (!email || !password || !full_name) {
-            return res.status(400).json({ message: 'Email, password and full name are required' });
+        // =====================================================================
+        // VALIDATION
+        // =====================================================================
+        const errors = [];
+
+        // --- Họ và tên ---
+        const trimmedName = (full_name || '').trim();
+        if (!trimmedName) {
+            errors.push('Họ và tên là bắt buộc');
+        } else if (trimmedName.length < 2) {
+            errors.push('Họ và tên phải có ít nhất 2 ký tự');
+        } else if (trimmedName.length > 100) {
+            errors.push('Họ và tên không được vượt quá 100 ký tự');
+        } else if (!/^[\p{L}\s]+$/u.test(trimmedName)) {
+            errors.push('Họ và tên chỉ được chứa chữ cái và khoảng trắng');
+        }
+
+        // --- Email ---
+        const trimmedEmail = (email || '').trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!trimmedEmail) {
+            errors.push('Email là bắt buộc');
+        } else if (trimmedEmail.length > 255) {
+            errors.push('Email không được vượt quá 255 ký tự');
+        } else if (!emailRegex.test(trimmedEmail)) {
+            errors.push('Email không đúng định dạng');
+        }
+
+        // --- Mật khẩu ---
+        if (!password) {
+            errors.push('Mật khẩu là bắt buộc');
+        } else if (password.length < 6) {
+            errors.push('Mật khẩu phải có ít nhất 6 ký tự');
+        } else if (password.length > 50) {
+            errors.push('Mật khẩu không được vượt quá 50 ký tự');
+        } else {
+            if (!/[A-Z]/.test(password)) {
+                errors.push('Mật khẩu phải chứa ít nhất 1 chữ cái viết hoa');
+            }
+            if (!/[a-z]/.test(password)) {
+                errors.push('Mật khẩu phải chứa ít nhất 1 chữ cái viết thường');
+            }
+            if (!/[0-9]/.test(password)) {
+                errors.push('Mật khẩu phải chứa ít nhất 1 chữ số');
+            }
+        }
+
+        // --- Xác nhận mật khẩu ---
+        if (!confirm_password) {
+            errors.push('Xác nhận mật khẩu là bắt buộc');
+        } else if (password && password !== confirm_password) {
+            errors.push('Xác nhận mật khẩu không khớp');
+        }
+
+        // --- Số điện thoại (không bắt buộc) ---
+        const trimmedPhone = (phone || '').trim();
+        if (trimmedPhone) {
+            const phoneRegex = /^(0[2-9])\d{8}$/;
+            if (!phoneRegex.test(trimmedPhone)) {
+                errors.push('Số điện thoại không hợp lệ (VD: 0912345678)');
+            }
+        }
+
+        // Nếu có lỗi, trả về
+        if (errors.length > 0) {
+            if (req.accepts('html')) {
+                return res.render('auth/register', {
+                    error: errors.join('. '),
+                    formData: req.body
+                });
+            }
+            return res.status(400).json({ message: errors.join('. '), errors });
         }
 
         // Tạo user mới trong database
         const user = await User.create({
-            email,
+            email: trimmedEmail,
             password,
-            full_name,
-            phone,
+            full_name: trimmedName,
+            phone: trimmedPhone || null,
             marketing_consent: marketing_consent === 'on' || marketing_consent === true
         });
 

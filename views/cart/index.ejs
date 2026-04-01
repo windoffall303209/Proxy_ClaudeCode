@@ -56,7 +56,18 @@
 
                                 <div class="cart-item__quantity">
                                     <button data-cart-action="update-quantity" data-item-id="<%= item.id %>" data-next-quantity="<%= item.quantity - 1 %>" class="cart-item__qty-btn">-</button>
-                                    <input type="number" value="<%= item.quantity %>" min="1" readonly class="cart-item__qty-input">
+                                    <input
+                                        type="number"
+                                        value="<%= item.quantity %>"
+                                        min="1"
+                                        step="1"
+                                        inputmode="numeric"
+                                        enterkeyhint="done"
+                                        data-item-id="<%= item.id %>"
+                                        data-current-quantity="<%= item.quantity %>"
+                                        class="cart-item__qty-input"
+                                        aria-label="Số lượng sản phẩm <%= item.product_name %>"
+                                    >
                                     <button data-cart-action="update-quantity" data-item-id="<%= item.id %>" data-next-quantity="<%= item.quantity + 1 %>" class="cart-item__qty-btn">+</button>
                                 </div>
 

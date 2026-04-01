@@ -103,7 +103,12 @@
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">SKU</label>
-                        <input type="text" name="sku" class="admin-form__input" placeholder="VD: ATN-001">
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="text" name="sku" id="createSkuInput" class="admin-form__input" placeholder="VD: ATN-001" style="flex:1;">
+                            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-size:13px; font-weight:600; cursor:pointer;">
+                                <input type="checkbox" id="autoSkuCheckbox"> Tự động tạo mã
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="admin-form__group">

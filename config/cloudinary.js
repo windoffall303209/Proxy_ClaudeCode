@@ -16,14 +16,19 @@ cloudinary.config({
  */
 const uploadToCloudinary = async (filePath, options = {}) => {
     try {
+        const resourceType = options.resource_type || 'image';
         const defaultOptions = {
             folder: 'tmdt_ecommerce',
-            resource_type: 'image',
+            resource_type: resourceType,
             transformation: [
                 { quality: 'auto:good' },
                 { fetch_format: 'auto' }
             ]
         };
+
+        if (resourceType !== 'image') {
+            delete defaultOptions.transformation;
+        }
 
         const result = await cloudinary.uploader.upload(filePath, {
             ...defaultOptions,
@@ -51,11 +56,12 @@ const uploadToCloudinary = async (filePath, options = {}) => {
 /**
  * Delete file from Cloudinary
  * @param {string} publicId - Cloudinary public ID
+ * @param {object} [options] - Delete options
  * @returns {Promise<object>} - Delete result
  */
-const deleteFromCloudinary = async (publicId) => {
+const deleteFromCloudinary = async (publicId, options = {}) => {
     try {
-        const result = await cloudinary.uploader.destroy(publicId);
+        const result = await cloudinary.uploader.destroy(publicId, options);
         return {
             success: result.result === 'ok',
             result: result

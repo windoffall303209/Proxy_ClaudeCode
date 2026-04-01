@@ -4,9 +4,10 @@ const mainState = window.__tmdtMainState || (window.__tmdtMainState = {
     productCardActionsBound: false
 });
 
-async function addToCart(eventOrProductId, productId = null, variantId = null) {
+async function addToCart(eventOrProductId, productId = null, variantId = null, quantity = 1) {
     let actualProductId;
     let actualVariantId;
+    let actualQuantity = quantity;
 
     if (eventOrProductId && typeof eventOrProductId === 'object' && eventOrProductId.preventDefault) {
         eventOrProductId.preventDefault();
@@ -16,6 +17,9 @@ async function addToCart(eventOrProductId, productId = null, variantId = null) {
     } else {
         actualProductId = eventOrProductId;
         actualVariantId = productId;
+        if (typeof variantId === 'number' && variantId > 0) {
+            actualQuantity = variantId;
+        }
     }
 
     if (!actualProductId) {
@@ -33,7 +37,7 @@ async function addToCart(eventOrProductId, productId = null, variantId = null) {
             body: JSON.stringify({
                 product_id: actualProductId,
                 variant_id: actualVariantId,
-                quantity: 1
+                quantity: actualQuantity
             })
         });
 

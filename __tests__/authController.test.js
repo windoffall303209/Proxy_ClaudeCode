@@ -69,7 +69,8 @@ describe('authController', () => {
         const req = {
             body: {
                 email: 'user@example.com',
-                password: 'secret123',
+                password: 'Secret123',
+                confirm_password: 'Secret123',
                 full_name: 'Test User'
             },
             accepts: jest.fn().mockReturnValue(false)

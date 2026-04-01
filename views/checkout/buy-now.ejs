@@ -27,7 +27,7 @@
 
         <form action="/orders/buy-now/create" method="POST" id="buyNowForm">
             <input type="hidden" name="product_id" value="<%= product.id %>">
-            <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="quantity" value="<%= cart.items[0].quantity %>">
             <input type="hidden" name="variant_id" value="<%= typeof variantId !== 'undefined' && variantId ? variantId : '' %>">
 
             <div class="checkout-grid">
@@ -56,7 +56,7 @@
                                         <% if (selectedVariant.size) { %>Size: <%= selectedVariant.size %><% } %>
                                     </div>
                                 <% } %>
-                                <div class="order-summary__item-qty">Số lượng: 1</div>
+                                <div class="order-summary__item-qty">Số lượng: <%= cart.items[0].quantity %></div>
                             </div>
                             <div class="order-summary__item-price">
                                 <% if (product.price !== product.final_price && product.final_price) { %>
@@ -99,11 +99,13 @@
                             <div class="address-form__grid">
                                 <div>
                                     <label class="address-form__label">Họ tên*</label>
-                                    <input type="text" id="newFullName" placeholder="Nguyễn Văn A" class="address-form__input">
+                                    <input type="text" id="newFullName" placeholder="Nguyễn Văn A" class="address-form__input" minlength="2" autocomplete="name">
+                                    <span id="newFullNameError" class="address-form__error"></span>
                                 </div>
                                 <div>
                                     <label class="address-form__label">Số điện thoại*</label>
-                                    <input type="tel" id="newPhone" placeholder="0901234567" class="address-form__input">
+                                    <input type="tel" id="newPhone" placeholder="0901234567" class="address-form__input" maxlength="10" inputmode="numeric" autocomplete="tel">
+                                    <span id="newPhoneError" class="address-form__error"></span>
                                 </div>
                             </div>
                             <div class="address-form__grid-3">

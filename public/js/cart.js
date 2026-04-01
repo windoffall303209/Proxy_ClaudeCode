@@ -1,3 +1,5 @@
+const quantityRequestState = new Map();
+
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.item-checkbox');
@@ -52,43 +54,131 @@ function showNotification(message, type = 'success') {
     }
 }
 
-function updateQuantity(itemId, newQuantity) {
-    if (newQuantity < 1) {
+function normalizeQuantityInputValue(value) {
+    const digitsOnly = String(value ?? '').replace(/[^\d]/g, '');
+
+    if (!digitsOnly) {
+        return '';
+    }
+
+    return String(Number.parseInt(digitsOnly, 10) || 0);
+}
+
+function getQuantityInput(cartItem) {
+    return cartItem?.querySelector('.cart-item__qty-input') || null;
+}
+
+function getStoredQuantity(input) {
+    const quantity = Number.parseInt(input?.dataset.currentQuantity || input?.value, 10);
+    return Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
+}
+
+function resetQuantityInput(input) {
+    if (!input) return;
+    input.value = String(getStoredQuantity(input));
+}
+
+function setQuantityControlsDisabled(cartItem, disabled) {
+    if (!cartItem) return;
+
+    cartItem.querySelectorAll('.cart-item__qty-btn').forEach((button) => {
+        button.disabled = disabled;
+    });
+
+    const input = getQuantityInput(cartItem);
+    if (input) {
+        input.disabled = disabled;
+    }
+}
+
+function commitQuantityInput(input) {
+    if (!input) return;
+
+    const itemId = Number(input.dataset.itemId);
+    if (!itemId) {
+        resetQuantityInput(input);
+        return;
+    }
+
+    const previousQuantity = getStoredQuantity(input);
+    const normalizedValue = normalizeQuantityInputValue(input.value);
+
+    if (!normalizedValue) {
+        input.value = String(previousQuantity);
+        return;
+    }
+
+    const nextQuantity = Math.max(1, Number.parseInt(normalizedValue, 10));
+    input.value = String(nextQuantity);
+
+    if (nextQuantity === previousQuantity) {
+        return;
+    }
+
+    updateQuantity(itemId, nextQuantity, {
+        allowRemoval: false,
+        sourceInput: input,
+        previousQuantity
+    });
+}
+
+function updateQuantity(itemId, newQuantity, options = {}) {
+    const { allowRemoval = true, sourceInput = null, previousQuantity = null } = options;
+    const normalizedQuantity = Number.parseInt(newQuantity, 10);
+
+    if (!Number.isInteger(normalizedQuantity)) {
+        if (sourceInput) {
+            sourceInput.value = String(previousQuantity ?? getStoredQuantity(sourceInput));
+        }
+        return;
+    }
+
+    if (normalizedQuantity < 1) {
+        if (!allowRemoval) {
+            if (sourceInput) {
+                sourceInput.value = String(previousQuantity ?? getStoredQuantity(sourceInput));
+            }
+            return;
+        }
+
         removeItem(itemId);
         return;
     }
 
     const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
-    if (!cartItem) return;
+    if (!cartItem || quantityRequestState.has(itemId)) return;
 
-    const buttons = cartItem.querySelectorAll('.cart-item__qty-btn');
-    buttons.forEach((btn) => {
-        btn.disabled = true;
-    });
+    quantityRequestState.set(itemId, normalizedQuantity);
+    setQuantityControlsDisabled(cartItem, true);
 
     fetch('/cart/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ cart_item_id: itemId, quantity: newQuantity })
+        body: JSON.stringify({ cart_item_id: itemId, quantity: normalizedQuantity })
     })
         .then((res) => res.json())
         .then((data) => {
             if (data.success) {
-                updateCartItemUI(itemId, newQuantity, data.item);
+                updateCartItemUI(itemId, normalizedQuantity, data.item);
                 updateCartCount();
             } else {
+                if (sourceInput) {
+                    sourceInput.value = String(previousQuantity ?? getStoredQuantity(sourceInput));
+                }
                 showNotification(data.message || 'Có lỗi xảy ra', 'error');
             }
         })
         .catch((err) => {
             console.error(err);
+            if (sourceInput) {
+                sourceInput.value = String(previousQuantity ?? getStoredQuantity(sourceInput));
+            }
             showNotification('Có lỗi xảy ra', 'error');
         })
         .finally(() => {
-            buttons.forEach((btn) => {
-                btn.disabled = false;
-            });
+            quantityRequestState.delete(itemId);
+            setQuantityControlsDisabled(cartItem, false);
         });
 }
 
@@ -102,7 +192,8 @@ function updateCartItemUI(itemId, newQuantity, itemData) {
     const newSubtotal = itemData?.subtotal || (unitPrice * newQuantity);
 
     const qtyInput = cartItem.querySelector('.cart-item__qty-input');
-    qtyInput.value = newQuantity;
+    qtyInput.value = String(newQuantity);
+    qtyInput.dataset.currentQuantity = String(newQuantity);
 
     const quantityButtons = cartItem.querySelectorAll('.cart-item__qty-btn');
     const minusBtn = quantityButtons[0];
@@ -230,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemId = Number(quantityButton.dataset.itemId);
             const nextQuantity = Number(quantityButton.dataset.nextQuantity);
             if (itemId) {
-                updateQuantity(itemId, nextQuantity);
+                updateQuantity(itemId, nextQuantity, { allowRemoval: true });
             }
             return;
         }
@@ -249,6 +340,45 @@ document.addEventListener('DOMContentLoaded', () => {
             checkoutSelected();
         }
     });
+
+    document.addEventListener('focusin', (event) => {
+        const quantityInput = event.target.closest('.cart-item__qty-input');
+        if (!quantityInput) {
+            return;
+        }
+
+        requestAnimationFrame(() => quantityInput.select());
+    });
+
+    document.addEventListener('input', (event) => {
+        const quantityInput = event.target.closest('.cart-item__qty-input');
+        if (!quantityInput) {
+            return;
+        }
+
+        const normalizedValue = normalizeQuantityInputValue(quantityInput.value);
+        quantityInput.value = normalizedValue === '0' ? '' : normalizedValue;
+    });
+
+    document.addEventListener('keydown', (event) => {
+        const quantityInput = event.target.closest('.cart-item__qty-input');
+        if (!quantityInput || event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+        commitQuantityInput(quantityInput);
+        quantityInput.blur();
+    });
+
+    document.addEventListener('blur', (event) => {
+        const quantityInput = event.target.closest('.cart-item__qty-input');
+        if (!quantityInput) {
+            return;
+        }
+
+        commitQuantityInput(quantityInput);
+    }, true);
 
     updateSelectedTotal();
 });

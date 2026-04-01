@@ -111,6 +111,103 @@ exports.getDashboard = async (req, res) => {
 };
 
 // =============================================================================
+// QUẢN LÝ DANH MỤC - Categories Management
+// =============================================================================
+
+exports.getCategories = async (req, res) => {
+    try {
+        const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        const categories = await Category.findAllForAdmin(searchQuery ? { search: searchQuery } : {});
+        const parentCategories = await Category.findRootCategories();
+
+        // Compute stats from loaded categories
+        const totalProducts = categories.reduce((sum, c) => sum + (c.product_count || 0), 0);
+        const rootCount = categories.filter(c => !c.parent_id).length;
+        const childCount = categories.filter(c => !!c.parent_id).length;
+        const categoryStats = {
+            total: categories.length,
+            root: rootCount,
+            children: childCount,
+            assignedProducts: totalProducts
+        };
+
+        res.render('admin/categories', {
+            categories,
+            parentCategories,
+            categoryStats,
+            searchQuery,
+            user: req.user,
+            currentPage: 'categories'
+        });
+    } catch (error) {
+        res.status(500).render('error', { message: 'Lỗi tải danh mục: ' + error.message, user: req.user });
+    }
+};
+
+exports.createCategory = async (req, res) => {
+    try {
+        const { name, description, parent_id, image_url, display_order } = req.body;
+        let slug = req.body.slug;
+        if (!slug || slug.trim() === '') {
+            slug = name
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\u0111/g, 'd')
+                .replace(/\u0110/g, 'D')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '');
+        }
+        await Category.create({ name, slug, description, parent_id: parent_id || null, image_url: image_url || null, display_order: parseInt(display_order) || 0 });
+        res.redirect('/admin/categories');
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+exports.updateCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await Category.findByIdAny(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Danh mục không tồn tại' });
+        }
+        const { name, slug, description, parent_id, image_url, display_order } = req.body;
+        if (parent_id && await Category.createsCircularReference(id, parent_id)) {
+            return res.status(400).json({ success: false, message: 'Không thể tạo vòng lặp danh mục cha-con' });
+        }
+        await Category.update(id, {
+            name: name || existing.name,
+            slug: slug || existing.slug,
+            description: description !== undefined ? description : existing.description,
+            parent_id: parent_id !== undefined ? (parent_id || null) : existing.parent_id,
+            image_url: image_url !== undefined ? (image_url || null) : existing.image_url,
+            display_order: display_order !== undefined ? (parseInt(display_order) || 0) : existing.display_order
+        });
+        res.json({ success: true, message: 'Cập nhật danh mục thành công' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.deleteCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const stats = await Category.getUsageStats(id);
+        if (stats.product_count > 0 || stats.child_count > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Không thể xóa: danh mục đang có ${stats.product_count} sản phẩm và ${stats.child_count} danh mục con`
+            });
+        }
+        await Category.delete(id);
+        res.json({ success: true, message: 'Đã xóa danh mục' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// =============================================================================
 // QUẢN LÝ SẢN PHẨM - Products Management
 // =============================================================================
 
@@ -1130,6 +1227,123 @@ exports.deleteProductVariant = async (req, res) => {
 
         await Product.deleteVariant(req.params.variantId);
         res.json({ success: true, message: 'Đã xóa biến thể' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// =============================================================================
+// QUẢN LÝ BANNER - Banners Management
+// =============================================================================
+
+exports.getBanners = async (req, res) => {
+    try {
+        let banners = [];
+        try {
+            banners = await Banner.findAll();
+        } catch (err) {
+            console.error('Banners data error:', err);
+        }
+        res.render('admin/banners', {
+            banners,
+            user: req.user,
+            currentPage: 'banners'
+        });
+    } catch (error) {
+        res.status(500).render('error', { message: 'Lỗi tải banners: ' + error.message, user: req.user });
+    }
+};
+
+exports.createBanner = async (req, res) => {
+    try {
+        const { title, subtitle, description, link_url, button_text, display_order, start_date, end_date } = req.body;
+
+        let image_url = '';
+        if (req.file) {
+            image_url = req.file.cloudinaryUrl || `/uploads/${req.file.filename}`;
+        }
+
+        await Banner.create({
+            title,
+            subtitle,
+            description,
+            image_url,
+            link_url,
+            button_text,
+            display_order: parseInt(display_order) || 0,
+            start_date: start_date || null,
+            end_date: end_date || null
+        });
+
+        res.redirect('/admin/banners');
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+exports.deleteBanner = async (req, res) => {
+    try {
+        const pool = require('../config/database');
+        await pool.execute('DELETE FROM banners WHERE id = ?', [req.params.id]);
+        res.json({ success: true, message: 'Banner deleted' });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+exports.toggleBannerActive = async (req, res) => {
+    try {
+        const banner = await Banner.toggleActive(req.params.id);
+        if (!banner) {
+            return res.status(404).json({ success: false, message: 'Banner không tồn tại' });
+        }
+        res.json({ success: true, is_active: banner.is_active });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.reorderBanners = async (req, res) => {
+    try {
+        const { items } = req.body;
+        if (!Array.isArray(items)) {
+            return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
+        }
+        await Banner.updateOrder(items);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.updateBanner = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await Banner.findById(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Banner không tồn tại' });
+        }
+        const { title, subtitle, link_url } = req.body;
+
+        let image_url = existing.image_url;
+        if (req.file) {
+            image_url = req.file.cloudinaryUrl || `/uploads/${req.file.filename}`;
+        }
+
+        const updated = await Banner.update(id, {
+            title: title || existing.title,
+            subtitle: subtitle !== undefined ? subtitle : existing.subtitle,
+            description: existing.description,
+            image_url,
+            link_url: link_url !== undefined ? link_url : existing.link_url,
+            button_text: existing.button_text,
+            display_order: existing.display_order,
+            is_active: existing.is_active,
+            start_date: existing.start_date,
+            end_date: existing.end_date
+        });
+
+        res.json({ success: true, banner: updated });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

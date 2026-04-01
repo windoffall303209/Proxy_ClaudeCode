@@ -10,6 +10,22 @@
 
     const colors = product.variants ? [...new Set(product.variants.filter(variant => variant.color).map(variant => variant.color))] : [];
     const sizes = product.variants ? [...new Set(product.variants.filter(variant => variant.size).map(variant => variant.size))] : [];
+    const existingReview = reviewContext && reviewContext.existingReview ? reviewContext.existingReview : null;
+    const canCreateReview = Boolean(reviewContext && reviewContext.canReview);
+    const canEditReview = Boolean(existingReview);
+    const reviewFormAction = canEditReview
+        ? `/products/${product.slug}/reviews/${existingReview.id}/edit`
+        : `/products/${product.slug}/reviews`;
+    const reviewFormHeading = canEditReview ? 'Chỉnh sửa review của bạn' : 'Viết review của bạn';
+    const reviewSubmitLabel = canEditReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá';
+    const reviewOrderCode = canEditReview
+        ? existingReview.order_code
+        : (reviewContext && reviewContext.eligibleOrder ? reviewContext.eligibleOrder.order_code : null);
+    const reviewFormErrorCodes = ['invalid-rating', 'invalid-media', 'file-too-large', 'upload-failed', 'failed'];
+    const viewOwnReviewOpen = Boolean(canEditReview && reviewFeedbackCode && reviewFeedbackCode !== 'updated');
+    const editOwnReviewOpen = Boolean(canEditReview && reviewFormErrorCodes.includes(reviewFeedbackCode));
+    const createReviewPanelOpen = Boolean(canCreateReview && reviewFormErrorCodes.includes(reviewFeedbackCode));
+    const reviewBodyOpen = Boolean(reviewFeedback || viewOwnReviewOpen || editOwnReviewOpen || createReviewPanelOpen);
 %>
 
 <div class="product-detail-page page-shell">
@@ -26,6 +42,22 @@
 
         <div class="product-detail-grid">
             <div class="product-gallery">
+                <% if (product.images && product.images.length > 1) { %>
+                    <div class="product-gallery__thumbs">
+                        <% product.images.forEach((img, index) => { %>
+                            <img
+                                src="<%= img.image_url %>"
+                                alt="<%= product.name %> - <%= index + 1 %>"
+                                class="product-gallery__thumb <%= index === 0 ? 'product-gallery__thumb--active' : '' %>"
+                                data-index="<%= index %>"
+                                data-image-url="<%= img.image_url %>"
+                                loading="lazy"
+                                decoding="async"
+                            >
+                        <% }) %>
+                    </div>
+                <% } %>
+
                 <div class="product-gallery__main">
                     <% if (mainImage) { %>
                         <img
@@ -51,22 +83,6 @@
                         </div>
                     <% } %>
                 </div>
-
-                <% if (product.images && product.images.length > 1) { %>
-                    <div class="product-gallery__thumbs">
-                        <% product.images.forEach((img, index) => { %>
-                            <img
-                                src="<%= img.image_url %>"
-                                alt="<%= product.name %> - <%= index + 1 %>"
-                                class="product-gallery__thumb <%= index === 0 ? 'product-gallery__thumb--active' : '' %>"
-                                data-index="<%= index %>"
-                                data-image-url="<%= img.image_url %>"
-                                loading="lazy"
-                                decoding="async"
-                            >
-                        <% }) %>
-                    </div>
-                <% } %>
             </div>
 
             <div class="product-info">
@@ -78,6 +94,9 @@
                 </div>
 
                 <h1 class="product-info__title"><%= product.name %></h1>
+                <% if (product.sku) { %>
+                    <p class="product-info__sku">SKU: <span><%= product.sku %></span></p>
+                <% } %>
 
                 <div class="product-info__trust">
                     <span>Form dễ mặc</span>
@@ -93,17 +112,6 @@
                     <% } else { %>
                         <p class="product-info__price-current" id="productPrice"><%= (product.final_price || product.price).toLocaleString('vi-VN') %>đ</p>
                     <% } %>
-                </div>
-
-                <div class="product-info__service-grid">
-                    <div>
-                        <strong>Freeship từ 499K</strong>
-                        <span>Miễn phí vận chuyển cho đơn hàng đủ điều kiện.</span>
-                    </div>
-                    <div>
-                        <strong>COD / VNPay / MoMo</strong>
-                        <span>Hỗ trợ nhiều phương thức thanh toán tiện lợi.</span>
-                    </div>
                 </div>
 
                 <% if (product.variants && product.variants.length > 0) { %>
@@ -129,24 +137,357 @@
                                 </div>
                             </div>
                         <% } %>
-
-                        <div id="variantStock" class="variant-stock"></div>
                     </div>
                 <% } %>
+
+                <div class="product-info__quantity">
+                    <label>Số lượng</label>
+                    <div class="quantity-selector">
+                        <button type="button" class="quantity-selector__btn" id="qtyMinus" aria-label="Giảm">−</button>
+                        <input type="number" class="quantity-selector__input" id="productQty" value="1" min="1" max="99">
+                        <button type="button" class="quantity-selector__btn" id="qtyPlus" aria-label="Tăng">+</button>
+                    </div>
+                </div>
 
                 <div class="product-info__actions">
                     <button class="btn product-info__action-btn product-info__action-btn--cart" data-product-action="add-to-cart">Thêm vào giỏ hàng</button>
                     <button class="btn btn-accent product-info__action-btn product-info__action-btn--buy" data-product-action="buy-now">Mua ngay</button>
                 </div>
+            </div>
+        </div>
 
-                <% if (product.description) { %>
-                    <div class="product-info__description">
-                        <h3>Mô tả sản phẩm</h3>
-                        <p><%= product.description %></p>
+        <% if (product.description) { %>
+            <section class="product-description-section">
+                <button type="button" class="product-description__toggle" id="descToggle" aria-expanded="false">
+                    <h3>Mô tả sản phẩm</h3>
+                    <span class="product-description__toggle-icon" id="descToggleIcon">▼</span>
+                </button>
+                <div class="product-description__body" id="descBody">
+                    <div class="product-description-content">
+                        <%- product.descriptionHtml %>
+                    </div>
+                </div>
+            </section>
+        <% } %>
+
+        <section class="product-reviews">
+            <button
+                type="button"
+                class="product-reviews__toggle <%= reviewBodyOpen ? 'is-open' : '' %>"
+                id="reviewToggle"
+                aria-expanded="<%= reviewBodyOpen ? 'true' : 'false' %>"
+            >
+                <div class="product-reviews__toggle-copy">
+                    <h2 class="product-reviews__title">Đánh giá sản phẩm</h2>
+                    <p class="product-reviews__subtitle">Chia sẻ cảm nhận thực tế của bạn sau khi nhận hàng.</p>
+                </div>
+                <span class="product-reviews__toggle-icon">▼</span>
+            </button>
+
+            <div class="product-reviews__body <%= reviewBodyOpen ? 'is-open' : '' %>" id="reviewBody" data-toggle-mode="display">
+                <% if (reviewFeedback) { %>
+                    <div class="product-reviews__notice product-reviews__notice--<%= reviewFeedback.type %>">
+                        <%= reviewFeedback.message %>
+                    </div>
+                <% } %>
+
+                <% if (canCreateReview || canEditReview) { %>
+                <div class="product-review-compose">
+                    <% if (canCreateReview) { %>
+                        <div class="product-review-state product-review-state--mine">
+                            <div class="product-review-state__top">
+                                <div>
+                                    <strong>Bạn chưa đánh giá sản phẩm này</strong>
+                                    <p>Hãy chia sẻ trải nghiệm thực tế của bạn sau khi nhận hàng.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="product-review-state__toggle-btn <%= createReviewPanelOpen ? 'is-open' : '' %>"
+                                    id="createReviewToggle"
+                                    aria-expanded="<%= createReviewPanelOpen ? 'true' : 'false' %>"
+                                    data-open-label="Đánh giá ngay"
+                                    data-close-label="Đóng form đánh giá"
+                                >
+                                    <%= createReviewPanelOpen ? 'Đóng form đánh giá' : 'Đánh giá ngay' %>
+                                </button>
+                            </div>
+
+                            <div class="product-review-state__panel <%= createReviewPanelOpen ? 'is-open' : '' %>" id="createReviewPanel" data-toggle-mode="display">
+                                <form action="<%= reviewFormAction %>" method="POST" enctype="multipart/form-data" class="product-review-form product-review-form--edit">
+                                    <div class="product-review-form__header">
+                                        <div>
+                                            <strong><%= reviewFormHeading %></strong>
+                                            <% if (reviewOrderCode) { %>
+                                                <span>Từ đơn <%= reviewOrderCode %></span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+
+                                    <div class="product-review-form__field">
+                                        <span class="product-review-form__label">Số sao</span>
+                                        <div class="product-review-form__rating">
+                                            <% [1, 2, 3, 4, 5].forEach((ratingValue) => { %>
+                                                <label class="product-review-form__rating-option">
+                                                    <input type="radio" name="rating" value="<%= ratingValue %>" <%= ratingValue === 5 ? 'checked' : '' %>>
+                                                    <span><%= ratingValue %>★</span>
+                                                </label>
+                                            <% }) %>
+                                        </div>
+                                    </div>
+
+                                    <div class="product-review-form__field">
+                                        <label for="reviewComment" class="product-review-form__label">Nội dung</label>
+                                        <textarea
+                                            id="reviewComment"
+                                            name="comment"
+                                            class="product-review-form__textarea"
+                                            rows="4"
+                                            maxlength="2000"
+                                            placeholder="Sản phẩm có đúng như mong đợi không? Chất liệu, form, kích thước ra sao?"
+                                        ></textarea>
+                                    </div>
+
+                                    <div class="product-review-form__field">
+                                        <label for="reviewMediaInput" class="product-review-form__label">Ảnh hoặc video</label>
+                                        <input
+                                            id="reviewMediaInput"
+                                            type="file"
+                                            name="reviewMedia"
+                                            class="product-review-form__file-input"
+                                            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                                            multiple
+                                        >
+                                        <p class="product-review-form__help" id="reviewMediaMeta">Tối đa 5 ảnh và 1 video cho mỗi review.</p>
+                                        <div class="product-review-form__media-preview" id="reviewMediaPreview"></div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-accent product-review-form__submit"><%= reviewSubmitLabel %></button>
+                                </form>
+                            </div>
+                        </div>
+                    <% } else if (canEditReview) { %>
+                            <div class="product-review-state product-review-state--mine">
+                                <div class="product-review-state__top">
+                                    <div>
+                                        <strong>Bạn đã đánh giá sản phẩm này</strong>
+                                        <% if (reviewOrderCode) { %>
+                                            <p>Từ đơn <%= reviewOrderCode %>.</p>
+                                        <% } %>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="product-review-state__toggle-btn <%= viewOwnReviewOpen ? 'is-open' : '' %>"
+                                        id="myReviewToggle"
+                                        aria-expanded="<%= viewOwnReviewOpen ? 'true' : 'false' %>"
+                                        data-open-label="Xem đánh giá của bạn"
+                                        data-close-label="Ẩn đánh giá của bạn"
+                                    >
+                                        <%= viewOwnReviewOpen ? 'Ẩn đánh giá của bạn' : 'Xem đánh giá của bạn' %>
+                                    </button>
+                                </div>
+
+                                <div class="product-review-state__panel <%= viewOwnReviewOpen ? 'is-open' : '' %>" id="myReviewPanel" data-toggle-mode="display">
+                                    <div class="product-review-state__summary">
+                                        <div class="product-review-item__header">
+                                            <div class="product-review-item__identity">
+                                                <span class="product-review-item__author"><%= user.full_name || 'Bạn' %></span>
+                                            </div>
+                                            <span class="product-review-item__date"><%= new Date(existingReview.created_at).toLocaleDateString('vi-VN') %></span>
+                                        </div>
+                                        <div class="product-review-item__stars"><%= '★'.repeat(existingReview.rating) %><%= '☆'.repeat(5 - existingReview.rating) %></div>
+                                        <% if (existingReview.comment) { %>
+                                            <p class="product-review-item__text"><%= existingReview.comment %></p>
+                                        <% } %>
+                                        <% if (existingReview.media && existingReview.media.length > 0) { %>
+                                            <div class="product-review-item__media">
+                                                <% existingReview.media.forEach((mediaItem) => { %>
+                                                    <div class="product-review-item__media-card">
+                                                        <% if (mediaItem.media_type === 'video') { %>
+                                                            <video controls preload="metadata" class="product-review-item__video">
+                                                                <source src="<%= mediaItem.media_url %>">
+                                                            </video>
+                                                        <% } else { %>
+                                                            <img
+                                                                src="<%= mediaItem.media_url %>"
+                                                                alt="Review media"
+                                                                class="product-review-item__image"
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                            >
+                                                        <% } %>
+                                                    </div>
+                                                <% }) %>
+                                            </div>
+                                        <% } %>
+                                    </div>
+
+                                    <div class="product-review-state__actions">
+                                        <button
+                                            type="button"
+                                            class="product-review-state__secondary-btn <%= editOwnReviewOpen ? 'is-open' : '' %>"
+                                            id="reviewEditToggle"
+                                            aria-expanded="<%= editOwnReviewOpen ? 'true' : 'false' %>"
+                                            data-open-label="Chỉnh sửa đánh giá"
+                                            data-close-label="Đóng chỉnh sửa"
+                                        >
+                                            <%= editOwnReviewOpen ? 'Đóng chỉnh sửa' : 'Chỉnh sửa đánh giá' %>
+                                        </button>
+                                    </div>
+
+                                    <div class="product-review-state__edit <%= editOwnReviewOpen ? 'is-open' : '' %>" id="reviewEditPanel" data-toggle-mode="display">
+                                        <form action="<%= reviewFormAction %>" method="POST" enctype="multipart/form-data" class="product-review-form product-review-form--edit">
+                                            <div class="product-review-form__header">
+                                                <div>
+                                                    <strong><%= reviewFormHeading %></strong>
+                                                    <% if (reviewOrderCode) { %>
+                                                        <span>Từ đơn <%= reviewOrderCode %></span>
+                                                    <% } %>
+                                                </div>
+                                                <p class="product-review-form__hint">
+                                                    Bạn có thể sửa nội dung, thêm media mới hoặc bỏ bớt media cũ.
+                                                </p>
+                                            </div>
+
+                                            <div class="product-review-form__field">
+                                                <span class="product-review-form__label">Số sao</span>
+                                                <div class="product-review-form__rating">
+                                                    <% [1, 2, 3, 4, 5].forEach((ratingValue) => { %>
+                                                        <label class="product-review-form__rating-option">
+                                                            <input
+                                                                type="radio"
+                                                                name="rating"
+                                                                value="<%= ratingValue %>"
+                                                                <%= existingReview.rating === ratingValue ? 'checked' : '' %>
+                                                            >
+                                                            <span><%= ratingValue %>★</span>
+                                                        </label>
+                                                    <% }) %>
+                                                </div>
+                                            </div>
+
+                                            <div class="product-review-form__field">
+                                                <label for="reviewComment" class="product-review-form__label">Nội dung</label>
+                                                <textarea
+                                                    id="reviewComment"
+                                                    name="comment"
+                                                    class="product-review-form__textarea"
+                                                    rows="4"
+                                                    maxlength="2000"
+                                                    placeholder="Sản phẩm có đúng như mong đợi không? Chất liệu, form, kích thước ra sao?"
+                                                ><%= existingReview.comment || '' %></textarea>
+                                            </div>
+
+                                            <div class="product-review-form__field">
+                                                <label for="reviewMediaInput" class="product-review-form__label">Ảnh hoặc video</label>
+                                                <input
+                                                    id="reviewMediaInput"
+                                                    type="file"
+                                                    name="reviewMedia"
+                                                    class="product-review-form__file-input"
+                                                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                                                    multiple
+                                                >
+                                                <p class="product-review-form__help" id="reviewMediaMeta">Tối đa 5 ảnh và 1 video cho mỗi review.</p>
+                                                <div class="product-review-form__media-preview" id="reviewMediaPreview"></div>
+                                            </div>
+
+                                            <% if (existingReview.media && existingReview.media.length > 0) { %>
+                                                <div class="product-review-form__field">
+                                                    <span class="product-review-form__label">Media hiện tại</span>
+                                                    <div class="product-review-current-media">
+                                                        <% existingReview.media.forEach((mediaItem) => { %>
+                                                            <label class="product-review-current-media__item">
+                                                                <div class="product-review-current-media__frame">
+                                                                    <% if (mediaItem.media_type === 'video') { %>
+                                                                        <video controls preload="metadata" class="product-review-current-media__video">
+                                                                            <source src="<%= mediaItem.media_url %>">
+                                                                        </video>
+                                                                    <% } else { %>
+                                                                        <img
+                                                                            src="<%= mediaItem.media_url %>"
+                                                                            alt="Review media"
+                                                                            class="product-review-current-media__image"
+                                                                            loading="lazy"
+                                                                            decoding="async"
+                                                                        >
+                                                                    <% } %>
+                                                                </div>
+                                                                <span class="product-review-current-media__checkbox">
+                                                                    <input type="checkbox" name="remove_media_ids" value="<%= mediaItem.id %>">
+                                                                    Bỏ media này
+                                                                </span>
+                                                            </label>
+                                                        <% }) %>
+                                                    </div>
+                                                </div>
+                                            <% } %>
+
+                                            <button type="submit" class="btn btn-accent product-review-form__submit"><%= reviewSubmitLabel %></button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                    <% } %>
+                </div>
+                <% } %>
+
+                <% if (reviews && reviews.length > 0) { %>
+                    <div class="product-reviews__summary">
+                        <div>
+                            <div class="product-reviews__score"><%= Number(product.average_rating || 0).toFixed(1) %></div>
+                            <div class="product-reviews__stars">★★★★★</div>
+                            <div class="product-reviews__count"><%= product.review_count || reviews.length %> đánh giá</div>
+                        </div>
+                    </div>
+
+                    <div class="product-reviews__list">
+                        <% reviews.forEach(review => { %>
+                            <div class="product-review-item">
+                                <div class="product-review-item__header">
+                                    <div class="product-review-item__identity">
+                                        <span class="product-review-item__author"><%= review.user_name || 'Người dùng' %></span>
+
+                                        <% if (review.updated_at && review.created_at && new Date(review.updated_at).getTime() !== new Date(review.created_at).getTime()) { %>
+                                            <span class="product-review-item__edited">Đã chỉnh sửa</span>
+                                        <% } %>
+                                    </div>
+                                    <span class="product-review-item__date"><%= new Date(review.created_at).toLocaleDateString('vi-VN') %></span>
+                                </div>
+                                <div class="product-review-item__stars"><%= '★'.repeat(review.rating) %><%= '☆'.repeat(5 - review.rating) %></div>
+                                <% if (review.comment) { %>
+                                    <p class="product-review-item__text"><%= review.comment %></p>
+                                <% } %>
+                                <% if (review.media && review.media.length > 0) { %>
+                                    <div class="product-review-item__media">
+                                        <% review.media.forEach((mediaItem) => { %>
+                                            <div class="product-review-item__media-card">
+                                                <% if (mediaItem.media_type === 'video') { %>
+                                                    <video controls preload="metadata" class="product-review-item__video">
+                                                        <source src="<%= mediaItem.media_url %>">
+                                                    </video>
+                                                <% } else { %>
+                                                    <img
+                                                        src="<%= mediaItem.media_url %>"
+                                                        alt="Review media"
+                                                        class="product-review-item__image"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    >
+                                                <% } %>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="product-reviews__empty">
+                        Chưa có đánh giá nào. Hãy là người đầu tiên chia sẻ cảm nhận về sản phẩm này.
                     </div>
                 <% } %>
             </div>
-        </div>
+        </section>
 
         <% if (relatedProducts && relatedProducts.length > 0) { %>
             <section class="related-products">
@@ -174,7 +515,7 @@
     basePrice: product.final_price || product.price,
     images: (product.images || []).map(img => img.image_url),
     initialImage: product.primary_image || ((product.images && product.images[0]) ? product.images[0].image_url : null)
-}).replace(/</g, '\u003c') %></script>
+}).replace(/</g, '\\u003c') %></script>
 <script src="/js/product-detail.js"></script>
 
 <%- include('../partials/footer') %>

@@ -7,9 +7,16 @@ const helmet = require("helmet");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const { optionalAuth } = require("./middleware/auth");
+const headerCategories = require("./middleware/headerCategories");
 
 function createApp() {
   const app = express();
+  app.set("trust proxy", true);
+  const paymentFormActionSources = [
+    "'self'",
+    "https://sandbox.vnpayment.vn",
+    "https://pay.vnpay.vn",
+  ];
 
   // Security middleware
   app.use(
@@ -27,6 +34,7 @@ function createApp() {
           fontSrc: ["'self'", "https://fonts.gstatic.com"],
           imgSrc: ["'self'", "data:", "blob:", "https:"],
           connectSrc: ["'self'"],
+          formAction: paymentFormActionSources,
         },
       },
     }),
@@ -74,6 +82,7 @@ function createApp() {
 
   // Global auth check - populate req.user from JWT token for all requests
   app.use(optionalAuth);
+  app.use(headerCategories);
 
   // Make user available to all views
   app.use((req, res, next) => {

@@ -466,6 +466,139 @@ main {
     color: var(--gray-700);
 }
 
+/* Search Autocomplete Dropdown */
+.header-search {
+    position: relative;
+}
+
+.search-suggest {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border: 1px solid rgba(215, 197, 154, 0.7);
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+    z-index: 1000;
+    max-height: 420px;
+    overflow-y: auto;
+    animation: suggestSlideIn .2s ease;
+}
+
+.search-suggest.is-open {
+    display: block;
+}
+
+@keyframes suggestSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.search-suggest__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    text-decoration: none;
+    color: var(--ink);
+    transition: background .15s;
+    border-bottom: 1px solid rgba(0,0,0,.04);
+}
+
+.search-suggest__item:last-of-type {
+    border-bottom: none;
+}
+
+.search-suggest__item:hover,
+.search-suggest__item.is-focused {
+    background: rgba(242, 201, 76, .1);
+}
+
+.search-suggest__img {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #f5f0e5;
+}
+
+.search-suggest__img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.search-suggest__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--gray-400);
+}
+
+.search-suggest__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.search-suggest__name {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-suggest__name mark {
+    background: rgba(242, 201, 76, .35);
+    color: inherit;
+    padding: 0 1px;
+    border-radius: 2px;
+}
+
+.search-suggest__price {
+    font-size: 13px;
+    font-weight: 700;
+    color: #c0392b;
+}
+
+.search-suggest__price s {
+    font-weight: 400;
+    color: var(--gray-500);
+    font-size: 12px;
+    margin-left: 6px;
+}
+
+.search-suggest__viewall {
+    display: block;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-strong);
+    text-decoration: none;
+    border-top: 1px solid rgba(215, 197, 154, .4);
+    transition: background .15s;
+}
+
+.search-suggest__viewall:hover,
+.search-suggest__viewall.is-focused {
+    background: rgba(242, 201, 76, .1);
+}
+
+.search-suggest__empty {
+    padding: 20px 16px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--gray-500);
+}
+
 .header-actions {
     display: flex;
     align-items: center;
@@ -1277,6 +1410,14 @@ body.mobile-menu-open {
 
 .password-match.error {
     color: var(--danger);
+}
+
+.field-error {
+    display: none;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--danger);
+    font-weight: 500;
 }
 
 .footer {

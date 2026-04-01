@@ -1,52 +1,59 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header', { pageStyles: ['/css/auth/verify-email.css'] }) %>
 
-<div class="auth-page">
-    <div class="auth-container">
-        <h1>Xác nhận Email</h1>
-
-        <div class="verify-email-info">
-            <p>Chúng tôi sẽ gửi mã xác nhận 6 số đến email:</p>
-            <p class="user-email"><strong><%= user.email %></strong></p>
-        </div>
-
-        <div id="alert-container"></div>
-
-        <!-- Step 1: Send verification code -->
-        <div id="step-send" class="verify-step">
-            <p>Nhấn nút bên dưới để nhận mã xác nhận qua email.</p>
-            <button type="button" id="btn-send-code" class="btn btn-primary btn-block">
-                Gửi mã xác nhận
-            </button>
-        </div>
-
-        <!-- Step 2: Enter verification code -->
-        <div id="step-verify" class="verify-step" hidden>
-            <p>Nhập mã xác nhận 6 số đã được gửi đến email của bạn:</p>
-
-            <form id="verify-form" class="verify-code-form">
-                <div class="code-inputs">
-                    <input type="text" maxlength="1" class="code-input" data-index="0" autofocus>
-                    <input type="text" maxlength="1" class="code-input" data-index="1">
-                    <input type="text" maxlength="1" class="code-input" data-index="2">
-                    <input type="text" maxlength="1" class="code-input" data-index="3">
-                    <input type="text" maxlength="1" class="code-input" data-index="4">
-                    <input type="text" maxlength="1" class="code-input" data-index="5">
-                </div>
-                <input type="hidden" id="full-code" name="code">
-
-                <button type="submit" id="btn-verify" class="btn btn-primary btn-block">
-                    Xác nhận
-                </button>
-            </form>
-
-            <div class="resend-section">
-                <p>Không nhận được mã? <button type="button" id="btn-resend" class="btn-link">Gửi lại</button></p>
-                <p class="timer-text" id="timer-text"></p>
+<div class="auth-page verify-email-page">
+    <div class="container">
+        <div class="auth-container verify-email-shell">
+            <div class="verify-email-head">
+                <p class="verify-email-head__eyebrow">Bảo Mật Tài Khoản</p>
+                <h1>Xác Nhận Email</h1>
+                <p class="verify-email-head__copy">Nhận mã OTP 6 số qua email để hoàn tất xác thực tài khoản.</p>
             </div>
-        </div>
 
-        <div class="auth-footer">
-            <a href="/auth/profile">Quay lại trang cá nhân</a>
+            <div class="verify-email-recipient">
+                <span class="verify-email-recipient__label">Mã sẽ được gửi đến</span>
+                <strong class="verify-email-recipient__value"><%= user.email %></strong>
+            </div>
+
+            <div id="alert-container" class="verify-email-alerts"></div>
+
+            <div id="step-send" class="verify-panel verify-panel--send">
+                <p class="verify-panel__copy">Nhấn nút bên dưới để nhận mã xác nhận qua email.</p>
+                <button type="button" id="btn-send-code" class="btn btn-primary btn-block">
+                    Gửi Mã Xác Nhận
+                </button>
+            </div>
+
+            <div id="step-verify" class="verify-panel verify-panel--verify" hidden>
+                <div class="verify-panel__header">
+                    <h2>Nhập Mã Xác Nhận</h2>
+                    <p>Nhập đủ 6 số đã gửi đến email của bạn. Mã có hiệu lực trong 10 phút.</p>
+                </div>
+
+                <form id="verify-form" class="verify-code-form">
+                    <div class="code-inputs" aria-label="Nhập mã xác nhận 6 số">
+                        <input type="text" maxlength="1" class="code-input" data-index="0" inputmode="numeric" pattern="[0-9]*" aria-label="Số 1" autofocus>
+                        <input type="text" maxlength="1" class="code-input" data-index="1" inputmode="numeric" pattern="[0-9]*" aria-label="Số 2">
+                        <input type="text" maxlength="1" class="code-input" data-index="2" inputmode="numeric" pattern="[0-9]*" aria-label="Số 3">
+                        <input type="text" maxlength="1" class="code-input" data-index="3" inputmode="numeric" pattern="[0-9]*" aria-label="Số 4">
+                        <input type="text" maxlength="1" class="code-input" data-index="4" inputmode="numeric" pattern="[0-9]*" aria-label="Số 5">
+                        <input type="text" maxlength="1" class="code-input" data-index="5" inputmode="numeric" pattern="[0-9]*" aria-label="Số 6">
+                    </div>
+                    <input type="hidden" id="full-code" name="code">
+
+                    <button type="submit" id="btn-verify" class="btn btn-primary btn-block">
+                        Xác Nhận
+                    </button>
+                </form>
+
+                <div class="resend-section">
+                    <p class="resend-section__copy">Không nhận được mã? <button type="button" id="btn-resend" class="btn-link">Gửi Lại</button></p>
+                    <p class="timer-text" id="timer-text"></p>
+                </div>
+            </div>
+
+            <div class="auth-footer verify-email-footer">
+                <a href="/auth/profile">Quay lại trang cá nhân</a>
+            </div>
         </div>
     </div>
 </div>

@@ -12,6 +12,12 @@ router.use(verifyToken, isAdmin);
 router.get('/dashboard', adminController.getDashboard);
 router.get('/', (req, res) => res.redirect('/admin/dashboard'));
 
+// Categories
+router.get('/categories', adminController.getCategories);
+router.post('/categories', adminController.createCategory);
+router.put('/categories/:id', adminController.updateCategory);
+router.delete('/categories/:id', adminController.deleteCategory);
+
 // Products
 router.get('/products', adminController.getProducts);
 router.post('/products', upload.any(), uploadToCloud, adminController.createProduct);
@@ -43,6 +49,9 @@ router.put('/users/:id/status', adminController.updateUserStatus);
 // Banners
 router.get('/banners', adminController.getBanners);
 router.post('/banners', upload.single('image'), uploadToCloud, adminController.createBanner);
+router.put('/banners/reorder', adminController.reorderBanners);
+router.put('/banners/:id/toggle', adminController.toggleBannerActive);
+router.put('/banners/:id', upload.single('image'), uploadToCloud, adminController.updateBanner);
 router.delete('/banners/:id', adminController.deleteBanner);
 
 // Sales

@@ -21,6 +21,7 @@
     const currentPath = currentUrl.split('?')[0];
     const currentCategory = typeof category !== 'undefined' ? category : null;
     const categorySlug = currentCategory ? currentCategory.slug : '';
+    const navigationCategories = Array.isArray(typeof headerCategories !== 'undefined' ? headerCategories : null) ? headerCategories : [];
     const isSalePageActive = typeof isSalePage !== 'undefined' ? isSalePage : currentUrl.includes('sale=true');
     const isProfilePage = currentPath === '/auth/profile';
     const isOrdersPage = currentPath === '/orders/history';
@@ -39,14 +40,15 @@
             </a>
 
             <div class="header-search">
-                <form action="/products/search" method="GET">
-                    <input type="text" name="q" placeholder="Tìm áo polo, váy midi, quần jean..." required>
+                <form action="/products/search" method="GET" autocomplete="off">
+                    <input type="text" name="q" id="searchInput" placeholder="Tìm áo polo, váy midi, quần jean..." required>
                     <button type="submit" aria-label="Tìm kiếm">
                         <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                             <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
                     </button>
                 </form>
+                <div class="search-suggest" id="searchSuggest"></div>
             </div>
 
             <div class="header-actions">
@@ -113,9 +115,9 @@
         <div class="container header-nav__inner">
             <nav class="main-nav">
                 <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Trang chủ</a>
-                <a href="/products/category/nam" class="<%= categorySlug === 'nam' ? 'active' : '' %>">Nam</a>
-                <a href="/products/category/nu" class="<%= categorySlug === 'nu' ? 'active' : '' %>">Nữ</a>
-                <a href="/products/category/tre-em" class="<%= categorySlug === 'tre-em' ? 'active' : '' %>">Trẻ em</a>
+                <% navigationCategories.forEach((headerCategory) => { %>
+                    <a href="/products/category/<%= headerCategory.slug %>" class="<%= categorySlug === headerCategory.slug ? 'active' : '' %>"><%= headerCategory.name %></a>
+                <% }) %>
                 <a href="/products" class="<%= currentPath === '/products' ? 'active' : '' %>">Tất cả</a>
                 <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>">Sale tới 50%</a>
             </nav>
@@ -161,9 +163,9 @@
 
     <div class="mobile-nav__links">
         <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Trang chủ</a>
-        <a href="/products/category/nam" class="<%= categorySlug === 'nam' ? 'active' : '' %>">Thời trang nam</a>
-        <a href="/products/category/nu" class="<%= categorySlug === 'nu' ? 'active' : '' %>">Thời trang nữ</a>
-        <a href="/products/category/tre-em" class="<%= categorySlug === 'tre-em' ? 'active' : '' %>">Trẻ em</a>
+        <% navigationCategories.forEach((headerCategory) => { %>
+            <a href="/products/category/<%= headerCategory.slug %>" class="<%= categorySlug === headerCategory.slug ? 'active' : '' %>"><%= headerCategory.name %></a>
+        <% }) %>
         <a href="/products">Tất cả sản phẩm</a>
         <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>">Khu sale</a>
     </div>

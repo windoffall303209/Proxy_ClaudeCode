@@ -32,13 +32,174 @@ class Product {
         );
     }
 
+    static toNumber(value, fallback = 0) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+    }
+
+    static normalizeProductNumbers(product) {
+        if (!product || typeof product !== 'object') {
+            return product;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(product, 'price')) {
+            product.price = this.toNumber(product.price);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(product, 'sale_value') && product.sale_value !== null) {
+            product.sale_value = this.toNumber(product.sale_value);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(product, 'stock_quantity') && product.stock_quantity !== null) {
+            product.stock_quantity = Math.max(0, Number.parseInt(product.stock_quantity, 10) || 0);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(product, 'final_price') && product.final_price !== null) {
+            product.final_price = this.toNumber(product.final_price);
+        }
+
+        return product;
+    }
+
+    static normalizeVariantNumbers(variants = []) {
+        variants.forEach((variant) => {
+            if (!variant || typeof variant !== 'object') {
+                return;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(variant, 'additional_price')) {
+                variant.additional_price = this.toNumber(variant.additional_price);
+            }
+
+            if (Object.prototype.hasOwnProperty.call(variant, 'stock_quantity') && variant.stock_quantity !== null) {
+                variant.stock_quantity = Math.max(0, Number.parseInt(variant.stock_quantity, 10) || 0);
+            }
+        });
+
+        return variants;
+    }
+
     static hydrateListingProducts(products = []) {
         products.forEach((product) => {
+            this.normalizeProductNumbers(product);
             product.final_price = this.calculateFinalPrice(product.price, product.sale_type, product.sale_value);
             product.card_image = this.getOptimizedCardImageUrl(product.primary_image);
         });
 
         return products;
+    }
+
+    static groupReviewMediaByReviewId(mediaRows = []) {
+        const mediaMap = new Map();
+
+        mediaRows.forEach((media) => {
+            if (!mediaMap.has(media.review_id)) {
+                mediaMap.set(media.review_id, []);
+            }
+
+            mediaMap.get(media.review_id).push({
+                id: media.id,
+                review_id: media.review_id,
+                media_type: media.media_type,
+                media_url: media.media_url,
+                public_id: media.public_id,
+                display_order: Number.parseInt(media.display_order, 10) || 0,
+                created_at: media.created_at || null
+            });
+        });
+
+        return mediaMap;
+    }
+
+    static async getReviewMediaByReviewIds(reviewIds = [], executor = pool) {
+        if (!Array.isArray(reviewIds) || reviewIds.length === 0) {
+            return new Map();
+        }
+
+        const placeholders = reviewIds.map(() => '?').join(', ');
+        const [rows] = await executor.execute(
+            `SELECT *
+             FROM review_media
+             WHERE review_id IN (${placeholders})
+             ORDER BY display_order ASC, id ASC`,
+            reviewIds
+        );
+
+        return this.groupReviewMediaByReviewId(rows);
+    }
+
+    static async attachReviewMediaToReviews(reviews = [], executor = pool) {
+        if (!Array.isArray(reviews) || reviews.length === 0) {
+            return reviews;
+        }
+
+        const reviewIds = [...new Set(
+            reviews
+                .map((review) => review?.id)
+                .filter((reviewId) => Number.isInteger(Number(reviewId)))
+        )];
+
+        const mediaByReviewId = await this.getReviewMediaByReviewIds(reviewIds, executor);
+        reviews.forEach((review) => {
+            review.media = mediaByReviewId.get(review.id) || [];
+        });
+
+        return reviews;
+    }
+
+    static normalizeReviewMediaInput(mediaItems = []) {
+        if (!Array.isArray(mediaItems)) {
+            return [];
+        }
+
+        return mediaItems
+            .map((media, index) => {
+                const displayOrder = media?.displayOrder ?? media?.display_order;
+                return {
+                    mediaType: media?.mediaType || media?.media_type || null,
+                    mediaUrl: media?.mediaUrl || media?.media_url || null,
+                    publicId: media?.publicId || media?.public_id || null,
+                    displayOrder: Number.isInteger(Number(displayOrder))
+                        ? Number(displayOrder)
+                        : index
+                };
+            })
+            .filter((media) => media.mediaType && media.mediaUrl);
+    }
+
+    static async insertReviewMedia(connection, reviewId, mediaItems = []) {
+        const normalizedMedia = this.normalizeReviewMediaInput(mediaItems);
+
+        if (normalizedMedia.length === 0) {
+            return [];
+        }
+
+        const placeholders = normalizedMedia.map(() => '(?, ?, ?, ?, ?)').join(', ');
+        const params = [];
+
+        normalizedMedia.forEach((media) => {
+            params.push(
+                reviewId,
+                media.mediaType,
+                media.mediaUrl,
+                media.publicId,
+                media.displayOrder
+            );
+        });
+
+        await connection.execute(
+            `INSERT INTO review_media (review_id, media_type, media_url, public_id, display_order)
+             VALUES ${placeholders}`,
+            params
+        );
+
+        return normalizedMedia.map((media) => ({
+            review_id: reviewId,
+            media_type: media.mediaType,
+            media_url: media.mediaUrl,
+            public_id: media.publicId,
+            display_order: media.displayOrder
+        }));
     }
 
     // =============================================================================
@@ -177,6 +338,12 @@ class Product {
             )`;
         }
 
+        if (filters.stock_status === 'in_stock') {
+            query += ' AND p.stock_quantity > 0';
+        } else if (filters.stock_status === 'out_of_stock') {
+            query += ' AND p.stock_quantity <= 0';
+        }
+
         const [rows] = await pool.query(query, params);
         return rows[0]?.total || 0;
     }
@@ -224,6 +391,8 @@ class Product {
 
         if (!product) return null;
 
+        this.normalizeProductNumbers(product);
+
         // Lấy tất cả ảnh sản phẩm (ảnh chính lên đầu)
         const [images] = await pool.execute(
             'SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, display_order ASC',
@@ -240,7 +409,7 @@ class Product {
              ORDER BY pv.color, pv.size, pv.id`,
             [id]
         );
-        product.variants = variants;
+        product.variants = this.normalizeVariantNumbers(variants);
 
         // Lấy đánh giá đã được duyệt kèm thông tin người dùng
         const [reviews] = await pool.execute(`
@@ -251,6 +420,7 @@ class Product {
             ORDER BY r.created_at DESC
             LIMIT 10
         `, [id]);
+        await this.attachReviewMediaToReviews(reviews);
         product.reviews = reviews;
 
         // Tính điểm đánh giá trung bình
@@ -286,13 +456,182 @@ class Product {
      *
      * @returns {Promise<Object|null>} Thông tin sản phẩm hoặc null
      */
-    static async findBySlug(slug) {
+    static async findBySlug(slug, options = {}) {
         const query = 'SELECT id FROM products WHERE slug = ? AND is_active = TRUE';
         const [rows] = await pool.execute(query, [slug]);
         if (rows[0]) {
-            return await this.findById(rows[0].id);
+            return await this.findById(rows[0].id, options);
         }
         return null;
+    }
+
+    static async getReviewContext(productId, userId) {
+        if (!productId || !userId) {
+            return {
+                canReview: false,
+                eligibleOrder: null,
+                existingReview: null
+            };
+        }
+
+        const [existingReviews] = await pool.execute(
+            `SELECT r.*, o.order_code
+             FROM reviews r
+             LEFT JOIN orders o ON o.id = r.order_id
+             WHERE r.product_id = ? AND r.user_id = ?
+             ORDER BY r.created_at DESC
+             LIMIT 1`,
+            [productId, userId]
+        );
+
+        const existingReview = existingReviews[0] || null;
+        if (existingReview) {
+            await this.attachReviewMediaToReviews([existingReview]);
+            return {
+                canReview: false,
+                eligibleOrder: null,
+                existingReview
+            };
+        }
+
+        const [eligibleOrders] = await pool.execute(
+            `SELECT DISTINCT o.id, o.order_code, o.created_at
+             FROM orders o
+             JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.user_id = ?
+               AND oi.product_id = ?
+               AND o.status = 'delivered'
+             ORDER BY o.created_at DESC
+             LIMIT 1`,
+            [userId, productId]
+        );
+
+        return {
+            canReview: Boolean(eligibleOrders[0]),
+            eligibleOrder: eligibleOrders[0] || null,
+            existingReview: null
+        };
+    }
+
+    static async createReview({ productId, userId, orderId, rating, comment = '', isVerified = true, isApproved = true, media = [] }) {
+        const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+        const normalizedRating = Number.parseInt(rating, 10);
+        const connection = await pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            const [result] = await connection.execute(
+                `INSERT INTO reviews (product_id, user_id, order_id, rating, comment, is_verified, is_approved)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    productId,
+                    userId,
+                    orderId,
+                    normalizedRating,
+                    trimmedComment || null,
+                    Boolean(isVerified),
+                    Boolean(isApproved)
+                ]
+            );
+
+            const insertedMedia = await this.insertReviewMedia(connection, result.insertId, media);
+            await connection.commit();
+
+            return {
+                id: result.insertId,
+                product_id: productId,
+                user_id: userId,
+                order_id: orderId,
+                rating: normalizedRating,
+                comment: trimmedComment,
+                is_verified: Boolean(isVerified),
+                is_approved: Boolean(isApproved),
+                media: insertedMedia
+            };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    static async updateReview({ reviewId, userId, rating, comment = '', removeMediaIds = [], media = [] }) {
+        const normalizedRating = Number.parseInt(rating, 10);
+        const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+        const normalizedRemoveMediaIds = [...new Set(
+            (Array.isArray(removeMediaIds) ? removeMediaIds : [removeMediaIds])
+                .map((mediaId) => Number.parseInt(mediaId, 10))
+                .filter((mediaId) => Number.isInteger(mediaId))
+        )];
+        const connection = await pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            const [reviews] = await connection.execute(
+                `SELECT *
+                 FROM reviews
+                 WHERE id = ? AND user_id = ?
+                 LIMIT 1`,
+                [reviewId, userId]
+            );
+
+            const existingReview = reviews[0];
+            if (!existingReview) {
+                await connection.rollback();
+                return null;
+            }
+
+            let removedMedia = [];
+            if (normalizedRemoveMediaIds.length > 0) {
+                const placeholders = normalizedRemoveMediaIds.map(() => '?').join(', ');
+                const [mediaRows] = await connection.execute(
+                    `SELECT *
+                     FROM review_media
+                     WHERE review_id = ?
+                       AND id IN (${placeholders})
+                     ORDER BY id ASC`,
+                    [reviewId, ...normalizedRemoveMediaIds]
+                );
+                removedMedia = mediaRows;
+
+                if (removedMedia.length > 0) {
+                    const removableIds = removedMedia.map((mediaItem) => mediaItem.id);
+                    const removablePlaceholders = removableIds.map(() => '?').join(', ');
+                    await connection.execute(
+                        `DELETE FROM review_media
+                         WHERE review_id = ?
+                           AND id IN (${removablePlaceholders})`,
+                        [reviewId, ...removableIds]
+                    );
+                }
+            }
+
+            await connection.execute(
+                `UPDATE reviews
+                 SET rating = ?, comment = ?
+                 WHERE id = ? AND user_id = ?`,
+                [normalizedRating, trimmedComment || null, reviewId, userId]
+            );
+
+            const insertedMedia = await this.insertReviewMedia(connection, reviewId, media);
+            await connection.commit();
+
+            return {
+                id: reviewId,
+                rating: normalizedRating,
+                comment: trimmedComment,
+                removedMedia,
+                media: insertedMedia
+            };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 
     // =============================================================================
@@ -451,21 +790,24 @@ class Product {
      * @returns {number} Giá cuối cùng sau khuyến mãi
      */
     static calculateFinalPrice(originalPrice, saleType, saleValue) {
+        const basePrice = this.toNumber(originalPrice);
+        const normalizedSaleValue = this.toNumber(saleValue);
+
         // Nếu không có khuyến mãi, trả về giá gốc
-        if (!saleType || !saleValue) return originalPrice;
+        if (!saleType || !normalizedSaleValue) return basePrice;
 
         switch (saleType) {
             case 'percentage':
                 // Giảm theo phần trăm: giá * (1 - %/100)
-                return originalPrice * (1 - saleValue / 100);
+                return basePrice * (1 - normalizedSaleValue / 100);
             case 'fixed':
                 // Giảm số tiền cố định, đảm bảo không âm
-                return Math.max(0, originalPrice - saleValue);
+                return Math.max(0, basePrice - normalizedSaleValue);
             case 'bogo':
                 // BOGO được xử lý ở tầng giỏ hàng
-                return originalPrice;
+                return basePrice;
             default:
-                return originalPrice;
+                return basePrice;
         }
     }
 
@@ -719,7 +1061,7 @@ class Product {
              ORDER BY pv.color, pv.size, pv.id`,
             [productId]
         );
-        return rows;
+        return this.normalizeVariantNumbers(rows);
     }
 
     static async addVariant(productId, variantData) {

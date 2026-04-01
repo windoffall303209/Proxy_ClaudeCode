@@ -207,7 +207,7 @@ class Cart {
         // Tính giá cuối cùng cho từng sản phẩm (sau khi áp dụng sale)
         const Product = require('./Product');
         items.forEach(item => {
-            let basePrice = item.product_price + (item.additional_price || 0);
+            const basePrice = Number(item.product_price || 0) + Number(item.additional_price || 0);
             item.unit_price = Product.calculateFinalPrice(basePrice, item.sale_type, item.sale_value);
             item.subtotal = item.unit_price * item.quantity;
         });
@@ -269,7 +269,7 @@ class Cart {
 
         const item = items[0];
         const Product = require('./Product');
-        let basePrice = item.product_price + (item.additional_price || 0);
+        const basePrice = Number(item.product_price || 0) + Number(item.additional_price || 0);
         item.unit_price = Product.calculateFinalPrice(basePrice, item.sale_type, item.sale_value);
         item.subtotal = item.unit_price * item.quantity;
 

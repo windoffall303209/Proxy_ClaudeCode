@@ -186,6 +186,47 @@ class Banner {
         const query = 'DELETE FROM banners WHERE id = ?';
         await pool.execute(query, [id]);
     }
+
+    // =============================================================================
+    // TOGGLE TRẠNG THÁI - TOGGLE ACTIVE
+    // =============================================================================
+
+    /**
+     * Đảo trạng thái ẩn/hiện của banner
+     *
+     * @param {number} id - ID banner
+     * @returns {Promise<Object>} Banner sau khi cập nhật
+     */
+    static async toggleActive(id) {
+        await pool.execute('UPDATE banners SET is_active = NOT is_active WHERE id = ?', [id]);
+        return await this.findById(id);
+    }
+
+    // =============================================================================
+    // CẬP NHẬT THỨ TỰ - UPDATE ORDER
+    // =============================================================================
+
+    /**
+     * Cập nhật thứ tự hiển thị cho nhiều banner cùng lúc
+     *
+     * @param {Array<{id: number, display_order: number}>} items - Mảng banner cần cập nhật
+     * @returns {Promise<void>}
+     */
+    static async updateOrder(items) {
+        const conn = await pool.getConnection();
+        try {
+            await conn.beginTransaction();
+            for (const item of items) {
+                await conn.execute('UPDATE banners SET display_order = ? WHERE id = ?', [item.display_order, item.id]);
+            }
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+    }
 }
 
 module.exports = Banner;

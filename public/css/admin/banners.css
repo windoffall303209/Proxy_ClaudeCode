@@ -41,8 +41,8 @@
 /* Banners Grid */
 .banners-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
 }
 
 /* Banner Card */
@@ -62,7 +62,7 @@
 
 .banner-card__image {
     position: relative;
-    height: 180px;
+    height: 96px;
     background: var(--admin-bg);
     overflow: hidden;
 }
@@ -135,14 +135,14 @@
 }
 
 .banner-card__content {
-    padding: 20px;
+    padding: 12px 14px;
 }
 
 .banner-card__title {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--admin-text-primary);
-    margin: 0 0 6px 0;
+    margin: 0 0 4px 0;
 }
 
 .banner-card__subtitle {
@@ -271,4 +271,36 @@
 
 .admin-section--collapsible.is-open .admin-section__chevron {
     transform: rotate(180deg);
+}
+
+/* Drag and Drop States */
+.banner-card[draggable="true"] {
+    cursor: grab;
+}
+
+.banner-card--dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+}
+
+.banner-card--drag-over {
+    border: 2px dashed var(--admin-primary);
+    border-radius: 12px;
+}
+
+/* Hidden / Inactive Banner */
+.banner-card--hidden {
+    opacity: 0.55;
+}
+
+.banner-card--hidden .banner-card__image img {
+    filter: grayscale(0.6);
+}
+
+.banner-card__order {
+    z-index: 2;
+}
+
+.banner-card__status-badge {
+    z-index: 2;
 }

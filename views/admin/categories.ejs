@@ -1,0 +1,295 @@
+<%- include('../partials/admin-header', { currentPage: 'categories', pageStyles: ['/css/admin/categories.css'] }) %>
+
+<div class="admin-page">
+    <div class="container">
+        <div class="admin-page-header">
+            <div class="admin-page-header__left">
+                <h1>Quản Lý Danh Mục</h1>
+                <p><%= categories ? categories.length : 0 %> danh mục hiển thị</p>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card stat-card--purple">
+                <h3 class="stat-card__label">Tổng danh mục</h3>
+                <p class="stat-card__value"><%= categoryStats ? categoryStats.total : 0 %></p>
+            </div>
+            <div class="stat-card stat-card--blue">
+                <h3 class="stat-card__label">Danh mục gốc</h3>
+                <p class="stat-card__value"><%= categoryStats ? categoryStats.root : 0 %></p>
+            </div>
+            <div class="stat-card stat-card--green">
+                <h3 class="stat-card__label">Danh mục con</h3>
+                <p class="stat-card__value"><%= categoryStats ? categoryStats.children : 0 %></p>
+            </div>
+            <div class="stat-card stat-card--pink">
+                <h3 class="stat-card__label">Sản phẩm đã gán</h3>
+                <p class="stat-card__value"><%= categoryStats ? categoryStats.assignedProducts : 0 %></p>
+            </div>
+        </div>
+
+        <div class="admin-toolbar">
+            <div class="admin-toolbar__info">
+                <p class="admin-toolbar__title">Tổ chức hệ thống danh mục bán hàng</p>
+                <p class="admin-toolbar__text">
+                    Quản lý tên, slug, thứ tự hiển thị và quan hệ cha con cho danh mục quần áo.
+                    <% if (searchQuery) { %>
+                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
+                    <% } %>
+                </p>
+            </div>
+            <form action="/admin/categories" method="GET" class="admin-search-form">
+                <input
+                    type="search"
+                    name="search"
+                    value="<%= searchQuery || '' %>"
+                    class="admin-form__input admin-search-form__input"
+                    placeholder="Tìm theo tên, slug hoặc mô tả..."
+                >
+                <div class="admin-search-form__actions">
+                    <button type="submit" class="admin-btn admin-btn--primary">Tìm kiếm</button>
+                    <% if (searchQuery) { %>
+                        <a href="/admin/categories" class="admin-btn admin-btn--ghost">Xóa lọc</a>
+                    <% } %>
+                </div>
+            </form>
+        </div>
+
+        <div class="admin-section admin-section--collapsible">
+            <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Thêm Danh Mục Mới
+                <svg class="admin-section__chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </h3>
+            <form id="createCategoryForm" action="/admin/categories" method="POST" class="admin-form admin-section__content">
+                <div class="admin-form__row admin-form__row--categories">
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">Tên danh mục <span>*</span></label>
+                        <input type="text" name="name" id="createCategoryName" required class="admin-form__input" placeholder="VD: Áo khoác nữ">
+                    </div>
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">Slug</label>
+                        <input type="text" name="slug" id="createCategorySlug" class="admin-form__input" placeholder="Tu dong tao neu de trong">
+                    </div>
+                </div>
+                <div class="admin-form__row admin-form__row--categories">
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">Danh mục cha</label>
+                        <select name="parent_id" class="admin-form__select">
+                            <option value="">-- Danh mục gốc --</option>
+                            <% (parentCategories || []).forEach((category) => { %>
+                                <option value="<%= category.id %>"><%= category.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">Thứ tự hiển thị</label>
+                        <input type="number" name="display_order" value="0" min="0" class="admin-form__input" placeholder="0">
+                    </div>
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">Ảnh đại diện (URL)</label>
+                        <input type="url" name="image_url" class="admin-form__input" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Mô tả</label>
+                    <textarea name="description" rows="4" class="admin-form__textarea" placeholder="Mô tả ngắn cho danh mục..."></textarea>
+                </div>
+                <div class="admin-form__actions">
+                    <button type="submit" class="admin-btn admin-btn--primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Thêm Danh Mục
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <% if (categories && categories.length > 0) { %>
+            <div class="admin-table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Danh mục</th>
+                            <th>Danh mục cha</th>
+                            <th class="text-center">Thứ tự</th>
+                            <th class="text-center">Sản phẩm</th>
+                            <th class="text-center">Danh mục con</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% categories.forEach((category) => { %>
+                            <tr>
+                                <td><%= category.id %></td>
+                                <td>
+                                    <div class="category-info">
+                                        <div class="category-info__head">
+                                            <span class="category-info__name"><%= category.name %></span>
+                                            <% if (category.image_url) { %>
+                                                <a href="<%= category.image_url %>" target="_blank" rel="noreferrer" class="category-info__chip">Ảnh</a>
+                                            <% } %>
+                                        </div>
+                                        <span class="category-info__slug">/<%= category.slug %></span>
+                                        <% if (category.description) { %>
+                                            <p class="category-info__description"><%= category.description.length > 110 ? category.description.slice(0, 110) + '...' : category.description %></p>
+                                        <% } %>
+                                    </div>
+                                </td>
+                                <td>
+                                    <% if (category.parent_name) { %>
+                                        <span class="category-parent"><%= category.parent_name %></span>
+                                    <% } else { %>
+                                        <span class="category-parent category-parent--root">Danh mục gốc</span>
+                                    <% } %>
+                                </td>
+                                <td class="text-center">
+                                    <span class="category-count-badge"><%= category.display_order || 0 %></span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="category-count-badge category-count-badge--products"><%= category.product_count || 0 %></span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="category-count-badge category-count-badge--children"><%= category.child_count || 0 %></span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="admin-actions-group">
+                                        <button
+                                            type="button"
+                                            data-category-action="open-edit-modal"
+                                            data-category-id="<%= category.id %>"
+                                            class="admin-btn admin-btn--edit"
+                                            title="Sửa danh mục"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-category-action="delete-category"
+                                            data-category-id="<%= category.id %>"
+                                            class="admin-btn admin-btn--delete"
+                                            title="Xóa danh mục"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="admin-empty">
+                <div class="admin-empty__icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/>
+                        <path d="M3 12.5 12 17l9-4.5"/>
+                        <path d="M3 17 12 21l9-4"/>
+                    </svg>
+                </div>
+                <h3 class="admin-empty__title">Chưa có danh mục nào</h3>
+                <p class="admin-empty__text">Tạo danh mục đầu tiên để nhóm sản phẩm quần áo theo loại phù hợp.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<div id="editCategoryModal" class="admin-modal">
+    <div class="admin-modal__content admin-modal__content--categories">
+        <div class="admin-modal__header">
+            <h3 class="admin-modal__title">Sửa Danh Mục</h3>
+            <button type="button" class="admin-modal__close" data-category-modal-close="editCategoryModal" aria-label="Đóng">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <form id="editCategoryForm" class="admin-form">
+            <input type="hidden" id="editCategoryId">
+            <div class="admin-form__row admin-form__row--categories">
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Tên danh mục <span>*</span></label>
+                    <input type="text" id="editCategoryName" required class="admin-form__input">
+                </div>
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Slug</label>
+                    <input type="text" id="editCategorySlug" class="admin-form__input" placeholder="Tu dong tao neu de trong">
+                </div>
+            </div>
+            <div class="admin-form__row admin-form__row--categories">
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Danh mục cha</label>
+                    <select id="editCategoryParentId" class="admin-form__select"></select>
+                </div>
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Thứ tự hiển thị</label>
+                    <input type="number" id="editCategoryDisplayOrder" min="0" class="admin-form__input">
+                </div>
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Ảnh đại diện (URL)</label>
+                    <input type="url" id="editCategoryImageUrl" class="admin-form__input" placeholder="https://...">
+                </div>
+            </div>
+            <div class="admin-form__group">
+                <label class="admin-form__label">Mô tả</label>
+                <textarea id="editCategoryDescription" rows="4" class="admin-form__textarea"></textarea>
+            </div>
+            <div class="admin-modal__buttons">
+                <button type="button" class="admin-btn admin-btn--ghost" data-category-modal-close="editCategoryModal">Hủy</button>
+                <button type="submit" class="admin-btn admin-btn--primary">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="confirmModal">
+    <div class="confirm-modal__content">
+        <div class="confirm-modal__icon confirm-modal__icon--danger">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+        </div>
+        <div class="confirm-modal__text">
+            <h3 id="confirmTitle">Xóa danh mục</h3>
+            <p id="confirmMessage">Bạn có chắc muốn xóa danh mục này?</p>
+        </div>
+        <div class="confirm-modal__buttons">
+            <button id="confirmNo" class="admin-btn admin-btn--ghost">Hủy</button>
+            <button id="confirmYes" class="admin-btn admin-btn--danger">Xóa</button>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="adminCategoriesBootstrap"><%- JSON.stringify({
+    categories: (parentCategories || []).map((category) => ({
+        id: category.id,
+        name: category.name || '',
+        slug: category.slug || '',
+        description: category.description || '',
+        parent_id: category.parent_id || null,
+        image_url: category.image_url || '',
+        display_order: category.display_order || 0,
+        product_count: category.product_count || 0,
+        child_count: category.child_count || 0
+    }))
+}).replace(/</g, '\u003c') %></script>
+<script src="/js/admin/categories.js"></script>
+
+<%- include('../partials/admin-footer') %>

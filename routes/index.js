@@ -23,7 +23,7 @@ router.get('/api/geocode/reverse', async (req, res) => {
             return res.status(400).json({ error: 'Missing lat/lon' });
         }
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=vi`,
             { headers: { 'User-Agent': 'TMDT-Shop/1.0' } }
         );
         const data = await response.json();
@@ -50,7 +50,9 @@ router.get('/api/provinces', async (req, res) => {
 router.get('/api/provinces/:code/districts', async (req, res) => {
     try {
         const { code } = req.params;
-        const response = await fetch(`https://provinces.open-api.vn/api/p/${code}?depth=2`);
+        const requestedDepth = Number.parseInt(req.query.depth, 10);
+        const depth = requestedDepth === 3 ? 3 : 2;
+        const response = await fetch(`https://provinces.open-api.vn/api/p/${code}?depth=${depth}`);
         const data = await response.json();
         res.json(data.districts || []);
     } catch (error) {

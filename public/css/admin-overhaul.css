@@ -275,6 +275,10 @@ body.admin-body .container {
     border: 1px solid rgba(175, 154, 118, 0.18);
 }
 
+.admin-sidebar__link--storefront {
+    font-weight: 800;
+}
+
 .admin-sidebar__link:hover {
     color: var(--admin-text-primary);
     background: #fff;
@@ -1309,7 +1313,7 @@ body.admin-body .banner-card {
 }
 
 body.admin-body .banner-card__image {
-    height: 220px;
+    height: 150px;
     border-bottom: 1px solid rgba(204, 191, 167, 0.6);
 }
 

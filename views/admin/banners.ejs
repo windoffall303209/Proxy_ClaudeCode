@@ -56,9 +56,10 @@
 
         <!-- Banners Grid -->
         <% if (banners && banners.length > 0) { %>
-            <div class="banners-grid">
+            <p style="margin-bottom:12px; color:#888; font-size:13px;">💡 Kéo thả để sắp xếp thứ tự banner. Thứ tự sẽ tự động lưu.</p>
+            <div class="banners-grid" id="bannersGrid">
                 <% banners.forEach((banner, index) => { %>
-                    <div class="banner-card">
+                    <div class="banner-card<%= banner.is_active === 0 || banner.is_active === false ? ' banner-card--hidden' : '' %>" data-banner-id="<%= banner.id %>" draggable="true">
                         <div class="banner-card__image">
                             <% if (banner.image_url) { %>
                                 <img src="<%= banner.image_url %>" alt="<%= banner.title %>">
@@ -72,6 +73,10 @@
                                 </div>
                             <% } %>
                             <div class="banner-card__order">#<%= index + 1 %></div>
+                            <!-- Status badge -->
+                            <div class="banner-card__status-badge" style="position:absolute; top:8px; left:8px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:.3px; <%= (banner.is_active === 0 || banner.is_active === false) ? 'background:rgba(244,67,54,.9); color:#fff;' : 'background:rgba(76,175,80,.9); color:#fff;' %>">
+                                <%= (banner.is_active === 0 || banner.is_active === false) ? 'Đang ẩn' : 'Đang hiện' %>
+                            </div>
                             <div class="banner-card__overlay">
                                 <% if (banner.link_url) { %>
                                     <a href="<%= banner.link_url %>" target="_blank" class="banner-card__btn" title="Xem link">
@@ -82,6 +87,28 @@
                                         </svg>
                                     </a>
                                 <% } %>
+                                <!-- Toggle active button -->
+                                <button data-banner-action="toggle" data-banner-id="<%= banner.id %>" class="banner-card__btn" title="<%= (banner.is_active === 0 || banner.is_active === false) ? 'Hiện banner' : 'Ẩn banner' %>">
+                                    <% if (banner.is_active === 0 || banner.is_active === false) { %>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                                            <line x1="1" y1="1" x2="23" y2="23"/>
+                                        </svg>
+                                    <% } else { %>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    <% } %>
+                                </button>
+                                <!-- Edit button -->
+                                <button data-banner-action="edit" data-banner-id="<%= banner.id %>" class="banner-card__btn" title="Sửa banner">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                </button>
                                 <button data-banner-action="delete" data-banner-id="<%= banner.id %>" class="banner-card__btn banner-card__btn--delete" title="Xóa banner">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="3 6 5 6 21 6"/>
@@ -91,13 +118,9 @@
                             </div>
                         </div>
                         <div class="banner-card__content">
-                            <h4 class="banner-card__title"><%= banner.title %></h4>
-                            <% if (banner.subtitle) { %>
-                                <p class="banner-card__subtitle"><%= banner.subtitle %></p>
-                            <% } %>
-                            <% if (banner.link_url) { %>
-                                <span class="banner-card__link"><%= banner.link_url %></span>
-                            <% } %>
+                            <h4 class="banner-card__title"><%= banner.title || 'Chưa có thông tin' %></h4>
+                            <p class="banner-card__subtitle"><%= banner.subtitle || 'Chưa có thông tin' %></p>
+                            <span class="banner-card__link"><%= banner.link_url || 'Chưa có thông tin' %></span>
                         </div>
                     </div>
                 <% }) %>
@@ -142,7 +165,48 @@
     </div>
 </div>
 
+<!-- Edit Banner Modal -->
+<div id="editBannerModal" class="admin-modal">
+    <div class="admin-modal__content" style="max-width:540px;">
+        <div class="admin-modal__header">
+            <h3 class="admin-modal__title">Sửa Banner</h3>
+            <button type="button" class="admin-modal__close" id="editBannerClose" aria-label="Đóng">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <form id="editBannerForm" class="admin-form">
+            <input type="hidden" id="editBannerId">
+            <div class="admin-form__group" style="margin-bottom:16px;">
+                <label class="admin-form__label">Tiêu đề <span>*</span></label>
+                <input type="text" id="editBannerTitle" required class="admin-form__input">
+            </div>
+            <div class="admin-form__group" style="margin-bottom:16px;">
+                <label class="admin-form__label">Phụ đề</label>
+                <input type="text" id="editBannerSubtitle" class="admin-form__input">
+            </div>
+            <div class="admin-form__group" style="margin-bottom:16px;">
+                <label class="admin-form__label">Link URL</label>
+                <input type="text" id="editBannerLinkUrl" class="admin-form__input">
+            </div>
+            <div class="admin-form__group" style="margin-bottom:16px;">
+                <label class="admin-form__label">Thay đổi hình ảnh</label>
+                <input type="file" id="editBannerImage" accept="image/*" class="admin-form__input">
+                <p style="font-size:12px;color:#888;margin-top:4px;">Để trống nếu không muốn đổi ảnh</p>
+            </div>
+            <div class="admin-modal__buttons">
+                <button type="button" class="admin-btn admin-btn--ghost" id="editBannerCancel">Hủy</button>
+                <button type="submit" class="admin-btn admin-btn--primary">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<script type="application/json" id="bannersBootstrap"><%- JSON.stringify(
+    (banners || []).map(b => ({ id: b.id, title: b.title || '', subtitle: b.subtitle || '', link_url: b.link_url || '', image_url: b.image_url || '' }))
+).replace(/</g, '\u003c') %></script>
 
 <script src="/js/admin/banners.js"></script>
 

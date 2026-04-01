@@ -18,6 +18,33 @@ class Order {
         return `ORD${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
     }
 
+    static scopeCartData(cartData, selectedCartItemIds = null) {
+        const items = Array.isArray(cartData?.items) ? cartData.items : [];
+
+        if (selectedCartItemIds === null || selectedCartItemIds === undefined) {
+            return {
+                ...cartData,
+                items,
+                subtotal: items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0),
+                itemCount: items.reduce((sum, item) => sum + (Number.parseInt(item.quantity, 10) || 0), 0)
+            };
+        }
+
+        const selectedIdSet = new Set(
+            (Array.isArray(selectedCartItemIds) ? selectedCartItemIds : [])
+                .map((id) => Number.parseInt(id, 10))
+                .filter((id) => Number.isInteger(id) && id > 0)
+        );
+        const scopedItems = items.filter((item) => selectedIdSet.has(Number.parseInt(item.id, 10)));
+
+        return {
+            ...cartData,
+            items: scopedItems,
+            subtotal: scopedItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0),
+            itemCount: scopedItems.reduce((sum, item) => sum + (Number.parseInt(item.quantity, 10) || 0), 0)
+        };
+    }
+
     static calculateShippingFee(subtotal) {
         return Number(subtotal) >= 500000 ? 0 : 30000;
     }
@@ -100,7 +127,7 @@ class Order {
      * @returns {Object} { id, order_code, final_amount }
      * @throws {Error} Nếu giỏ hàng trống hoặc không tìm thấy
      */
-    static async create(userId, addressId, paymentMethod, notes = null, shippingFeeFromUI = null, discountAmount = 0, voucherCode = null, voucherId = null) {
+    static async create(userId, addressId, paymentMethod, notes = null, shippingFeeFromUI = null, discountAmount = 0, voucherCode = null, voucherId = null, selectedCartItemIds = null) {
         // Lấy connection để sử dụng transaction
         const connection = await pool.getConnection();
 
@@ -121,7 +148,10 @@ class Order {
             }
 
             const cartId = carts[0].id;
-            const cartData = await Cart.calculateTotal(cartId);
+            const cartData = this.scopeCartData(
+                await Cart.calculateTotal(cartId),
+                selectedCartItemIds
+            );
 
             // Kiểm tra giỏ hàng không rỗng
             if (cartData.items.length === 0) {
@@ -209,7 +239,17 @@ class Order {
             }
 
             // Xóa giỏ hàng sau khi đặt hàng thành công
-            await connection.execute('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+            const itemIdsToDelete = cartData.items
+                .map((item) => Number.parseInt(item.id, 10))
+                .filter((id) => Number.isInteger(id) && id > 0);
+
+            if (itemIdsToDelete.length > 0) {
+                const placeholders = itemIdsToDelete.map(() => '?').join(', ');
+                await connection.execute(
+                    `DELETE FROM cart_items WHERE cart_id = ? AND id IN (${placeholders})`,
+                    [cartId, ...itemIdsToDelete]
+                );
+            }
 
             // Commit transaction
             await connection.commit();

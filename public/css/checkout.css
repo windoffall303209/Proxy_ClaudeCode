@@ -203,6 +203,21 @@
     border-radius: 18px;
     border: 1px solid rgba(215, 197, 154, 0.88);
     background: rgba(255, 255, 255, 0.95);
+    transition: border-color 0.2s ease;
+}
+
+.address-form__input.is-invalid {
+    border-color: #e53e3e;
+}
+
+.address-form__error {
+    display: block;
+    min-height: 18px;
+    margin-top: 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #e53e3e;
+    line-height: 1.3;
 }
 
 .address-form__select {
@@ -240,6 +255,60 @@
     overflow: hidden;
     border-radius: 22px;
     border: 1px solid rgba(215, 197, 154, 0.8);
+}
+
+.address-form__map .locate-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--hero-dark);
+    text-decoration: none;
+    transition: transform var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.address-form__map .locate-btn:hover {
+    background: #fff7ea;
+    color: var(--accent-strong);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 20px rgba(58, 39, 11, 0.16);
+}
+
+.address-form__map .locate-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(199, 145, 33, 0.22);
+}
+
+.address-form__map .locate-btn.is-loading {
+    pointer-events: none;
+    cursor: wait;
+    color: var(--accent-strong);
+}
+
+.address-form__map .locate-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.address-form__map .locate-btn.is-loading svg {
+    animation: locate-btn-spin 1s linear infinite;
+}
+
+@keyframes locate-btn-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .address-form__map-hint {

@@ -25,23 +25,26 @@
                 <form action="/auth/register" method="POST" class="auth-form" id="registerForm">
                     <div class="form-group">
                         <label for="full_name">Họ và tên *</label>
-                        <input type="text" id="full_name" name="full_name" value="<%= formData.full_name || '' %>" required>
+                        <input type="text" id="full_name" name="full_name" value="<%= formData.full_name || '' %>" required minlength="2" maxlength="100" placeholder="Nguyễn Văn A">
+                        <div class="field-error" id="full_name_error"></div>
                     </div>
 
                     <div class="form-group">
                         <label for="email">Email *</label>
-                        <input type="email" id="email" name="email" value="<%= formData.email || '' %>" required>
+                        <input type="email" id="email" name="email" value="<%= formData.email || '' %>" required maxlength="255" placeholder="example@email.com">
+                        <div class="field-error" id="email_error"></div>
                     </div>
 
                     <div class="form-group">
                         <label for="phone">Số điện thoại</label>
-                        <input type="tel" id="phone" name="phone" value="<%= formData.phone || '' %>">
+                        <input type="tel" id="phone" name="phone" value="<%= formData.phone || '' %>" maxlength="10" placeholder="0912345678">
+                        <div class="field-error" id="phone_error"></div>
                     </div>
 
                     <div class="form-group">
                         <label for="password">Mật khẩu *</label>
                         <div class="password-field">
-                            <input type="password" id="password" name="password" required minlength="6">
+                            <input type="password" id="password" name="password" required minlength="6" maxlength="50" placeholder="Ít nhất 6 ký tự, chữ hoa, thường, số">
                             <button type="button" class="password-toggle" data-password-target="password">
                                 <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -53,12 +56,13 @@
                                 </svg>
                             </button>
                         </div>
+                        <div class="field-error" id="password_error"></div>
                     </div>
 
                     <div class="form-group">
                         <label for="confirm_password">Xác nhận mật khẩu *</label>
                         <div class="password-field">
-                            <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+                            <input type="password" id="confirm_password" name="confirm_password" required minlength="6" maxlength="50">
                             <button type="button" class="password-toggle" data-password-target="confirm_password">
                                 <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -71,6 +75,7 @@
                             </button>
                         </div>
                         <div class="password-match" id="passwordMatch"></div>
+                        <div class="field-error" id="confirm_password_error"></div>
                     </div>
 
                     <div class="form-check">

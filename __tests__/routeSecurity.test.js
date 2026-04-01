@@ -28,9 +28,19 @@ jest.mock('../controllers/orderController', () => ({
     createBuyNowOrder: jest.fn(),
     getOrderHistory: jest.fn(),
     orderConfirmation: jest.fn(),
+    vnpayIpn: jest.fn(),
     vnpayReturn: jest.fn(),
     momoReturn: jest.fn(),
     validateVoucher: jest.fn()
+}));
+
+jest.mock('../controllers/productController', () => ({
+    getProducts: jest.fn(),
+    searchProducts: jest.fn(),
+    getProductsByCategory: jest.fn(),
+    getProductDetail: jest.fn(),
+    createProductReview: jest.fn(),
+    updateProductReview: jest.fn()
 }));
 
 jest.mock('../middleware/auth', () => ({
@@ -38,11 +48,18 @@ jest.mock('../middleware/auth', () => ({
     optionalAuth: jest.fn((req, res, next) => next())
 }));
 
+jest.mock('../middleware/reviewUpload', () => ({
+    handleReviewMediaUpload: jest.fn((req, res, next) => next())
+}));
+
 const authController = require('../controllers/authController');
 const orderController = require('../controllers/orderController');
+const productController = require('../controllers/productController');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
+const { handleReviewMediaUpload } = require('../middleware/reviewUpload');
 const authRoutes = require('../routes/authRoutes');
 const orderRoutes = require('../routes/orderRoutes');
+const productRoutes = require('../routes/productRoutes');
 
 function findRoute(router, path, method) {
     return router.stack.find((layer) => layer.route &&
@@ -69,5 +86,29 @@ describe('security-sensitive routes', () => {
             orderController.orderConfirmation
         ]);
         expect(confirmationRoute.route.stack.map((layer) => layer.handle)).not.toContain(optionalAuth);
+    });
+
+    it('protects product review submission with verifyToken', () => {
+        const reviewRoute = findRoute(productRoutes, '/:slug/reviews', 'post');
+
+        expect(reviewRoute).toBeTruthy();
+        expect(reviewRoute.route.stack.map((layer) => layer.handle)).toEqual([
+            verifyToken,
+            handleReviewMediaUpload,
+            productController.createProductReview
+        ]);
+        expect(reviewRoute.route.stack.map((layer) => layer.handle)).not.toContain(optionalAuth);
+    });
+
+    it('protects product review editing with verifyToken', () => {
+        const reviewEditRoute = findRoute(productRoutes, '/:slug/reviews/:reviewId/edit', 'post');
+
+        expect(reviewEditRoute).toBeTruthy();
+        expect(reviewEditRoute.route.stack.map((layer) => layer.handle)).toEqual([
+            verifyToken,
+            handleReviewMediaUpload,
+            productController.updateProductReview
+        ]);
+        expect(reviewEditRoute.route.stack.map((layer) => layer.handle)).not.toContain(optionalAuth);
     });
 });

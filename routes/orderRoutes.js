@@ -21,6 +21,7 @@ router.get('/history', verifyToken, orderController.getOrderHistory);
 router.get('/:orderCode/confirmation', verifyToken, orderController.orderConfirmation);
 
 // Payment callbacks
+router.get('/payment/vnpay/ipn', orderController.vnpayIpn);
 router.get('/payment/vnpay/callback', orderController.vnpayReturn);
 router.post('/payment/momo/callback', orderController.momoReturn);
 

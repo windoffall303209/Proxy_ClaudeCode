@@ -629,7 +629,10 @@ function addVariantRow(mode, data = {}) {
         </div>
         <div class="variant-row__field variant-row__field--sku">
             <span class="variant-row__label">SKU</span>
-            <input type="text" placeholder="Mã SKU" value="${data.sku || ''}" class="variant-sku">
+            <div style="display:flex; gap:4px; align-items:center;">
+                <input type="text" placeholder="Mã SKU" value="${data.sku || ''}" class="variant-sku" style="flex:1;">
+                <button type="button" class="variant-auto-sku-btn" title="Tự động tạo mã SKU" style="min-width:32px; height:32px; border:1px solid #ccc; border-radius:8px; background:#f8f8f8; cursor:pointer; font-size:14px;">⚡</button>
+            </div>
         </div>
         <div class="variant-row__field variant-row__field--image">
             <span class="variant-row__label">Ảnh biến thể</span>
@@ -654,6 +657,42 @@ function addVariantRow(mode, data = {}) {
 
     row.querySelector('.variant-remove-btn').addEventListener('click', function () {
         removeVariantRow(this, mode);
+    });
+
+    // Auto-gen variant SKU
+    row.querySelector('.variant-auto-sku-btn')?.addEventListener('click', function() {
+        const skuInput = row.querySelector('.variant-sku');
+        const size = row.querySelector('.variant-size')?.value || '';
+        const color = row.querySelector('.variant-color')?.value || '';
+
+        // Lấy SKU sản phẩm chính hoặc tạo prefix từ danh mục
+        let prefix = '';
+        if (mode === 'create') {
+            prefix = document.getElementById('createSkuInput')?.value?.trim() || '';
+        }
+        if (!prefix) {
+            // Fallback: lấy từ danh mục
+            const catSelect = mode === 'create'
+                ? document.querySelector('#createProductForm select[name="category_id"]')
+                : document.getElementById('editCategoryId');
+            const catName = catSelect?.options[catSelect.selectedIndex]?.text || '';
+            prefix = catName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'PRD';
+            // Thêm random
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let rand = '';
+            for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+            prefix = prefix + '-' + rand;
+        }
+
+        // Tạo suffix từ size + color
+        const sizePart = size ? size.replace(/\s/g, '').substring(0, 3).toUpperCase() : '';
+        const colorPart = color
+            ? color.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase()
+            : '';
+
+        const parts = [prefix, sizePart, colorPart].filter(Boolean);
+        skuInput.value = parts.join('-');
+        collectVariants(mode);
     });
 
     row.querySelectorAll('input, select').forEach(input => {
@@ -891,6 +930,56 @@ function initAdminProducts() {
             deleteImage(imageId);
         }
     });
+
+    // =========================================================================
+    // AUTO-GENERATE SKU
+    // =========================================================================
+    const autoSkuCheckbox = document.getElementById('autoSkuCheckbox');
+    const createSkuInput = document.getElementById('createSkuInput');
+    const categorySelect = createForm?.querySelector('select[name="category_id"]');
+
+    function generateSku() {
+        if (!autoSkuCheckbox?.checked) return;
+
+        // Lấy tên danh mục đã chọn
+        const selectedOption = categorySelect?.options[categorySelect.selectedIndex];
+        const categoryName = selectedOption?.text || '';
+
+        // Tạo viết tắt từ tên danh mục (lấy 3 chữ cái đầu, chuyển thành uppercase không dấu)
+        const abbr = categoryName
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // bỏ dấu
+            .replace(/[^a-zA-Z\s]/g, '')
+            .trim()
+            .substring(0, 3)
+            .toUpperCase() || 'PRD';
+
+        // Random 4 ký tự alphanumeric
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let randomPart = '';
+        for (let i = 0; i < 4; i++) {
+            randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        createSkuInput.value = `${abbr}-${randomPart}`;
+    }
+
+    if (autoSkuCheckbox && createSkuInput) {
+        autoSkuCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                createSkuInput.readOnly = true;
+                createSkuInput.style.opacity = '0.7';
+                generateSku();
+            } else {
+                createSkuInput.readOnly = false;
+                createSkuInput.style.opacity = '1';
+                createSkuInput.value = '';
+                createSkuInput.focus();
+            }
+        });
+
+        // Khi thay đổi danh mục => cập nhật lại SKU nếu đang ở chế độ tự động
+        categorySelect?.addEventListener('change', generateSku);
+    }
 
     syncCreateMainImageOptions();
 }

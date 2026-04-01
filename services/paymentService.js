@@ -1,13 +1,12 @@
 const crypto = require('crypto');
 const axios = require('axios');
 const QRCode = require('qrcode');
+const Payment = require('../models/Payment');
 require('dotenv').config();
 
 class PaymentService {
     // Process COD payment
     async processCOD(orderData) {
-        const Payment = require('../models/Payment');
-        
         // COD doesn't need immediate processing
         // Just create a pending payment record
         return {
@@ -18,16 +17,26 @@ class PaymentService {
     }
 
     // Create VNPay payment
-    async createVNPayPayment(order) {
+    async createVNPayPayment(order, context = {}) {
         const vnp_TmnCode = process.env.VNPAY_TMN_CODE;
         const vnp_HashSecret = process.env.VNPAY_HASH_SECRET;
-        const vnp_Url = process.env.VNPAY_URL;
-        const vnp_ReturnUrl = process.env.VNPAY_RETURN_URL;
+        const vnp_Url = process.env.VNPAY_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+        const vnp_ReturnUrl = process.env.VNPAY_RETURN_URL || this.buildDefaultReturnUrl();
+
+        if (!vnp_TmnCode || !vnp_HashSecret || !vnp_ReturnUrl) {
+            throw new Error('VNPay sandbox chưa được cấu hình đầy đủ');
+        }
 
         const date = new Date();
+        const expireDate = new Date(date.getTime() + 15 * 60 * 1000);
         const createDate = this.formatDateTime(date);
+        const formattedExpireDate = this.formatDateTime(expireDate);
         const orderId = order.order_code;
-        const amount = order.final_amount;
+        const amount = Math.round(Number(order.final_amount) || 0);
+
+        if (amount < 5000) {
+            throw new Error('VNPay yêu cầu số tiền thanh toán tối thiểu 5,000 VND');
+        }
 
         let vnp_Params = {};
         vnp_Params['vnp_Version'] = '2.1.0';
@@ -40,8 +49,9 @@ class PaymentService {
         vnp_Params['vnp_OrderType'] = 'other';
         vnp_Params['vnp_Amount'] = amount * 100;
         vnp_Params['vnp_ReturnUrl'] = vnp_ReturnUrl;
-        vnp_Params['vnp_IpAddr'] = '127.0.0.1';
+        vnp_Params['vnp_IpAddr'] = this.normalizeIpAddress(context.ipAddr);
         vnp_Params['vnp_CreateDate'] = createDate;
+        vnp_Params['vnp_ExpireDate'] = formattedExpireDate;
 
         vnp_Params = this.sortObject(vnp_Params);
 
@@ -52,6 +62,13 @@ class PaymentService {
 
         const paymentUrl = vnp_Url + '?' + new URLSearchParams(vnp_Params).toString();
 
+        await Payment.createPending(order.id, 'vnpay', amount, {
+            gateway: 'vnpay',
+            vnp_TxnRef: orderId,
+            vnp_CreateDate: createDate,
+            vnp_ExpireDate: formattedExpireDate
+        });
+
         return {
             method: 'vnpay',
             paymentUrl,
@@ -61,27 +78,35 @@ class PaymentService {
 
     // Verify VNPay callback
     async verifyVNPayPayment(vnpParams) {
-        const vnp_SecureHash = vnpParams['vnp_SecureHash'];
-        delete vnpParams['vnp_SecureHash'];
-        delete vnpParams['vnp_SecureHashType'];
+        const normalizedParams = { ...vnpParams };
+        const vnp_SecureHash = normalizedParams['vnp_SecureHash'];
+        delete normalizedParams['vnp_SecureHash'];
+        delete normalizedParams['vnp_SecureHashType'];
 
-        vnpParams = this.sortObject(vnpParams);
+        const sortedParams = this.sortObject(normalizedParams);
         
         const vnp_HashSecret = process.env.VNPAY_HASH_SECRET;
-        const signData = new URLSearchParams(vnpParams).toString();
+        const signData = new URLSearchParams(sortedParams).toString();
         const hmac = crypto.createHmac('sha512', vnp_HashSecret);
         const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
+        const responseCode = sortedParams['vnp_ResponseCode'];
+        const transactionStatus = sortedParams['vnp_TransactionStatus'];
+        const isValidSignature = vnp_SecureHash === signed;
 
-        if (vnp_SecureHash === signed) {
-            return {
-                success: vnpParams['vnp_ResponseCode'] === '00',
-                orderId: vnpParams['vnp_TxnRef'],
-                transactionId: vnpParams['vnp_TransactionNo'],
-                amount: vnpParams['vnp_Amount'] / 100
-            };
-        } else {
-            return { success: false, message: 'Invalid signature' };
-        }
+        return {
+            isValidSignature,
+            success: isValidSignature && responseCode === '00' && transactionStatus === '00',
+            orderId: sortedParams['vnp_TxnRef'],
+            transactionId: sortedParams['vnp_TransactionNo'],
+            amount: Number(sortedParams['vnp_Amount']) / 100,
+            responseCode,
+            transactionStatus,
+            bankCode: sortedParams['vnp_BankCode'] || null,
+            cardType: sortedParams['vnp_CardType'] || null,
+            payDate: sortedParams['vnp_PayDate'] || null,
+            message: isValidSignature ? null : 'Invalid signature',
+            raw: sortedParams
+        };
     }
 
     // Create MoMo payment
@@ -203,6 +228,32 @@ class PaymentService {
         const minutes = String(date.getMinutes()).padStart(2, '0');
         const seconds = String(date.getSeconds()).padStart(2, '0');
         return `${year}${month}${day}${hours}${minutes}${seconds}`;
+    }
+
+    buildDefaultReturnUrl() {
+        const baseUrl = (process.env.BASE_URL || '').replace(/\/$/, '');
+
+        if (!baseUrl) {
+            return null;
+        }
+
+        return `${baseUrl}/orders/payment/vnpay/callback`;
+    }
+
+    normalizeIpAddress(ipAddress) {
+        if (!ipAddress) {
+            return '127.0.0.1';
+        }
+
+        if (ipAddress === '::1') {
+            return '127.0.0.1';
+        }
+
+        if (ipAddress.startsWith('::ffff:')) {
+            return ipAddress.slice(7);
+        }
+
+        return ipAddress;
     }
 }
 

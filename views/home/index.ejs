@@ -67,23 +67,40 @@
         </div>
 
         <div class="home-hero__visual">
+            <% if (banners && banners.length > 0) { %>
+            <div class="hero-carousel" id="heroCarousel">
+                <div class="hero-carousel__track">
+                    <% banners.forEach((b, i) => { %>
+                    <a href="<%= b.link_url || '/products' %>" class="hero-carousel__slide<%= i === 0 ? ' is-active' : '' %>">
+                        <img src="<%= b.image_url %>" alt="<%= b.title %>">
+                        <% if (b.title || b.subtitle) { %>
+                        <!-- <div class="hero-carousel__caption">
+                            <% if (b.title) { %><h3><%= b.title %></h3><% } %>
+                            <% if (b.subtitle) { %><p><%= b.subtitle %></p><% } %>
+                        </div> -->
+                        <% } %>
+                    </a>
+                    <% }) %>
+                </div>
+                <% if (banners.length > 1) { %>
+                <button class="hero-carousel__arrow hero-carousel__arrow--prev" data-carousel="prev" aria-label="Banner trước">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="hero-carousel__arrow hero-carousel__arrow--next" data-carousel="next" aria-label="Banner sau">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>
+                </button>
+                <div class="hero-carousel__dots">
+                    <% banners.forEach((b, i) => { %>
+                    <button class="hero-carousel__dot<%= i === 0 ? ' is-active' : '' %>" data-carousel-dot="<%= i %>" aria-label="Banner <%= i + 1 %>"></button>
+                    <% }) %>
+                </div>
+                <% } %>
+            </div>
+            <% } else { %>
             <div class="home-hero__visual-card home-hero__visual-card--main">
                 <img src="<%= heroVisual %>" alt="Bộ sưu tập mới">
             </div>
-            <div class="home-hero__mini-grid">
-                <a href="/products/category/nam" class="home-hero__mini-card">
-                    <strong>Nam</strong>
-                    <span>Áo polo, tee, jeans</span>
-                </a>
-                <a href="/products/category/nu" class="home-hero__mini-card">
-                    <strong>Nữ</strong>
-                    <span>Váy, đầm, cardigan</span>
-                </a>
-                <a href="/products/category/tre-em" class="home-hero__mini-card">
-                    <strong>Trẻ em</strong>
-                    <span>Set đồ cho cả nhà</span>
-                </a>
-            </div>
+            <% } %>
         </div>
     </div>
 </section>

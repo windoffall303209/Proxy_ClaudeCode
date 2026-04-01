@@ -17,6 +17,7 @@ const Address = require('../models/Address');
 const Cart = require('../models/Cart');
 const Voucher = require('../models/Voucher');
 const Product = require('../models/Product');
+const Payment = require('../models/Payment');
 const paymentService = require('../services/paymentService');
 const emailService = require('../services/emailService');
 
@@ -38,6 +39,53 @@ function parseOptionalPositiveInteger(value) {
     }
 
     return parsePositiveInteger(value);
+}
+
+function parseMoneyValue(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseCartItemIds(rawValue) {
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+        return null;
+    }
+
+    const values = Array.isArray(rawValue) ? rawValue : String(rawValue).split(',');
+    const uniqueIds = new Set();
+
+    values.forEach((value) => {
+        String(value)
+            .split(',')
+            .map((part) => parsePositiveInteger(String(part).trim()))
+            .filter((id) => id !== null)
+            .forEach((id) => uniqueIds.add(id));
+    });
+
+    return Array.from(uniqueIds);
+}
+
+function buildScopedCartData(cartData, selectedCartItemIds = null) {
+    const items = Array.isArray(cartData?.items) ? cartData.items : [];
+
+    if (selectedCartItemIds === null) {
+        return {
+            ...cartData,
+            items,
+            subtotal: items.reduce((sum, item) => sum + parseMoneyValue(item.subtotal), 0),
+            itemCount: items.reduce((sum, item) => sum + (parseInteger(item.quantity) || 0), 0)
+        };
+    }
+
+    const selectedIdSet = new Set(selectedCartItemIds.map((id) => Number(id)));
+    const scopedItems = items.filter((item) => selectedIdSet.has(Number(item.id)));
+
+    return {
+        ...cartData,
+        items: scopedItems,
+        subtotal: scopedItems.reduce((sum, item) => sum + parseMoneyValue(item.subtotal), 0),
+        itemCount: scopedItems.reduce((sum, item) => sum + (parseInteger(item.quantity) || 0), 0)
+    };
 }
 
 function getValidatedVariant(product, variantId) {
@@ -67,10 +115,13 @@ function ensureAvailableStock(product, quantity, variant = null) {
 }
 
 function calculateUnitPrice(product, variant = null) {
-    let unitPrice = product.final_price || product.price;
+    const basePrice = product.final_price !== undefined && product.final_price !== null
+        ? product.final_price
+        : product.price;
+    let unitPrice = parseMoneyValue(basePrice);
 
-    if (variant && variant.additional_price) {
-        unitPrice += Number(variant.additional_price);
+    if (variant) {
+        unitPrice += parseMoneyValue(variant.additional_price);
     }
 
     return unitPrice;
@@ -146,6 +197,37 @@ async function buildBuyNowVoucherItems(productId, quantity = 1, variantId = null
     };
 }
 
+function renderPaymentFailure(res, req, message, status = 400) {
+    return res.status(status).render('error', {
+        message,
+        user: req.user || null
+    });
+}
+
+async function syncVNPayPaymentResult(order, result, { allowOrderPaymentUpdate = true } = {}) {
+    const paymentStatus = result.success ? 'success' : 'failed';
+
+    await Payment.recordGatewayResult({
+        orderId: order.id,
+        paymentMethod: 'vnpay',
+        transactionId: result.transactionId || null,
+        amount: result.amount,
+        status: paymentStatus,
+        paymentData: {
+            responseCode: result.responseCode,
+            transactionStatus: result.transactionStatus,
+            bankCode: result.bankCode,
+            cardType: result.cardType,
+            payDate: result.payDate,
+            raw: result.raw
+        }
+    });
+
+    if (allowOrderPaymentUpdate && result.success && order.payment_status !== 'paid') {
+        await Order.updatePaymentStatus(order.id, 'paid');
+    }
+}
+
 // =============================================================================
 // CHECKOUT - THANH TOÁN
 // =============================================================================
@@ -170,7 +252,11 @@ exports.showCheckout = async (req, res) => {
 
         // Lấy giỏ hàng của user
         const cart = await Cart.getOrCreate(req.user.id);
-        const cartData = await Cart.calculateTotal(cart.id);
+        const selectedCartItemIds = parseCartItemIds(req.query.items);
+        const cartData = buildScopedCartData(
+            await Cart.calculateTotal(cart.id),
+            selectedCartItemIds
+        );
 
         // Redirect về giỏ hàng nếu trống
         if (cartData.items.length === 0) {
@@ -187,6 +273,7 @@ exports.showCheckout = async (req, res) => {
             cart: cartData,
             addresses,
             vouchers: availableVouchers,
+            selectedCartItemIds: cartData.items.map((item) => item.id),
             user: req.user
         });
     } catch (error) {
@@ -224,6 +311,7 @@ exports.createOrder = async (req, res) => {
         // Lấy thông tin đơn hàng từ request
         const { address_id, payment_method, notes, voucher_code } = req.body;
         const addressId = parsePositiveInteger(address_id);
+        const selectedCartItemIds = parseCartItemIds(req.body.selected_cart_item_ids);
 
         // Validate dữ liệu bắt buộc
         if (!addressId || !payment_method) {
@@ -237,10 +325,13 @@ exports.createOrder = async (req, res) => {
 
         await assertUserOwnsAddress(req.user.id, addressId);
         const cart = await Cart.getOrCreate(req.user.id);
-        const cartData = await Cart.calculateTotal(cart.id);
+        const cartData = buildScopedCartData(
+            await Cart.calculateTotal(cart.id),
+            selectedCartItemIds
+        );
 
         if (cartData.items.length === 0) {
-            return res.status(400).json({ message: 'Cart is empty' });
+            return res.status(400).json({ message: 'No selected cart items' });
         }
 
         let discountAmount = 0;
@@ -266,7 +357,8 @@ exports.createOrder = async (req, res) => {
             null,
             discountAmount,
             voucher_code,
-            voucherId
+            voucherId,
+            selectedCartItemIds
         );
 
         // Lấy thông tin đầy đủ của đơn hàng
@@ -281,7 +373,7 @@ exports.createOrder = async (req, res) => {
             return res.redirect(`/orders/${order.order_code}/confirmation`);
         } else if (payment_method === 'vnpay') {
             // VNPay - Tạo link thanh toán và redirect
-            const payment = await paymentService.createVNPayPayment(order);
+            const payment = await paymentService.createVNPayPayment(order, { ipAddr: req.ip });
             return res.redirect(payment.paymentUrl);
         } else if (payment_method === 'momo') {
             // MoMo - Hiển thị trang QR code
@@ -396,37 +488,57 @@ exports.getOrderHistory = async (req, res) => {
  */
 exports.vnpayReturn = async (req, res) => {
     try {
-        // Xác minh chữ ký và kết quả thanh toán
+        // Xac minh chu ky va ket qua thanh toan
         const result = await paymentService.verifyVNPayPayment(req.query);
-
-        if (result.success) {
-            // Thanh toán thành công - cập nhật trạng thái
-            const order = await Order.findByOrderCode(result.orderId);
-            if (!order) {
-                return res.status(404).render('error', { message: 'Order not found' });
-            }
-
-            if (Number(result.amount) !== Number(order.final_amount)) {
-                return res.status(400).render('error', { message: 'Payment amount mismatch' });
-            }
-
-            await Order.updatePaymentStatus(order.id, 'paid');
-
-            // Redirect đến trang xác nhận
-            res.redirect(`/orders/${result.orderId}/confirmation`);
-        } else {
-            // Thanh toán thất bại
-            res.render('checkout/payment-failed', {
-                message: 'Payment failed. Please try again.',
-                user: req.user || null
-            });
+        if (!result.isValidSignature) {
+            return renderPaymentFailure(res, req, 'Chu ky tra ve tu VNPay khong hop le');
         }
+        const order = await Order.findByOrderCode(result.orderId);
+        if (!order) {
+            return renderPaymentFailure(res, req, 'Khong tim thay don hang thanh toan', 404);
+        }
+        if (Number(result.amount) !== Number(order.final_amount)) {
+            return renderPaymentFailure(res, req, 'So tien VNPay tra ve khong khop voi don hang');
+        }
+        // Return URL la duong hien thi cho khach, nhung van sync fallback o day
+        // de ho tro test sandbox khi IPN chua di xuyen mang.
+        await syncVNPayPaymentResult(order, result);
+        if (result.success) {
+            return res.redirect(`/orders/${result.orderId}/confirmation`);
+        }
+        return renderPaymentFailure(
+            res,
+            req,
+            `Thanh toan VNPay khong thanh cong. Ma phan hoi: ${result.responseCode || 'N/A'}`
+        );
     } catch (error) {
         console.error('VNPay callback error:', error);
         res.status(500).render('error', { message: 'Payment verification failed' });
     }
 };
-
+exports.vnpayIpn = async (req, res) => {
+    try {
+        const result = await paymentService.verifyVNPayPayment(req.query);
+        if (!result.isValidSignature) {
+            return res.status(200).json({ RspCode: '97', Message: 'Invalid Checksum' });
+        }
+        const order = await Order.findByOrderCode(result.orderId);
+        if (!order) {
+            return res.status(200).json({ RspCode: '01', Message: 'Order not Found' });
+        }
+        if (Number(result.amount) !== Number(order.final_amount)) {
+            return res.status(200).json({ RspCode: '04', Message: 'Invalid Amount' });
+        }
+        if (order.payment_status === 'paid') {
+            return res.status(200).json({ RspCode: '02', Message: 'Order already confirmed' });
+        }
+        await syncVNPayPaymentResult(order, result);
+        return res.status(200).json({ RspCode: '00', Message: 'Confirm Success' });
+    } catch (error) {
+        console.error('VNPay IPN error:', error);
+        return res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
+    }
+};
 /**
  * Xử lý callback từ MoMo
  *
@@ -460,10 +572,7 @@ exports.momoReturn = async (req, res) => {
             res.redirect(`/orders/${result.orderId}/confirmation`);
         } else {
             // Thanh toán thất bại
-            res.render('checkout/payment-failed', {
-                message: 'Payment failed. Please try again.',
-                user: req.user || null
-            });
+            return renderPaymentFailure(res, req, 'Thanh toan MoMo khong thanh cong. Vui long thu lai.');
         }
     } catch (error) {
         console.error('MoMo callback error:', error);
@@ -525,8 +634,10 @@ exports.showBuyNow = async (req, res) => {
             });
         }
 
+        const quantity = parsePositiveInteger(req.query.quantity) || 1;
+
         const selectedVariant = getValidatedVariant(product, variantId);
-        ensureAvailableStock(product, 1, selectedVariant);
+        ensureAvailableStock(product, quantity, selectedVariant);
 
         // Tính giá đã bao gồm variant additional_price
         const unitPrice = calculateUnitPrice(product, selectedVariant);
@@ -538,8 +649,8 @@ exports.showBuyNow = async (req, res) => {
             product_slug: product.slug,
             product_image: product.images && product.images.length > 0 ? product.images[0].image_url : null,
             unit_price: unitPrice,
-            quantity: 1,
-            subtotal: unitPrice,
+            quantity: quantity,
+            subtotal: unitPrice * quantity,
             size: selectedVariant ? selectedVariant.size : null,
             color: selectedVariant ? selectedVariant.color : null
         };
@@ -547,7 +658,7 @@ exports.showBuyNow = async (req, res) => {
         const cart = {
             items: [buyNowItem],
             subtotal: buyNowItem.subtotal,
-            itemCount: 1
+            itemCount: quantity
         };
 
         const vouchers = await getAvailableVouchersForItems(cart.items);
@@ -675,7 +786,7 @@ exports.createBuyNowOrder = async (req, res) => {
         if (payment_method === 'cod') {
             return res.redirect(`/orders/${order.order_code}/confirmation`);
         } else if (payment_method === 'vnpay') {
-            const payment = await paymentService.createVNPayPayment(order);
+            const payment = await paymentService.createVNPayPayment(order, { ipAddr: req.ip });
             return res.redirect(payment.paymentUrl);
         } else if (payment_method === 'momo') {
             const payment = await paymentService.createMoMoPayment(order);
@@ -711,7 +822,7 @@ exports.createBuyNowOrder = async (req, res) => {
  */
 exports.validateVoucher = async (req, res) => {
     try {
-        const { code, order_amount, mode, product_id, quantity, variant_id } = req.body;
+        const { code, order_amount, mode, product_id, quantity, variant_id, selected_cart_item_ids } = req.body;
 
         if (!code) {
             return res.status(400).json({
@@ -730,9 +841,20 @@ exports.validateVoucher = async (req, res) => {
             voucherItems = buyNowContext.items;
         } else if (req.user) {
             const cart = await Cart.getOrCreate(req.user.id);
-            const cartData = await Cart.calculateTotal(cart.id);
+            const selectedCartItemIds = parseCartItemIds(selected_cart_item_ids);
+            const cartData = buildScopedCartData(
+                await Cart.calculateTotal(cart.id),
+                selectedCartItemIds
+            );
             orderAmount = cartData.subtotal;
             voucherItems = cartData.items;
+        }
+
+        if (!voucherItems.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'Không có sản phẩm được chọn để áp dụng voucher'
+            });
         }
 
         // Validate voucher
@@ -765,3 +887,4 @@ exports.validateVoucher = async (req, res) => {
         });
     }
 };
+
