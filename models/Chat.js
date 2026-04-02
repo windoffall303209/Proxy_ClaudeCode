@@ -1,6 +1,70 @@
 const pool = require('../config/database');
 
 class Chat {
+    static getLastMessagePreviewSql(conversationAlias = 'cc') {
+        return `(
+                    SELECT COALESCE(
+                        NULLIF(TRIM(cm.message), ''),
+                        CASE
+                            WHEN cm.message_type = 'media' THEN '[Da gui media]'
+                            WHEN cm.message_type = 'product_cards' THEN '[Goi y san pham]'
+                            ELSE '[Tin nhan]'
+                        END
+                    )
+                    FROM chat_messages cm
+                    WHERE cm.conversation_id = ${conversationAlias}.id
+                    ORDER BY cm.id DESC
+                    LIMIT 1
+                )`;
+    }
+
+    static parseMessageMetadata(rawValue) {
+        if (!rawValue) {
+            return null;
+        }
+
+        if (typeof rawValue === 'object') {
+            return rawValue;
+        }
+
+        try {
+            return JSON.parse(rawValue);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    static serializeMessageMetadata(metadata) {
+        if (!metadata || typeof metadata !== 'object') {
+            return null;
+        }
+
+        const hasProducts = Array.isArray(metadata.products) && metadata.products.length > 0;
+        const hasAttachments = Array.isArray(metadata.attachments) && metadata.attachments.length > 0;
+
+        if (!hasProducts && !hasAttachments) {
+            return null;
+        }
+
+        return JSON.stringify(metadata);
+    }
+
+    static hydrateMessage(message) {
+        if (!message || typeof message !== 'object') {
+            return message;
+        }
+
+        return {
+            ...message,
+            message_type: message.message_type || 'text',
+            message_metadata: this.parseMessageMetadata(message.message_metadata)
+        };
+    }
+
+    static hydrateMessages(messages = []) {
+        return messages.map((message) => this.hydrateMessage(message));
+    }
+
     static buildCustomerScope(userId, sessionId, alias = 'cc') {
         if (userId) {
             return {
@@ -29,13 +93,7 @@ class Chat {
                           AND cm.sender_type IN ('admin', 'bot')
                           AND cm.is_read = FALSE
                     ) AS unread_count,
-                    (
-                        SELECT message
-                        FROM chat_messages
-                        WHERE conversation_id = cc.id
-                        ORDER BY id DESC
-                        LIMIT 1
-                    ) AS last_message,
+                    ${this.getLastMessagePreviewSql('cc')} AS last_message,
                     (
                         SELECT sender_type
                         FROM chat_messages
@@ -54,7 +112,7 @@ class Chat {
         return rows[0] || null;
     }
 
-    static async findOrCreateConversation(userId, sessionId, guestName = 'Khách') {
+    static async findOrCreateConversation(userId, sessionId, guestName = 'Khach') {
         const existingConversation = await this.getActiveConversationForCustomer(userId, sessionId);
         if (existingConversation) {
             return existingConversation;
@@ -81,13 +139,7 @@ class Chat {
                           AND cm.sender_type = 'customer'
                           AND cm.is_read = FALSE
                     ) AS unread_count,
-                    (
-                        SELECT message
-                        FROM chat_messages
-                        WHERE conversation_id = cc.id
-                        ORDER BY id DESC
-                        LIMIT 1
-                    ) AS last_message,
+                    ${this.getLastMessagePreviewSql('cc')} AS last_message,
                     (
                         SELECT sender_type
                         FROM chat_messages
@@ -122,13 +174,17 @@ class Chat {
             [conversationId]
         );
 
-        return rows;
+        return this.hydrateMessages(rows);
     }
 
-    static async addMessage(conversationId, senderType, senderId, message) {
+    static async addMessage(conversationId, senderType, senderId, message, options = {}) {
+        const safeMessage = typeof message === 'string' ? message : '';
+        const messageType = options.messageType || 'text';
+        const messageMetadata = this.serializeMessageMetadata(options.metadata);
         const [result] = await pool.execute(
-            'INSERT INTO chat_messages (conversation_id, sender_type, sender_id, message) VALUES (?, ?, ?, ?)',
-            [conversationId, senderType, senderId || null, message]
+            `INSERT INTO chat_messages (conversation_id, sender_type, sender_id, message, message_type, message_metadata)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [conversationId, senderType, senderId || null, safeMessage, messageType, messageMetadata]
         );
 
         await pool.execute(
@@ -146,7 +202,7 @@ class Chat {
             [result.insertId]
         );
 
-        return rows[0] || null;
+        return this.hydrateMessage(rows[0] || null);
     }
 
     static async markAsRead(conversationId, readerType) {
@@ -174,13 +230,7 @@ class Chat {
                     u.full_name AS user_name,
                     u.email AS user_email,
                     u.avatar_url AS user_avatar,
-                    (
-                        SELECT message
-                        FROM chat_messages
-                        WHERE conversation_id = cc.id
-                        ORDER BY id DESC
-                        LIMIT 1
-                    ) AS last_message,
+                    ${this.getLastMessagePreviewSql('cc')} AS last_message,
                     (
                         SELECT sender_type
                         FROM chat_messages

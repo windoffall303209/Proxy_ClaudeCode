@@ -1,5 +1,6 @@
 const adminVouchersBootstrap = JSON.parse(document.getElementById('adminVouchersBootstrap').textContent);
 const adminVoucherProducts = adminVouchersBootstrap.products || [];
+const adminSubscriberCount = Number(adminVouchersBootstrap.subscriberCount || 0);
 const adminVouchers = adminVouchersBootstrap.vouchers || [];
 const adminVouchersMap = new Map(adminVouchers.map((voucher) => [Number(voucher.id), voucher]));
 
@@ -102,6 +103,21 @@ function closeModal(modalId) {
     }
 }
 
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+async function confirmAction(options) {
+    if (typeof showGlobalConfirm === 'function') {
+        return showGlobalConfirm(options);
+    }
+
+    return window.confirm(options?.message || 'Bạn có chắc muốn tiếp tục?');
+}
+
 function toggleMaxDiscount(selectId = 'voucherType', groupId = 'maxDiscountGroup') {
     const typeElement = document.getElementById(selectId);
     const maxDiscountGroup = document.getElementById(groupId);
@@ -151,7 +167,7 @@ function editVoucher(voucherId) {
     });
 
     toggleMaxDiscount('editVoucherType', 'editMaxDiscountGroup');
-    document.getElementById('editVoucherModal').style.display = 'flex';
+    openModal('editVoucherModal');
 }
 
 async function submitEditVoucher(event) {
@@ -204,33 +220,35 @@ async function submitEditVoucher(event) {
     }
 }
 
-function deleteVoucher(voucherId) {
-    const modal = document.getElementById('confirmModal');
-    modal.style.display = 'flex';
+async function deleteVoucher(voucherId) {
+    const voucher = adminVouchersMap.get(Number(voucherId));
+    const confirmed = await confirmAction({
+        title: 'Xóa voucher',
+        message: `Bạn có chắc muốn xóa voucher ${voucher?.code || 'này'} không?`,
+        confirmText: 'Xóa',
+        cancelText: 'Hủy',
+        tone: 'danger'
+    });
 
-    document.getElementById('confirmYes').onclick = async function() {
-        try {
-            const response = await fetch('/admin/vouchers/' + voucherId, {
-                method: 'DELETE'
-            });
-            const data = await response.json();
+    if (!confirmed) {
+        return;
+    }
 
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Không thể xóa voucher');
-            }
+    try {
+        const response = await fetch('/admin/vouchers/' + voucherId, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
 
-            showToast('Đã xóa voucher thành công');
-            setTimeout(() => location.reload(), 500);
-        } catch (error) {
-            showToast(error.message || 'Có lỗi xảy ra', 'error');
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể xóa voucher');
         }
 
-        modal.style.display = 'none';
-    };
-
-    document.getElementById('confirmNo').onclick = function() {
-        modal.style.display = 'none';
-    };
+        showToast('Đã xóa voucher thành công');
+        setTimeout(() => location.reload(), 500);
+    } catch (error) {
+        showToast(error.message || 'Có lỗi xảy ra', 'error');
+    }
 }
 
 async function toggleVoucherStatus(voucherId, newStatus) {
@@ -260,7 +278,85 @@ function showToast(message, type = 'success') {
 }
 
 function openAddVoucherModal() {
-    document.querySelector('.admin-section').scrollIntoView({ behavior: 'smooth' });
+    const section = document.querySelector('.admin-section--collapsible');
+    if (section) {
+        section.classList.add('is-open');
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+function openVoucherEmailModal(voucherId = null) {
+    const select = document.getElementById('voucherEmailSelect');
+
+    if (!select || adminSubscriberCount <= 0 || adminVouchers.length === 0) {
+        showToast('Hiện chưa thể gửi email thông báo cho voucher.', 'warning');
+        return;
+    }
+
+    if (voucherId && adminVouchersMap.has(Number(voucherId))) {
+        select.value = String(voucherId);
+    }
+
+    openModal('voucherEmailModal');
+}
+
+async function sendVoucherAnnouncementEmail(voucherId) {
+    const response = await fetch('/admin/vouchers/' + voucherId + '/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+
+    if (!response.ok || data.success === false) {
+        throw new Error(data.message || 'Không thể gửi email thông báo');
+    }
+
+    showToast(data.message || 'Đã gửi email thông báo', data.toastType || 'success');
+    closeModal('voucherEmailModal');
+}
+
+async function confirmAndSendVoucherEmail(voucherId) {
+    if (adminSubscriberCount <= 0) {
+        showToast('Hiện chưa có người dùng đăng ký nhận bản tin.', 'warning');
+        return;
+    }
+
+    const voucher = adminVouchersMap.get(Number(voucherId));
+    if (!voucher) {
+        showToast('Không tìm thấy voucher để gửi email', 'error');
+        return;
+    }
+
+    const confirmed = await confirmAction({
+        title: 'Gửi email thông báo',
+        message: `Bạn chắc chắn muốn gửi thông báo về voucher ${voucher.code} tới người dùng đã đăng ký chứ?`,
+        confirmText: 'Gửi email',
+        cancelText: 'Hủy'
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await sendVoucherAnnouncementEmail(voucherId);
+    } catch (error) {
+        showToast(error.message || 'Có lỗi xảy ra', 'error');
+    }
+}
+
+async function submitVoucherEmailForm(event) {
+    event.preventDefault();
+
+    const select = document.getElementById('voucherEmailSelect');
+    const voucherId = Number(select?.value);
+
+    if (!voucherId) {
+        showToast('Vui lòng chọn voucher cần gửi email', 'warning');
+        return;
+    }
+
+    await confirmAndSendVoucherEmail(voucherId);
 }
 
 function toggleSection(titleElement) {
@@ -276,6 +372,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('[data-admin-toggle="section"]').forEach((button) => {
         button.addEventListener('click', () => toggleSection(button));
+    });
+
+    document.querySelectorAll('[data-voucher-action="scroll-to-form"]').forEach((button) => {
+        button.addEventListener('click', openAddVoucherModal);
+    });
+
+    document.querySelectorAll('[data-voucher-action="open-email-modal"]').forEach((button) => {
+        button.addEventListener('click', () => openVoucherEmailModal());
     });
 
     document.querySelectorAll('[data-checklist-search]').forEach((input) => {
@@ -302,6 +406,10 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', () => deleteVoucher(button.dataset.voucherId));
     });
 
+    document.querySelectorAll('[data-voucher-action="email"]').forEach((button) => {
+        button.addEventListener('click', () => confirmAndSendVoucherEmail(button.dataset.voucherId));
+    });
+
     document.querySelectorAll('[data-voucher-modal-close]').forEach((button) => {
         button.addEventListener('click', () => closeModal(button.dataset.voucherModalClose));
     });
@@ -309,8 +417,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('voucherType')?.addEventListener('change', () => toggleMaxDiscount());
     document.getElementById('editVoucherType')?.addEventListener('change', () => toggleMaxDiscount('editVoucherType', 'editMaxDiscountGroup'));
     document.getElementById('editVoucherForm')?.addEventListener('submit', submitEditVoucher);
+    document.getElementById('voucherEmailForm')?.addEventListener('submit', submitVoucherEmailForm);
 
-    ['editVoucherModal', 'confirmModal'].forEach((modalId) => {
+    ['editVoucherModal', 'voucherEmailModal'].forEach((modalId) => {
         const modal = document.getElementById(modalId);
         if (!modal) {
             return;

@@ -1,5 +1,7 @@
 <%- include('../partials/admin-header', { currentPage: 'vouchers', pageStyles: ['/css/admin/vouchers.css'] }) %>
 
+<% const canNotifySubscribers = Number(subscriberCount || 0) > 0; %>
+
 <div class="admin-page">
     <div class="container">
         <!-- Page Header -->
@@ -8,7 +10,18 @@
                 <h1>Quản Lý Voucher</h1>
                 <p><%= vouchers ? vouchers.length : 0 %> mã giảm giá</p>
             </div>
-            <!-- <div class="admin-page-header__actions">
+            <div class="admin-page-header__actions">
+                <button
+                    class="admin-btn admin-btn--ghost"
+                    data-voucher-action="open-email-modal"
+                    <%= !canNotifySubscribers || !vouchers || vouchers.length === 0 ? 'disabled' : '' %>
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16v16H4z"/>
+                        <path d="m22 6-10 7L2 6"/>
+                    </svg>
+                    Gửi email
+                </button>
                 <button class="admin-btn admin-btn--primary" data-voucher-action="scroll-to-form">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"/>
@@ -16,7 +29,7 @@
                     </svg>
                     Thêm Voucher
                 </button>
-            </div> -->
+            </div>
         </div>
 
         <!-- Stats Cards -->
@@ -142,6 +155,24 @@
                     <textarea name="description" class="admin-form__textarea" placeholder="Mô tả chi tiết về voucher..."></textarea>
                 </div>
                 <div class="admin-form__group">
+                    <div class="admin-form__checkbox admin-form__checkbox--stacked">
+                        <input
+                            type="checkbox"
+                            name="notify_subscribers"
+                            id="notifyVoucherSubscribers"
+                            <%= !canNotifySubscribers ? 'disabled' : '' %>
+                        >
+                        <label for="notifyVoucherSubscribers">Thông báo tới người dùng đã đăng ký</label>
+                    </div>
+                    <p class="admin-form__hint">
+                        <% if (canNotifySubscribers) { %>
+                            Khi tạo xong, hệ thống sẽ gửi email tới <strong><%= subscriberCount %></strong> người đang đăng ký nhận bản tin.
+                        <% } else { %>
+                            Hiện chưa có người dùng nào đăng ký nhận bản tin khuyến mãi.
+                        <% } %>
+                    </p>
+                </div>
+                <div class="admin-form__group">
                     <label class="admin-form__label">Sản phẩm áp dụng</label>
                     <div class="admin-product-checklist__toolbar">
                         <input type="search" class="admin-form__input admin-product-checklist__search" placeholder="Tìm sản phẩm theo tên hoặc SKU..." data-checklist-search="createVoucherProducts">
@@ -173,7 +204,6 @@
                     <thead>
                         <tr>
                             <th>Mã Voucher</th>
-                            <th>Tên</th>
                             <th class="text-center">Loại</th>
                             <th class="text-center">Giá Trị</th>
                             <th class="text-center">Phạm Vi</th>
@@ -187,17 +217,17 @@
                         <% vouchers.forEach(voucher => { %>
                             <tr>
                                 <td>
-                                    <span class="voucher-code"><%= voucher.code %></span>
-                                </td>
-                                <td>
-                                    <div class="voucher-info">
-                                        <strong class="voucher-info__name"><%= voucher.name %></strong>
-                                        <% if (voucher.description) { %>
-                                            <span class="voucher-info__desc"><%= voucher.description %></span>
-                                        <% } %>
-                                        <% if (voucher.min_order_amount > 0) { %>
-                                            <span class="voucher-info__min">Đơn tối thiểu: <%= voucher.min_order_amount.toLocaleString('vi-VN') %>đ</span>
-                                        <% } %>
+                                    <div class="voucher-identity">
+                                        <span class="voucher-code"><%= voucher.code %></span>
+                                        <div class="voucher-info">
+                                            <strong class="voucher-info__name"><%= voucher.name %></strong>
+                                            <% if (voucher.description) { %>
+                                                <span class="voucher-info__desc"><%= voucher.description %></span>
+                                            <% } %>
+                                            <% if (voucher.min_order_amount > 0) { %>
+                                                <span class="voucher-info__min">Đơn tối thiểu: <%= voucher.min_order_amount.toLocaleString('vi-VN') %>đ</span>
+                                            <% } %>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="text-center">
@@ -281,6 +311,18 @@
                                                 </svg>
                                             <% } %>
                                         </button>
+                                        <button
+                                            data-voucher-action="email"
+                                            data-voucher-id="<%= voucher.id %>"
+                                            class="admin-btn admin-btn--mail"
+                                            title="Gửi email thông báo"
+                                            <%= !canNotifySubscribers ? 'disabled' : '' %>
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M4 4h16v16H4z"/>
+                                                <path d="m22 6-10 7L2 6"/>
+                                            </svg>
+                                        </button>
                                         <button data-voucher-action="delete" data-voucher-id="<%= voucher.id %>" class="admin-btn admin-btn--delete" title="Xóa">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <polyline points="3 6 5 6 21 6"/>
@@ -306,30 +348,6 @@
                 <p class="admin-empty__text">Tạo voucher đầu tiên để thu hút khách hàng.</p>
             </div>
         <% } %>
-    </div>
-</div>
-
-<!-- Toast Container -->
-<div id="toastContainer"></div>
-
-<!-- Confirm Modal -->
-<div id="confirmModal">
-    <div class="confirm-modal__content">
-        <div class="confirm-modal__icon confirm-modal__icon--danger">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-        </div>
-        <div class="confirm-modal__text">
-            <h3 id="confirmTitle">Xác nhận xóa</h3>
-            <p id="confirmMessage">Bạn có chắc muốn xóa voucher này?</p>
-        </div>
-        <div class="confirm-modal__buttons">
-            <button id="confirmNo" class="admin-btn admin-btn--ghost">Hủy</button>
-            <button id="confirmYes" class="admin-btn admin-btn--danger">Xóa</button>
-        </div>
     </div>
 </div>
 
@@ -430,10 +448,48 @@
     </div>
 </div>
 
+<div id="voucherEmailModal" class="admin-modal">
+    <div class="admin-modal__content">
+        <div class="admin-modal__header">
+            <h3 class="admin-modal__title">Gửi email thông báo voucher</h3>
+            <button type="button" class="admin-modal__close" data-voucher-modal-close="voucherEmailModal" aria-label="Đóng">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <form id="voucherEmailForm" class="admin-form">
+            <p class="admin-form__hint">
+                Email sẽ được gửi tới <strong><%= subscriberCount || 0 %></strong> người dùng đã đăng ký nhận bản tin.
+            </p>
+            <div class="admin-form__group">
+                <label class="admin-form__label" for="voucherEmailSelect">Chọn voucher cần gửi</label>
+                <select id="voucherEmailSelect" class="admin-form__select" <%= !canNotifySubscribers || !vouchers || vouchers.length === 0 ? 'disabled' : '' %>>
+                    <% (vouchers || []).forEach((voucher) => { %>
+                        <option value="<%= voucher.id %>"><%= voucher.code %> - <%= voucher.name %></option>
+                    <% }) %>
+                </select>
+            </div>
+            <div class="admin-modal__buttons">
+                <button type="button" class="admin-btn admin-btn--ghost admin-btn--full" data-voucher-modal-close="voucherEmailModal">Hủy</button>
+                <button
+                    type="submit"
+                    class="admin-btn admin-btn--primary admin-btn--full"
+                    <%= !canNotifySubscribers || !vouchers || vouchers.length === 0 ? 'disabled' : '' %>
+                >
+                    Gửi email
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 
 <script type="application/json" id="adminVouchersBootstrap"><%- JSON.stringify({
     products: (products || []).map(product => ({ id: product.id, name: product.name, sku: product.sku || '' })),
+    subscriberCount: Number(subscriberCount || 0),
     vouchers: (vouchers || []).map(voucher => ({ id: voucher.id, code: voucher.code || '', name: voucher.name || '', description: voucher.description || '', type: voucher.type, value: voucher.value, min_order_amount: voucher.min_order_amount || 0, max_discount_amount: voucher.max_discount_amount, usage_limit: voucher.usage_limit, user_limit: voucher.user_limit || 1, start_date: voucher.start_date, end_date: voucher.end_date, is_active: !!voucher.is_active, product_ids: (voucher.applicable_products || []).map(product => product.id) }))
 }).replace(/</g, '\u003c') %></script>
 <script src="/js/admin/vouchers.js"></script>

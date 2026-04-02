@@ -4,7 +4,7 @@
     <div class="container">
         <!-- Page Header -->
         <div class="admin-page-header">
-            <!-- <div class="admin-page-header__left">
+            <div class="admin-page-header__left">
                 <h1>Bảng Điều Khiển</h1>
                 <p>Tổng quan hoạt động kinh doanh</p>
             </div>
@@ -17,7 +17,7 @@
                     </svg>
                     Làm mới
                 </button>
-            </div> -->
+            </div>
         </div>
 
         <% if (stats) { %>
@@ -133,26 +133,104 @@
                     </div>
                 </div>
             </div>
+
+            <div class="dashboard-analytics-grid">
+                <div class="dashboard-chart-card">
+                    <div class="dashboard-chart-card__header">
+                        <div>
+                            <h3 class="dashboard-chart-card__title">Biểu đồ đơn hàng</h3>
+                            <p class="dashboard-chart-card__text">Phân bổ đơn hàng theo trạng thái hiện tại.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-chart-card__canvas">
+                        <canvas id="orderStatusChart" aria-label="Biểu đồ trạng thái đơn hàng"></canvas>
+                    </div>
+                    <div class="dashboard-chart-legend">
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--pending"></span>
+                            <span>Chờ xử lý</span>
+                            <strong><%= dashboardCharts.orderStatus.pending || 0 %></strong>
+                        </div>
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--processing"></span>
+                            <span>Đang xử lý</span>
+                            <strong><%= dashboardCharts.orderStatus.processing || 0 %></strong>
+                        </div>
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--delivered"></span>
+                            <span>Đã giao</span>
+                            <strong><%= dashboardCharts.orderStatus.delivered || 0 %></strong>
+                        </div>
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--cancelled"></span>
+                            <span>Đã hủy</span>
+                            <strong><%= dashboardCharts.orderStatus.cancelled || 0 %></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-chart-card">
+                    <div class="dashboard-chart-card__header">
+                        <div>
+                            <h3 class="dashboard-chart-card__title">Biểu đồ sản phẩm</h3>
+                            <p class="dashboard-chart-card__text">Trực quan hóa sản phẩm đang bán, hết hàng và đang ẩn.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-chart-card__canvas dashboard-chart-card__canvas--compact">
+                        <canvas id="productStatusChart" aria-label="Biểu đồ tình trạng sản phẩm"></canvas>
+                    </div>
+                    <div class="dashboard-chart-legend">
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--live"></span>
+                            <span>Đang bán</span>
+                            <strong><%= dashboardCharts.productStatus.live || 0 %></strong>
+                        </div>
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--stockout"></span>
+                            <span>Hết hàng</span>
+                            <strong><%= dashboardCharts.productStatus.out_of_stock || 0 %></strong>
+                        </div>
+                        <div class="dashboard-chart-legend__item">
+                            <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--hidden"></span>
+                            <span>Đang ẩn</span>
+                            <strong><%= dashboardCharts.productStatus.hidden || 0 %></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
         <% } %>
 
         <!-- Recent Orders -->
         <% if (recentOrders && recentOrders.length > 0) { %>
             <div class="admin-section admin-section--spaced">
                 <div class="admin-section__header">
-                    <h3 class="admin-section__title">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                            <line x1="3" y1="6" x2="21" y2="6"/>
-                            <path d="M16 10a4 4 0 0 1-8 0"/>
-                        </svg>
-                        Đơn Hàng Gần Đây
-                    </h3>
-                    <a href="/admin/orders" class="admin-btn admin-btn--ghost">
-                        Xem tất cả
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"/>
-                        </svg>
-                    </a>
+                    <div>
+                        <h3 class="admin-section__title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <path d="M16 10a4 4 0 0 1-8 0"/>
+                            </svg>
+                            Đơn Hàng Gần Đây
+                        </h3>
+                        <p class="dashboard-section__subtext">Đang hiển thị <strong data-dashboard-limit-label><%= Math.min(recentLimit, recentOrders.length) %></strong> đơn hàng mới nhất.</p>
+                    </div>
+                    <div class="dashboard-section__actions">
+                        <form class="dashboard-limit-form">
+                            <label for="dashboardRecentLimit">Hiển thị</label>
+                            <select id="dashboardRecentLimit" name="recent_limit" class="admin-form__select dashboard-limit-form__select" data-dashboard-recent-limit>
+                                <option value="5" <%= recentLimit === 5 ? 'selected' : '' %>>5 đơn</option>
+                                <option value="10" <%= recentLimit === 10 ? 'selected' : '' %>>10 đơn</option>
+                                <option value="15" <%= recentLimit === 15 ? 'selected' : '' %>>15 đơn</option>
+                            </select>
+                        </form>
+                        <a href="/admin/orders" class="admin-btn admin-btn--ghost">
+                            Xem tất cả
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </a>
+                    </div>
                 </div>
                 <div class="admin-table-wrapper">
                     <table class="admin-table">
@@ -166,8 +244,8 @@
                                 <th class="text-center">Thao Tác</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <% recentOrders.forEach(order => { %>
+                        <tbody id="dashboardRecentOrdersBody">
+                            <% recentOrders.slice(0, recentLimit).forEach(order => { %>
                                 <tr>
                                     <td>
                                         <a href="/admin/orders/<%= order.id %>" class="admin-table__link">
@@ -295,8 +373,20 @@
     </div>
 </div>
 
-
-
+<script type="application/json" id="adminDashboardBootstrap"><%- JSON.stringify({
+    recentLimit: Number(recentLimit || 10),
+    orderStatus: dashboardCharts?.orderStatus || {},
+    productStatus: dashboardCharts?.productStatus || {},
+    recentOrders: (recentOrders || []).map(order => ({
+        id: order.id,
+        order_code: order.order_code,
+        user_name: order.user_name || '',
+        recipient_name: order.recipient_name || '',
+        final_amount: Number(order.final_amount || 0),
+        status: order.status,
+        created_at: order.created_at
+    }))
+}).replace(/</g, '\u003c') %></script>
 <script src="/js/admin/dashboard.js"></script>
 
 <%- include('../partials/admin-footer') %>

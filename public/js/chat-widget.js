@@ -4,12 +4,12 @@ const chatState = window.__tmdtChatWidgetState || (window.__tmdtChatWidgetState 
     pollInterval: null,
     pollErrors: 0,
     renderedMessageIds: new Set(),
+    pendingCustomerMessage: null,
     conversation: null,
     initialized: false,
-    badgeRequest: null
+    badgeRequest: null,
+    expanded: false
 });
-
-const CHAT_LINK_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+|\/(?:products|cart|checkout|chat|auth|admin|orders)[^\s<]*)/gi;
 
 function getChatElements() {
     return {
@@ -18,7 +18,15 @@ function getChatElements() {
         badge: document.getElementById('chatBadge'),
         messages: document.getElementById('chatMessages'),
         input: document.getElementById('chatInput'),
-        sendButton: document.getElementById('chatSendBtn')
+        sendButton: document.getElementById('chatSendBtn'),
+        attachButton: document.getElementById('chatAttachBtn'),
+        fileInput: document.getElementById('chatMediaInput'),
+        attachmentPreview: document.getElementById('chatAttachmentPreview'),
+        attachmentPreviewText: document.getElementById('chatAttachmentPreviewText'),
+        attachmentClearButton: document.getElementById('chatAttachmentClearBtn'),
+        expandButton: document.getElementById('chatExpandBtn'),
+        expandIcon: document.querySelector('.chat-widget__action-icon--expand'),
+        collapseIcon: document.querySelector('.chat-widget__action-icon--collapse')
     };
 }
 
@@ -102,7 +110,7 @@ function scrollToBottom() {
         return;
     }
 
-    setTimeout(() => {
+    window.setTimeout(() => {
         messages.scrollTop = messages.scrollHeight;
     }, 50);
 }
@@ -123,79 +131,79 @@ function buildMessageLabel(type) {
     return '';
 }
 
-function normalizeChatLink(rawValue) {
-    if (!rawValue) {
-        return null;
-    }
-
-    let value = rawValue;
-    let trailing = '';
-
-    while (/[),.!?:;]$/.test(value)) {
-        trailing = value.slice(-1) + trailing;
-        value = value.slice(0, -1);
-    }
-
-    if (!value) {
-        return null;
-    }
-
-    const href = value.startsWith('www.') ? `https://${value}` : value;
-    return { href, text: value, trailing };
+function createMessageObject(type, text, time, metadata) {
+    return {
+        sender_type: type,
+        message: typeof text === 'string' ? text : '',
+        created_at: time,
+        message_metadata: metadata || null
+    };
 }
 
-function appendLinkedText(container, text) {
-    const value = typeof text === 'string' ? text : '';
-    const lines = value.split(/\r?\n/);
+function normalizePendingMessageText(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
 
-    lines.forEach((line, lineIndex) => {
-        let lastIndex = 0;
+function setPendingCustomerMessage(text, element) {
+    chatState.pendingCustomerMessage = {
+        text: normalizePendingMessageText(text),
+        element: element || null
+    };
+}
 
-        line.replace(CHAT_LINK_PATTERN, (match, _group, offset) => {
-            if (offset > lastIndex) {
-                container.appendChild(document.createTextNode(line.slice(lastIndex, offset)));
-            }
+function clearPendingCustomerMessage(options = {}) {
+    const pending = chatState.pendingCustomerMessage;
+    chatState.pendingCustomerMessage = null;
 
-            const normalized = normalizeChatLink(match);
-            if (!normalized) {
-                container.appendChild(document.createTextNode(match));
-            } else {
-                const link = document.createElement('a');
-                link.href = normalized.href;
-                link.textContent = normalized.text;
-                link.target = normalized.href.startsWith('/') ? '_self' : '_blank';
-                if (link.target === '_blank') {
-                    link.rel = 'noopener noreferrer';
-                }
-                container.appendChild(link);
+    if (options.removeElement && pending?.element?.isConnected) {
+        pending.element.remove();
+    }
+}
 
-                if (normalized.trailing) {
-                    container.appendChild(document.createTextNode(normalized.trailing));
-                }
-            }
+function reconcilePendingCustomerMessage(message) {
+    if (!message || message.sender_type !== 'customer' || !message.id) {
+        return false;
+    }
 
-            lastIndex = offset + match.length;
-            return match;
-        });
+    const pending = chatState.pendingCustomerMessage;
+    if (!pending || pending.text !== normalizePendingMessageText(message.message)) {
+        return false;
+    }
 
-        if (lastIndex < line.length) {
-            container.appendChild(document.createTextNode(line.slice(lastIndex)));
-        }
+    const wrapper = pending.element;
+    chatState.pendingCustomerMessage = null;
 
-        if (lineIndex < lines.length - 1) {
-            container.appendChild(document.createElement('br'));
-        }
-    });
+    if (!wrapper || !wrapper.isConnected) {
+        return false;
+    }
+
+    wrapper.dataset.messageId = String(message.id);
+    chatState.renderedMessageIds.add(message.id);
+
+    const content = wrapper.querySelector('.chat-msg__content');
+    if (content) {
+        content.innerHTML = '';
+        window.ChatRichMessage.renderMessageContent(content, message);
+    }
+
+    const timeElement = wrapper.querySelector('.chat-msg__time');
+    if (timeElement) {
+        timeElement.textContent = message.created_at
+            ? formatChatTime(new Date(message.created_at))
+            : formatChatTime(new Date());
+    }
+
+    return true;
 }
 
 function appendMessage(type, text, time, options = {}) {
     const { messages } = getChatElements();
     if (!messages) {
-        return;
+        return null;
     }
 
     if (options.messageId && chatState.renderedMessageIds.has(options.messageId)) {
-        return;
+        return null;
     }
 
     if (options.messageId) {
@@ -216,10 +224,13 @@ function appendMessage(type, text, time, options = {}) {
         wrapper.appendChild(label);
     }
 
-    const messageText = document.createElement('div');
-    messageText.className = 'chat-msg__content';
-    appendLinkedText(messageText, text);
-    wrapper.appendChild(messageText);
+    const content = document.createElement('div');
+    content.className = 'chat-msg__content';
+    window.ChatRichMessage.renderMessageContent(
+        content,
+        createMessageObject(type, text, time, options.metadata)
+    );
+    wrapper.appendChild(content);
 
     const timeElement = document.createElement('div');
     timeElement.className = 'chat-msg__time';
@@ -228,15 +239,25 @@ function appendMessage(type, text, time, options = {}) {
 
     messages.appendChild(wrapper);
     scrollToBottom();
+    return wrapper;
 }
 
 function appendMessageRecord(message) {
-    if (!message || message.sender_type === 'customer' && chatState.renderedMessageIds.has(message.id)) {
+    if (!message) {
+        return;
+    }
+
+    if (reconcilePendingCustomerMessage(message)) {
+        return;
+    }
+
+    if (message.id && chatState.renderedMessageIds.has(message.id)) {
         return;
     }
 
     appendMessage(message.sender_type, message.message, message.created_at, {
-        messageId: message.id
+        messageId: message.id,
+        metadata: message.message_metadata
     });
 }
 
@@ -264,8 +285,8 @@ function hideTyping() {
 }
 
 function syncInputState() {
-    const { input, sendButton } = getChatElements();
-    if (!input || !sendButton) {
+    const { input, sendButton, attachButton } = getChatElements();
+    if (!input || !sendButton || !attachButton) {
         return;
     }
 
@@ -276,6 +297,50 @@ function syncInputState() {
 
     input.disabled = false;
     sendButton.disabled = false;
+    attachButton.disabled = false;
+}
+
+function describeSelectedFiles(files = []) {
+    if (!files.length) {
+        return '';
+    }
+
+    if (files.length === 1) {
+        return `Đã chọn: ${files[0].name}`;
+    }
+
+    const fileNames = files.slice(0, 2).map((file) => file.name).join(', ');
+    const remaining = files.length - 2;
+    return remaining > 0
+        ? `${files.length} tệp: ${fileNames} và ${remaining} tệp khác`
+        : `${files.length} tệp: ${fileNames}`;
+}
+
+function updateAttachmentPreview() {
+    const { fileInput, attachmentPreview, attachmentPreviewText } = getChatElements();
+    if (!fileInput || !attachmentPreview || !attachmentPreviewText) {
+        return;
+    }
+
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) {
+        attachmentPreview.hidden = true;
+        attachmentPreviewText.textContent = '';
+        return;
+    }
+
+    attachmentPreview.hidden = false;
+    attachmentPreviewText.textContent = describeSelectedFiles(files);
+}
+
+function clearAttachmentSelection() {
+    const { fileInput } = getChatElements();
+    if (!fileInput) {
+        return;
+    }
+
+    fileInput.value = '';
+    updateAttachmentPreview();
 }
 
 async function loadChatHistory() {
@@ -294,6 +359,7 @@ async function loadChatHistory() {
 
         chatState.conversation = data.conversation || null;
         chatState.renderedMessageIds.clear();
+        clearPendingCustomerMessage();
         messages.querySelectorAll('.chat-msg, .chat-typing').forEach((element) => element.remove());
 
         data.messages.forEach((message) => {
@@ -312,41 +378,56 @@ async function loadChatHistory() {
 async function sendChatMessage(event) {
     event.preventDefault();
 
-    const { input, sendButton } = getChatElements();
-    if (!input || !sendButton) {
+    const { input, sendButton, attachButton, fileInput } = getChatElements();
+    if (!input || !sendButton || !attachButton || !fileInput) {
         return;
     }
 
     const message = input.value.trim();
-    if (!message) {
+    const files = Array.from(fileInput.files || []);
+
+    if (!message && !files.length) {
         return;
     }
 
-    appendMessage('customer', message, new Date().toISOString());
+    const textOnlyMessage = files.length === 0;
+    if (textOnlyMessage) {
+        const optimisticMessage = appendMessage('customer', message, new Date().toISOString());
+        setPendingCustomerMessage(message, optimisticMessage);
+    }
+
     input.value = '';
     sendButton.disabled = true;
+    attachButton.disabled = true;
     showTyping();
+
+    const formData = new FormData();
+    formData.append('message', message);
+    files.forEach((file) => {
+        formData.append('messageMedia', file);
+    });
 
     try {
         const response = await fetch('/chat/send', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ message })
+            body: formData
         });
 
         const data = await response.json();
         hideTyping();
 
         if (!response.ok || !data.success) {
+            clearPendingCustomerMessage({ removeElement: textOnlyMessage });
             appendMessage('system', data.message || 'Không thể gửi tin nhắn lúc này.', new Date().toISOString());
             sendButton.disabled = false;
+            attachButton.disabled = false;
             input.focus();
             return;
         }
 
-        if (data.customerMessage?.id) {
-            chatState.renderedMessageIds.add(data.customerMessage.id);
+        if (data.customerMessage) {
+            appendMessageRecord(data.customerMessage);
         }
 
         chatState.conversation = {
@@ -363,13 +444,16 @@ async function sendChatMessage(event) {
             appendMessageRecord(data.botMessage);
         }
 
+        clearAttachmentSelection();
         syncInputState();
     } catch (error) {
         hideTyping();
+        clearPendingCustomerMessage({ removeElement: textOnlyMessage });
         appendMessage('system', 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại!', new Date().toISOString());
     }
 
     sendButton.disabled = false;
+    attachButton.disabled = false;
     input.focus();
     scrollToBottom();
 }
@@ -400,25 +484,18 @@ async function pollNewMessages() {
         chatState.pollErrors = 0;
         chatState.conversation = data.conversation || null;
 
-        let hasNewSupportMessage = false;
+        let hasNewMessage = false;
         data.messages.forEach((message) => {
-            if (message.sender_type === 'customer') {
-                if (message.id) {
-                    chatState.renderedMessageIds.add(message.id);
-                }
-                return;
-            }
-
-            if (!chatState.renderedMessageIds.has(message.id)) {
+            if (!message?.id || !chatState.renderedMessageIds.has(message.id)) {
                 appendMessageRecord(message);
-                hasNewSupportMessage = true;
+                hasNewMessage = true;
             }
         });
 
         syncInputState();
         updateChatBadge(0);
 
-        if (hasNewSupportMessage) {
+        if (hasNewMessage) {
             scrollToBottom();
         }
     } catch (error) {
@@ -448,6 +525,27 @@ function stopChatPolling() {
     }
 }
 
+function syncExpandButton() {
+    const { box, expandButton, expandIcon, collapseIcon } = getChatElements();
+    if (!box || !expandButton || !expandIcon || !collapseIcon) {
+        return;
+    }
+
+    box.classList.toggle('chat-widget__box--expanded', chatState.expanded);
+    expandIcon.hidden = chatState.expanded;
+    collapseIcon.hidden = !chatState.expanded;
+    expandButton.setAttribute(
+        'aria-label',
+        chatState.expanded ? 'Thu nhỏ cửa sổ chat' : 'Phóng to cửa sổ chat'
+    );
+}
+
+function toggleChatExpand() {
+    chatState.expanded = !chatState.expanded;
+    syncExpandButton();
+    scrollToBottom();
+}
+
 function toggleChatWidget() {
     const { box, toggleButton, input } = getChatElements();
     if (!box || !toggleButton) {
@@ -468,6 +566,7 @@ function toggleChatWidget() {
 
         startChatPolling();
         refreshChatBadge();
+        syncExpandButton();
         input?.focus();
         return;
     }
@@ -499,17 +598,29 @@ function syncChatAfterFocus() {
 }
 
 function initChatWidget() {
-    const { toggleButton } = getChatElements();
-    if (!toggleButton || chatState.initialized) {
+    const {
+        toggleButton,
+        attachButton,
+        fileInput,
+        attachmentClearButton,
+        expandButton
+    } = getChatElements();
+
+    if (!toggleButton || chatState.initialized || !window.ChatRichMessage) {
         return;
     }
 
     chatState.initialized = true;
     runChatTaskWhenIdle(() => refreshChatBadge());
+    syncExpandButton();
 
     toggleButton.addEventListener('click', toggleChatWidget);
     document.querySelector('.chat-widget__close')?.addEventListener('click', toggleChatWidget);
     document.getElementById('chatForm')?.addEventListener('submit', sendChatMessage);
+    attachButton?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', updateAttachmentPreview);
+    attachmentClearButton?.addEventListener('click', clearAttachmentSelection);
+    expandButton?.addEventListener('click', toggleChatExpand);
 
     document.addEventListener('visibilitychange', syncChatAfterFocus);
     window.addEventListener('pagehide', stopChatPolling, { passive: true });

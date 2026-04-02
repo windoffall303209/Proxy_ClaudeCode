@@ -522,6 +522,8 @@ CREATE TABLE chat_messages (
     sender_type ENUM('customer', 'admin', 'bot') NOT NULL,
     sender_id INT DEFAULT NULL,
     message TEXT NOT NULL,
+    message_type ENUM('text', 'media', 'product_cards') NOT NULL DEFAULT 'text',
+    message_metadata LONGTEXT DEFAULT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE,

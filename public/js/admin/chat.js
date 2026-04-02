@@ -220,7 +220,6 @@ function renderConversationList() {
     container.innerHTML = '';
 
     const filteredConversations = getFilteredConversations();
-
     if (!filteredConversations.length) {
         const emptyState = document.createElement('div');
         emptyState.className = 'admin-chat-list__empty';
@@ -241,73 +240,6 @@ function renderConversationList() {
     updateTitleUnreadBadge(adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length);
 }
 
-const ADMIN_CHAT_LINK_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+|\/(?:products|cart|checkout|chat|auth|admin|orders)[^\s<]*)/gi;
-
-function normalizeChatLink(rawValue) {
-    if (!rawValue) {
-        return null;
-    }
-
-    let value = rawValue;
-    let trailing = '';
-
-    while (/[),.!?:;]$/.test(value)) {
-        trailing = value.slice(-1) + trailing;
-        value = value.slice(0, -1);
-    }
-
-    if (!value) {
-        return null;
-    }
-
-    const href = value.startsWith('www.') ? `https://${value}` : value;
-    return { href, text: value, trailing };
-}
-
-function appendLinkedText(container, text) {
-    const value = typeof text === 'string' ? text : '';
-    const lines = value.split(/\r?\n/);
-
-    lines.forEach((line, lineIndex) => {
-        let lastIndex = 0;
-
-        line.replace(ADMIN_CHAT_LINK_PATTERN, (match, _group, offset) => {
-            if (offset > lastIndex) {
-                container.appendChild(document.createTextNode(line.slice(lastIndex, offset)));
-            }
-
-            const normalized = normalizeChatLink(match);
-            if (!normalized) {
-                container.appendChild(document.createTextNode(match));
-            } else {
-                const link = document.createElement('a');
-                link.href = normalized.href;
-                link.textContent = normalized.text;
-                link.target = normalized.href.startsWith('/') ? '_self' : '_blank';
-                if (link.target === '_blank') {
-                    link.rel = 'noopener noreferrer';
-                }
-                container.appendChild(link);
-
-                if (normalized.trailing) {
-                    container.appendChild(document.createTextNode(normalized.trailing));
-                }
-            }
-
-            lastIndex = offset + match.length;
-            return match;
-        });
-
-        if (lastIndex < line.length) {
-            container.appendChild(document.createTextNode(line.slice(lastIndex)));
-        }
-
-        if (lineIndex < lines.length - 1) {
-            container.appendChild(document.createElement('br'));
-        }
-    });
-}
-
 function createMessageElement(message) {
     const wrapper = document.createElement('div');
     wrapper.className = `admin-chat-msg admin-chat-msg--${message.sender_type}`;
@@ -322,7 +254,7 @@ function createMessageElement(message) {
 
     const content = document.createElement('div');
     content.className = 'admin-chat-msg__content';
-    appendLinkedText(content, message.message);
+    window.ChatRichMessage.renderMessageContent(content, message);
     wrapper.appendChild(content);
 
     const time = document.createElement('div');
@@ -363,6 +295,7 @@ function updateConversationHeader(conversation) {
     const statusButton = document.getElementById('chatStatusBtn');
     const replyInput = document.getElementById('adminReplyInput');
     const replyButton = document.getElementById('adminReplySendBtn');
+    const attachButton = document.getElementById('adminReplyAttachBtn');
     const replyHint = document.getElementById('adminReplyHint');
 
     if (!conversation) {
@@ -391,6 +324,9 @@ function updateConversationHeader(conversation) {
     const isClosed = conversation.status === 'closed';
     replyInput.disabled = isClosed;
     replyButton.disabled = isClosed;
+    if (attachButton) {
+        attachButton.disabled = isClosed;
+    }
 
     if (isClosed) {
         replyInput.placeholder = 'Cuộc trò chuyện đã đóng. Hãy mở lại để trả lời.';
@@ -412,7 +348,8 @@ function upsertConversation(conversation, messages = null) {
     const updatedConversation = { ...conversation };
     if (Array.isArray(messages) && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
-        updatedConversation.last_message = lastMessage.message;
+        updatedConversation.last_message = lastMessage.message
+            || (lastMessage.message_type === 'media' ? '[Đã gửi media]' : '[Tin nhắn]');
         updatedConversation.last_sender = lastMessage.sender_type;
         updatedConversation.last_message_at = lastMessage.created_at;
     }
@@ -466,6 +403,7 @@ async function refreshCurrentConversation({ forceScroll = false } = {}) {
 async function selectConversation(conversationId, options = {}) {
     adminChatState.currentConversationId = conversationId;
     adminChatState.currentConversation = adminChatState.conversations.find((conversation) => conversation.id === conversationId) || null;
+    clearAdminAttachmentSelection();
 
     document.getElementById('chatDetailEmpty').hidden = true;
     document.getElementById('chatDetailContent').hidden = false;
@@ -501,14 +439,63 @@ async function refreshConversationList() {
     }
 }
 
+function describeSelectedAdminFiles(files = []) {
+    if (!files.length) {
+        return '';
+    }
+
+    if (files.length === 1) {
+        return `Đã chọn: ${files[0].name}`;
+    }
+
+    const fileNames = files.slice(0, 2).map((file) => file.name).join(', ');
+    const remaining = files.length - 2;
+    return remaining > 0
+        ? `${files.length} tệp: ${fileNames} và ${remaining} tệp khác`
+        : `${files.length} tệp: ${fileNames}`;
+}
+
+function updateAdminAttachmentPreview() {
+    const fileInput = document.getElementById('adminReplyMediaInput');
+    const preview = document.getElementById('adminReplyAttachmentPreview');
+    const text = document.getElementById('adminReplyAttachmentPreviewText');
+
+    if (!fileInput || !preview || !text) {
+        return;
+    }
+
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) {
+        preview.hidden = true;
+        text.textContent = '';
+        return;
+    }
+
+    preview.hidden = false;
+    text.textContent = describeSelectedAdminFiles(files);
+}
+
+function clearAdminAttachmentSelection() {
+    const fileInput = document.getElementById('adminReplyMediaInput');
+    if (!fileInput) {
+        return;
+    }
+
+    fileInput.value = '';
+    updateAdminAttachmentPreview();
+}
+
 async function adminReply(event) {
     event.preventDefault();
 
     const input = document.getElementById('adminReplyInput');
     const sendButton = document.getElementById('adminReplySendBtn');
+    const attachButton = document.getElementById('adminReplyAttachBtn');
+    const fileInput = document.getElementById('adminReplyMediaInput');
     const message = input.value.trim();
+    const files = Array.from(fileInput?.files || []);
 
-    if (!message || !adminChatState.currentConversationId) {
+    if ((!message && !files.length) || !adminChatState.currentConversationId) {
         return;
     }
 
@@ -518,13 +505,21 @@ async function adminReply(event) {
     }
 
     sendButton.disabled = true;
+    if (attachButton) {
+        attachButton.disabled = true;
+    }
+
+    const formData = new FormData();
+    formData.append('message', message);
+    files.forEach((file) => {
+        formData.append('messageMedia', file);
+    });
 
     try {
         const response = await fetch(`/chat/admin/${adminChatState.currentConversationId}/reply`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ message })
+            body: formData
         });
 
         const data = await response.json();
@@ -533,6 +528,7 @@ async function adminReply(event) {
         }
 
         input.value = '';
+        clearAdminAttachmentSelection();
         adminChatState.currentConversation = data.conversation;
         upsertConversation(data.conversation, [data.message]);
         await refreshCurrentConversation({ forceScroll: true });
@@ -542,6 +538,9 @@ async function adminReply(event) {
     }
 
     sendButton.disabled = false;
+    if (attachButton) {
+        attachButton.disabled = false;
+    }
     input.focus();
 }
 
@@ -605,6 +604,7 @@ function clearCurrentConversation() {
     adminChatState.currentConversationId = null;
     adminChatState.currentConversation = null;
     stopDetailPolling();
+    clearAdminAttachmentSelection();
 
     document.getElementById('chatDetailEmpty').hidden = false;
     document.getElementById('chatDetailContent').hidden = true;
@@ -635,6 +635,10 @@ function startListPolling() {
 }
 
 function initAdminChat() {
+    if (!window.ChatRichMessage) {
+        return;
+    }
+
     document.getElementById('adminChatSearchInput')?.addEventListener('input', (event) => {
         updateChatSearch(event.target.value);
     });
@@ -642,6 +646,12 @@ function initAdminChat() {
     document.getElementById('chatModeBtn')?.addEventListener('click', toggleCurrentConversationMode);
     document.getElementById('chatStatusBtn')?.addEventListener('click', toggleCurrentConversationStatus);
     document.getElementById('adminReplyForm')?.addEventListener('submit', adminReply);
+    document.getElementById('adminReplyAttachBtn')?.addEventListener('click', () => {
+        document.getElementById('adminReplyMediaInput')?.click();
+    });
+    document.getElementById('adminReplyMediaInput')?.addEventListener('change', updateAdminAttachmentPreview);
+    document.getElementById('adminReplyAttachmentClearBtn')?.addEventListener('click', clearAdminAttachmentSelection);
+
     renderConversationList();
     startListPolling();
 

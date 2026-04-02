@@ -59,6 +59,7 @@ router.get('/sales', adminController.getSales);
 router.post('/sales', adminController.createSale);
 router.put('/sales/:id', adminController.updateSale);
 router.delete('/sales/:id', adminController.deleteSale);
+router.post('/sales/:id/email', adminController.sendSaleAnnouncementEmail);
 
 // Vouchers
 router.get('/vouchers', adminController.getVouchers);
@@ -66,6 +67,7 @@ router.post('/vouchers', adminController.createVoucher);
 router.put('/vouchers/:id', adminController.updateVoucher);
 router.delete('/vouchers/:id', adminController.deleteVoucher);
 router.put('/vouchers/:id/status', adminController.updateVoucherStatus);
+router.post('/vouchers/:id/email', adminController.sendVoucherAnnouncementEmail);
 
 // Email Marketing
 router.post('/email/send', adminController.sendMarketingEmail);

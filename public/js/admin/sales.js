@@ -1,5 +1,6 @@
 const adminSalesBootstrap = JSON.parse(document.getElementById('adminSalesBootstrap').textContent);
 const adminSaleProducts = adminSalesBootstrap.products || [];
+const adminSubscriberCount = Number(adminSalesBootstrap.subscriberCount || 0);
 const adminSales = adminSalesBootstrap.sales || [];
 const adminSalesMap = new Map(adminSales.map((sale) => [Number(sale.id), sale]));
 
@@ -113,6 +114,21 @@ function closeModal(modalId) {
     }
 }
 
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+async function confirmAction(options) {
+    if (typeof showGlobalConfirm === 'function') {
+        return showGlobalConfirm(options);
+    }
+
+    return window.confirm(options?.message || 'Bạn có chắc muốn tiếp tục?');
+}
+
 function editSale(saleId) {
     const sale = adminSalesMap.get(Number(saleId));
     const form = document.getElementById('editSaleForm');
@@ -136,7 +152,7 @@ function editSale(saleId) {
         showSale: true
     });
 
-    document.getElementById('editSaleModal').style.display = 'flex';
+    openModal('editSaleModal');
 }
 
 async function submitEditSale(event) {
@@ -184,44 +200,128 @@ async function submitEditSale(event) {
     }
 }
 
-function deleteSale(saleId) {
-    const modal = document.getElementById('confirmModal');
-    modal.style.display = 'flex';
+async function deleteSale(saleId) {
+    const sale = adminSalesMap.get(Number(saleId));
+    const confirmed = await confirmAction({
+        title: 'Xóa khuyến mãi',
+        message: `Bạn có chắc muốn ngừng khuyến mãi ${sale?.name || 'này'} không?`,
+        confirmText: 'Xóa',
+        cancelText: 'Hủy',
+        tone: 'danger'
+    });
 
-    document.getElementById('confirmYes').onclick = async function() {
-        try {
-            const response = await fetch('/admin/sales/' + saleId, {
-                method: 'DELETE'
-            });
-            const data = await response.json();
+    if (!confirmed) {
+        return;
+    }
 
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Không thể xóa khuyến mãi');
-            }
+    try {
+        const response = await fetch('/admin/sales/' + saleId, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
 
-            showToast(data.message || 'Đã ngừng khuyến mãi');
-            setTimeout(() => location.reload(), 500);
-        } catch (error) {
-            showToast(error.message || 'Có lỗi xảy ra', 'error');
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Không thể xóa khuyến mãi');
         }
 
-        modal.style.display = 'none';
-    };
-
-    document.getElementById('confirmNo').onclick = function() {
-        modal.style.display = 'none';
-    };
-}
-
-function toggleSection(titleElement) {
-    const section = titleElement.closest('.admin-section--collapsible');
-    section.classList.toggle('is-open');
+        showToast(data.message || 'Đã ngừng khuyến mãi');
+        setTimeout(() => location.reload(), 500);
+    } catch (error) {
+        showToast(error.message || 'Có lỗi xảy ra', 'error');
+    }
 }
 
 function showToast(message, type = 'success') {
     if (typeof showGlobalToast === 'function') {
         showGlobalToast(message, type);
     }
+}
+
+function openAddSaleForm() {
+    const section = document.querySelector('.admin-section--collapsible');
+    if (section) {
+        section.classList.add('is-open');
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+function openSaleEmailModal(saleId = null) {
+    const select = document.getElementById('saleEmailSelect');
+
+    if (!select || adminSubscriberCount <= 0 || adminSales.length === 0) {
+        showToast('Hiện chưa thể gửi email thông báo cho khuyến mãi.', 'warning');
+        return;
+    }
+
+    if (saleId && adminSalesMap.has(Number(saleId))) {
+        select.value = String(saleId);
+    }
+
+    openModal('saleEmailModal');
+}
+
+async function sendSaleAnnouncementEmail(saleId) {
+    const response = await fetch('/admin/sales/' + saleId + '/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+
+    if (!response.ok || data.success === false) {
+        throw new Error(data.message || 'Không thể gửi email thông báo');
+    }
+
+    showToast(data.message || 'Đã gửi email thông báo', data.toastType || 'success');
+    closeModal('saleEmailModal');
+}
+
+async function confirmAndSendSaleEmail(saleId) {
+    if (adminSubscriberCount <= 0) {
+        showToast('Hiện chưa có người dùng đăng ký nhận bản tin.', 'warning');
+        return;
+    }
+
+    const sale = adminSalesMap.get(Number(saleId));
+    if (!sale) {
+        showToast('Không tìm thấy khuyến mãi để gửi email', 'error');
+        return;
+    }
+
+    const confirmed = await confirmAction({
+        title: 'Gửi email thông báo',
+        message: `Bạn chắc chắn muốn gửi thông báo về khuyến mãi ${sale.name} tới người dùng đã đăng ký chứ?`,
+        confirmText: 'Gửi email',
+        cancelText: 'Hủy'
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await sendSaleAnnouncementEmail(saleId);
+    } catch (error) {
+        showToast(error.message || 'Có lỗi xảy ra', 'error');
+    }
+}
+
+async function submitSaleEmailForm(event) {
+    event.preventDefault();
+
+    const select = document.getElementById('saleEmailSelect');
+    const saleId = Number(select?.value);
+
+    if (!saleId) {
+        showToast('Vui lòng chọn khuyến mãi cần gửi email', 'warning');
+        return;
+    }
+
+    await confirmAndSendSaleEmail(saleId);
+}
+
+function toggleSection(titleElement) {
+    const section = titleElement.closest('.admin-section--collapsible');
+    section.classList.toggle('is-open');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -232,6 +332,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('[data-admin-toggle="section"]').forEach((button) => {
         button.addEventListener('click', () => toggleSection(button));
+    });
+
+    document.querySelectorAll('[data-sale-action="scroll-to-form"]').forEach((button) => {
+        button.addEventListener('click', openAddSaleForm);
+    });
+
+    document.querySelectorAll('[data-sale-action="open-email-modal"]').forEach((button) => {
+        button.addEventListener('click', () => openSaleEmailModal());
     });
 
     document.querySelectorAll('[data-checklist-search]').forEach((input) => {
@@ -252,13 +360,18 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', () => deleteSale(button.dataset.saleId));
     });
 
+    document.querySelectorAll('[data-sale-action="email"]').forEach((button) => {
+        button.addEventListener('click', () => confirmAndSendSaleEmail(button.dataset.saleId));
+    });
+
     document.querySelectorAll('[data-sale-modal-close]').forEach((button) => {
         button.addEventListener('click', () => closeModal(button.dataset.saleModalClose));
     });
 
     document.getElementById('editSaleForm')?.addEventListener('submit', submitEditSale);
+    document.getElementById('saleEmailForm')?.addEventListener('submit', submitSaleEmailForm);
 
-    ['editSaleModal', 'confirmModal'].forEach((modalId) => {
+    ['editSaleModal', 'saleEmailModal'].forEach((modalId) => {
         const modal = document.getElementById(modalId);
         if (!modal) {
             return;

@@ -20,6 +20,8 @@ const Category = require('../models/Category');
 const Banner = require('../models/Banner');
 const Sale = require('../models/Sale');
 const Voucher = require('../models/Voucher');
+const Newsletter = require('../models/Newsletter');
+const pool = require('../config/database');
 const emailService = require('../services/emailService');
 const { attachUploadedImagesToProduct, parseVariantsPayload, syncVariants, validateVariants } = require('../services/adminProductVariantService');
 const upload = require('../middleware/upload');
@@ -81,6 +83,44 @@ function parseOptionalDate(value, fieldName) {
     }
 
     return parsed;
+}
+
+function parseChecked(value) {
+    return value === true || value === 'true' || value === 'on' || value === 1 || value === '1';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatCurrencyVnd(value) {
+    const amount = Number(value) || 0;
+    return `${amount.toLocaleString('vi-VN')}đ`;
+}
+
+function formatDateTimeVi(value) {
+    if (!value) {
+        return 'Không giới hạn';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return 'Không giới hạn';
+    }
+
+    return date.toLocaleString('vi-VN');
+}
+
+function buildAdminNoticeRedirect(path, message, type = 'success') {
+    const params = new URLSearchParams();
+    params.set('notice', message);
+    params.set('notice_type', type);
+    return `${path}?${params.toString()}`;
 }
 
 function buildOrderTrackingPayload(body = {}) {
@@ -149,6 +189,185 @@ async function attachVoucherAssignments(vouchers) {
     }));
 }
 
+async function getAnnouncementRecipients() {
+    const subscribers = await Newsletter.getActiveSubscribers();
+    const seenEmails = new Set();
+
+    return subscribers.reduce((list, subscriber) => {
+        const email = String(subscriber?.email || '').trim().toLowerCase();
+        if (!email || seenEmails.has(email)) {
+            return list;
+        }
+
+        seenEmails.add(email);
+        const fallbackName = email.split('@')[0] || 'bạn';
+
+        list.push({
+            email,
+            full_name: String(subscriber?.user_name || fallbackName).trim() || 'bạn'
+        });
+
+        return list;
+    }, []);
+}
+
+function buildVoucherAnnouncementCampaign(voucher) {
+    const baseUrl = String(process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const valueText = voucher.type === 'percentage'
+        ? `Giảm ${voucher.value}%${voucher.max_discount_amount ? `, tối đa ${formatCurrencyVnd(voucher.max_discount_amount)}` : ''}`
+        : `Giảm ${formatCurrencyVnd(voucher.value)}`;
+    const minOrderText = Number(voucher.min_order_amount || 0) > 0
+        ? `Đơn tối thiểu ${formatCurrencyVnd(voucher.min_order_amount)}`
+        : 'Không yêu cầu giá trị đơn tối thiểu';
+    const scopeText = voucher.applicable_product_count > 0
+        ? `Áp dụng cho ${voucher.applicable_product_count} sản phẩm được chọn`
+        : 'Áp dụng cho toàn bộ sản phẩm đủ điều kiện';
+    const descriptionHtml = voucher.description
+        ? `<p style="margin:0 0 18px;color:#65594d;line-height:1.7;">${escapeHtml(voucher.description)}</p>`
+        : '';
+
+    return {
+        subject: `Voucher mới từ WIND OF FALL: ${voucher.code}`,
+        content: `
+            <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #211d18;">
+                <div style="text-align:center; margin-bottom: 24px;">
+                    <h1 style="margin:0; font-size:28px; letter-spacing:0.04em;">WIND OF FALL</h1>
+                    <p style="margin:8px 0 0; color:#7c6f60;">Thông báo ưu đãi mới dành cho {{name}}</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #f8e3a2, #f4c95d); border-radius: 24px; padding: 28px; margin-bottom: 20px;">
+                    <p style="margin:0 0 10px; font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#7b5d1a;">Voucher mới</p>
+                    <h2 style="margin:0 0 14px; font-size:30px; color:#1f1a13;">${escapeHtml(voucher.code)}</h2>
+                    <p style="margin:0; font-size:18px; font-weight:700; color:#402d05;">${escapeHtml(valueText)}</p>
+                </div>
+                ${descriptionHtml}
+                <table style="width:100%; border-collapse:collapse; margin-bottom: 24px;">
+                    <tr>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">Phạm vi</td>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(scopeText)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">Điều kiện</td>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(minOrderText)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">Thời gian áp dụng</td>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(formatDateTimeVi(voucher.start_date))} - ${escapeHtml(formatDateTimeVi(voucher.end_date))}</td>
+                    </tr>
+                </table>
+                <div style="text-align:center;">
+                    <a href="${baseUrl}" style="display:inline-block; padding:14px 28px; border-radius:999px; background:#17120c; color:#fff; text-decoration:none; font-weight:700;">Mua sắm ngay</a>
+                </div>
+            </div>
+        `
+    };
+}
+
+function buildSaleAnnouncementCampaign(sale) {
+    const baseUrl = String(process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const valueText = sale.type === 'percentage'
+        ? `Giảm ${sale.value}%`
+        : `Giảm ${formatCurrencyVnd(sale.value)}`;
+    const scopeText = sale.assigned_product_count > 0
+        ? `Đang áp dụng cho ${sale.assigned_product_count} sản phẩm`
+        : 'Chưa gắn sản phẩm cụ thể';
+    const descriptionHtml = sale.description
+        ? `<p style="margin:0 0 18px;color:#65594d;line-height:1.7;">${escapeHtml(sale.description)}</p>`
+        : '';
+
+    return {
+        subject: `Khuyến mãi mới từ WIND OF FALL: ${sale.name}`,
+        content: `
+            <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #211d18;">
+                <div style="text-align:center; margin-bottom: 24px;">
+                    <h1 style="margin:0; font-size:28px; letter-spacing:0.04em;">WIND OF FALL</h1>
+                    <p style="margin:8px 0 0; color:#7c6f60;">Ưu đãi mới dành cho {{name}}</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #fde3b7, #f8b35b); border-radius: 24px; padding: 28px; margin-bottom: 20px;">
+                    <p style="margin:0 0 10px; font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#9a5412;">Chương trình khuyến mãi</p>
+                    <h2 style="margin:0 0 14px; font-size:30px; color:#1f1a13;">${escapeHtml(sale.name)}</h2>
+                    <p style="margin:0; font-size:18px; font-weight:700; color:#6f2c12;">${escapeHtml(valueText)}</p>
+                </div>
+                ${descriptionHtml}
+                <table style="width:100%; border-collapse:collapse; margin-bottom: 24px;">
+                    <tr>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">Phạm vi</td>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(scopeText)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">Thời gian áp dụng</td>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(formatDateTimeVi(sale.start_date))} - ${escapeHtml(formatDateTimeVi(sale.end_date))}</td>
+                    </tr>
+                </table>
+                <div style="text-align:center;">
+                    <a href="${baseUrl}" style="display:inline-block; padding:14px 28px; border-radius:999px; background:#17120c; color:#fff; text-decoration:none; font-weight:700;">Khám phá bộ sưu tập</a>
+                </div>
+            </div>
+        `
+    };
+}
+
+async function sendCampaignToSubscribers(campaign) {
+    const recipients = await getAnnouncementRecipients();
+    if (recipients.length === 0) {
+        return { total: 0, success: 0 };
+    }
+
+    return emailService.sendMarketingEmail(recipients, campaign);
+}
+
+async function sendVoucherAnnouncement(voucher) {
+    return sendCampaignToSubscribers(buildVoucherAnnouncementCampaign(voucher));
+}
+
+async function sendSaleAnnouncement(sale) {
+    return sendCampaignToSubscribers(buildSaleAnnouncementCampaign(sale));
+}
+
+async function getDashboardAnalytics() {
+    const [orderStatusRows, productRows, userRows] = await Promise.all([
+        pool.query('SELECT status, COUNT(*) AS total FROM orders GROUP BY status'),
+        pool.query(`
+            SELECT
+                SUM(CASE WHEN is_active = TRUE AND stock_quantity > 0 THEN 1 ELSE 0 END) AS live_products,
+                SUM(CASE WHEN is_active = TRUE AND stock_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock_products,
+                SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END) AS hidden_products
+            FROM products
+        `),
+        pool.query('SELECT COUNT(*) AS total_users FROM users')
+    ]);
+
+    const orderStatusCounts = {
+        pending: 0,
+        confirmed: 0,
+        processing: 0,
+        shipping: 0,
+        delivered: 0,
+        cancelled: 0
+    };
+
+    (orderStatusRows[0] || []).forEach((row) => {
+        const status = Order.normalizeStatus(row.status);
+        if (Object.prototype.hasOwnProperty.call(orderStatusCounts, status)) {
+            orderStatusCounts[status] = Number(row.total || 0);
+        }
+    });
+
+    const productStats = productRows[0]?.[0] || {};
+    const productStatusCounts = {
+        live: Number(productStats.live_products || 0),
+        out_of_stock: Number(productStats.out_of_stock_products || 0),
+        hidden: Number(productStats.hidden_products || 0)
+    };
+
+    return {
+        orderStatusCounts,
+        processingOrders: orderStatusCounts.confirmed + orderStatusCounts.processing + orderStatusCounts.shipping,
+        productStatusCounts,
+        totalUsers: Number(userRows[0]?.[0]?.total_users || 0),
+        totalProducts: productStatusCounts.live + productStatusCounts.out_of_stock + productStatusCounts.hidden
+    };
+}
+
 // =============================================================================
 // DASHBOARD - Trang tổng quan
 // =============================================================================
@@ -166,6 +385,23 @@ async function attachVoucherAssignments(vouchers) {
  */
 exports.getDashboard = async (req, res) => {
     try {
+        const allowedRecentLimits = new Set([5, 10, 15]);
+        const requestedRecentLimit = Number.parseInt(req.query.recent_limit, 10);
+        const recentLimit = allowedRecentLimits.has(requestedRecentLimit) ? requestedRecentLimit : 10;
+        let dashboardCharts = {
+            orderStatus: {
+                pending: 0,
+                processing: 0,
+                delivered: 0,
+                cancelled: 0
+            },
+            productStatus: {
+                live: 0,
+                out_of_stock: 0,
+                hidden: 0
+            }
+        };
+
         // Khởi tạo object thống kê với giá trị mặc định
         let stats = {
             total_orders: 0,        // Tổng số đơn hàng
@@ -177,12 +413,38 @@ exports.getDashboard = async (req, res) => {
             month_revenue: 0        // Doanh thu tháng này
         };
         let recentOrders = [];      // Danh sách đơn hàng gần đây
+        stats.total_users = 0;
+        stats.total_products = 0;
+        stats.completed_orders = 0;
+        stats.processing_orders = 0;
 
         try {
             // Lấy thống kê từ database
-            stats = await Order.getStatistics() || stats;
-            // Lấy 10 đơn hàng gần nhất
-            recentOrders = await Order.findAll({ limit: 10, offset: 0 }) || [];
+            const [orderStats, dashboardAnalytics, recentOrdersData] = await Promise.all([
+                Order.getStatistics(),
+                getDashboardAnalytics(),
+                Order.findAll({ limit: 15, offset: 0 })
+            ]);
+
+            stats = {
+                ...stats,
+                ...(orderStats || {}),
+                total_users: dashboardAnalytics.totalUsers,
+                total_products: dashboardAnalytics.totalProducts,
+                completed_orders: Number(orderStats?.delivered_orders || 0),
+                processing_orders: dashboardAnalytics.processingOrders
+            };
+
+            recentOrders = recentOrdersData || [];
+            dashboardCharts = {
+                orderStatus: {
+                    pending: dashboardAnalytics.orderStatusCounts.pending,
+                    processing: dashboardAnalytics.processingOrders,
+                    delivered: dashboardAnalytics.orderStatusCounts.delivered,
+                    cancelled: dashboardAnalytics.orderStatusCounts.cancelled
+                },
+                productStatus: dashboardAnalytics.productStatusCounts
+            };
         } catch (err) {
             console.error('Dashboard data error:', err);
             // Sử dụng giá trị mặc định nếu lỗi
@@ -192,6 +454,8 @@ exports.getDashboard = async (req, res) => {
         res.render('admin/dashboard', {
             stats,
             recentOrders,
+            recentLimit,
+            dashboardCharts,
             user: req.user,
             currentPage: 'dashboard'
         });
@@ -826,10 +1090,17 @@ exports.getSales = async (req, res) => {
     try {
         let sales = [];
         let products = [];
+        let subscriberCount = 0;
         const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
         try {
-            sales = await attachSaleAssignments(await Sale.findAll(searchQuery ? { search: searchQuery } : {}));
-            products = await Product.findAll({ limit: 1000, offset: 0, sort_by: 'name', sort_order: 'ASC' });
+            const [salesData, productsData, totalSubscribers] = await Promise.all([
+                Sale.findAll(searchQuery ? { search: searchQuery } : {}),
+                Product.findAll({ limit: 1000, offset: 0, sort_by: 'name', sort_order: 'ASC' }),
+                Newsletter.countActive()
+            ]);
+            sales = await attachSaleAssignments(salesData);
+            products = productsData;
+            subscriberCount = totalSubscribers;
         } catch (err) {
             console.error('Sales data error:', err);
         }
@@ -838,6 +1109,7 @@ exports.getSales = async (req, res) => {
         res.render('admin/sales', {
             sales,
             products,
+            subscriberCount,
             searchQuery,
             user: req.user,
             currentPage: 'sales'
@@ -868,6 +1140,7 @@ exports.createSale = async (req, res) => {
     try {
         const { name, description, type, value, start_date, end_date } = req.body;
         const productIds = parseSelectedProductIds(req.body);
+        const shouldNotifySubscribers = parseChecked(req.body.notify_subscribers);
 
         // Tạo khuyến mãi trong database
         const sale = await Sale.create({
@@ -881,10 +1154,29 @@ exports.createSale = async (req, res) => {
 
         await Sale.assignProducts(sale.id, productIds);
 
+        if (shouldNotifySubscribers) {
+            const [createdSale] = await attachSaleAssignments([await Sale.findById(sale.id)]);
+            const result = await sendSaleAnnouncement(createdSale);
+
+            if (result.total === 0) {
+                return res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi nhưng hiện chưa có người đăng ký nhận thông báo.', 'warning'));
+            }
+
+            if (result.success === result.total) {
+                return res.redirect(buildAdminNoticeRedirect('/admin/sales', `Đã tạo khuyến mãi và gửi email thành công tới ${result.success} người đăng ký.`));
+            }
+
+            if (result.success > 0) {
+                return res.redirect(buildAdminNoticeRedirect('/admin/sales', `Đã tạo khuyến mãi và gửi email tới ${result.success}/${result.total} người đăng ký.`, 'warning'));
+            }
+
+            return res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi nhưng chưa gửi email thành công. Vui lòng kiểm tra cấu hình email.', 'error'));
+        }
+
         // Redirect về trang danh sách
-        res.redirect('/admin/sales');
+        res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi thành công.'));
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.redirect(buildAdminNoticeRedirect('/admin/sales', error.message || 'Không thể tạo khuyến mãi.', 'error'));
     }
 };
 
@@ -939,6 +1231,52 @@ exports.deleteSale = async (req, res) => {
         res.json({ success: true, message: 'Đã ngừng khuyến mãi' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.sendSaleAnnouncementEmail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existingSale = await Sale.findById(id);
+
+        if (!existingSale) {
+            return res.status(404).json({ success: false, message: 'Khuyến mãi không tồn tại', toastType: 'error' });
+        }
+
+        const [sale] = await attachSaleAssignments([existingSale]);
+        const result = await sendSaleAnnouncement(sale);
+
+        if (result.total === 0) {
+            return res.json({
+                success: true,
+                toastType: 'warning',
+                message: 'Hiện chưa có người dùng nào đăng ký nhận thông báo.'
+            });
+        }
+
+        if (result.success === result.total) {
+            return res.json({
+                success: true,
+                toastType: 'success',
+                message: `Đã gửi email thông báo khuyến mãi tới ${result.success} người đăng ký.`
+            });
+        }
+
+        if (result.success > 0) {
+            return res.json({
+                success: true,
+                toastType: 'warning',
+                message: `Đã gửi email tới ${result.success}/${result.total} người đăng ký.`
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            toastType: 'error',
+            message: 'Không gửi được email thông báo. Vui lòng kiểm tra cấu hình email.'
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message, toastType: 'error' });
     }
 };
 
@@ -1168,10 +1506,17 @@ exports.getVouchers = async (req, res) => {
     try {
         let vouchers = [];
         let products = [];
+        let subscriberCount = 0;
         const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
         try {
-            vouchers = await attachVoucherAssignments(await Voucher.findAll(searchQuery ? { search: searchQuery } : {}));
-            products = await Product.findAll({ limit: 1000, offset: 0, sort_by: 'name', sort_order: 'ASC' });
+            const [voucherData, productsData, totalSubscribers] = await Promise.all([
+                Voucher.findAll(searchQuery ? { search: searchQuery } : {}),
+                Product.findAll({ limit: 1000, offset: 0, sort_by: 'name', sort_order: 'ASC' }),
+                Newsletter.countActive()
+            ]);
+            vouchers = await attachVoucherAssignments(voucherData);
+            products = productsData;
+            subscriberCount = totalSubscribers;
         } catch (err) {
             console.error('Vouchers data error:', err);
         }
@@ -1179,6 +1524,7 @@ exports.getVouchers = async (req, res) => {
         res.render('admin/vouchers', {
             vouchers,
             products,
+            subscriberCount,
             searchQuery,
             user: req.user,
             currentPage: 'vouchers'
@@ -1199,8 +1545,9 @@ exports.createVoucher = async (req, res) => {
             user_limit, start_date, end_date, is_active
         } = req.body;
         const productIds = parseSelectedProductIds(req.body);
+        const shouldNotifySubscribers = parseChecked(req.body.notify_subscribers);
 
-        await Voucher.create({
+        const createdVoucher = await Voucher.create({
             code,
             name,
             description,
@@ -1216,10 +1563,29 @@ exports.createVoucher = async (req, res) => {
             product_ids: productIds
         });
 
-        res.redirect('/admin/vouchers');
+        if (shouldNotifySubscribers) {
+            const [voucher] = await attachVoucherAssignments([await Voucher.findById(createdVoucher.id)]);
+            const result = await sendVoucherAnnouncement(voucher);
+
+            if (result.total === 0) {
+                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher nhưng hiện chưa có người đăng ký nhận thông báo.', 'warning'));
+            }
+
+            if (result.success === result.total) {
+                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', `Đã tạo voucher và gửi email thành công tới ${result.success} người đăng ký.`));
+            }
+
+            if (result.success > 0) {
+                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', `Đã tạo voucher và gửi email tới ${result.success}/${result.total} người đăng ký.`, 'warning'));
+            }
+
+            return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher nhưng chưa gửi email thành công. Vui lòng kiểm tra cấu hình email.', 'error'));
+        }
+
+        res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher thành công.'));
     } catch (error) {
         console.error('Create voucher error:', error);
-        res.redirect('/admin/vouchers?error=' + encodeURIComponent(error.message));
+        res.redirect(buildAdminNoticeRedirect('/admin/vouchers', error.message || 'Không thể tạo voucher.', 'error'));
     }
 };
 
@@ -1282,6 +1648,52 @@ exports.updateVoucherStatus = async (req, res) => {
         res.json({ success: true, message: 'Voucher status updated' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.sendVoucherAnnouncementEmail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existingVoucher = await Voucher.findById(id);
+
+        if (!existingVoucher) {
+            return res.status(404).json({ success: false, message: 'Voucher không tồn tại', toastType: 'error' });
+        }
+
+        const [voucher] = await attachVoucherAssignments([existingVoucher]);
+        const result = await sendVoucherAnnouncement(voucher);
+
+        if (result.total === 0) {
+            return res.json({
+                success: true,
+                toastType: 'warning',
+                message: 'Hiện chưa có người dùng nào đăng ký nhận thông báo.'
+            });
+        }
+
+        if (result.success === result.total) {
+            return res.json({
+                success: true,
+                toastType: 'success',
+                message: `Đã gửi email thông báo voucher tới ${result.success} người đăng ký.`
+            });
+        }
+
+        if (result.success > 0) {
+            return res.json({
+                success: true,
+                toastType: 'warning',
+                message: `Đã gửi email tới ${result.success}/${result.total} người đăng ký.`
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            toastType: 'error',
+            message: 'Không gửi được email thông báo. Vui lòng kiểm tra cấu hình email.'
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message, toastType: 'error' });
     }
 };
 

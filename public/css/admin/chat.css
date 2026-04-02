@@ -379,7 +379,7 @@ body.admin-body.admin-body--chat {
     white-space: normal;
 }
 
-.admin-chat-msg__content a {
+.admin-chat-msg__content .chat-rich-text a {
     color: #2563eb;
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -387,12 +387,17 @@ body.admin-body.admin-body--chat {
     word-break: break-all;
 }
 
-.admin-chat-msg--admin .admin-chat-msg__content a {
+.admin-chat-msg--admin .chat-rich-text a {
     color: #fff;
 }
 
-.admin-chat-msg--bot .admin-chat-msg__content a {
+.admin-chat-msg--bot .chat-rich-text a {
     color: #1d4ed8;
+}
+
+.admin-chat-msg--admin .chat-rich-media__item {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .admin-chat-msg__time {
@@ -409,8 +414,33 @@ body.admin-body.admin-body--chat {
 }
 
 .admin-chat-detail__input form {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 10px;
+}
+
+.admin-chat-detail__attach-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    background: #fff;
+    color: var(--admin-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.admin-chat-detail__attach-btn:hover {
+    border-color: rgba(59, 130, 246, 0.35);
+    background: #f8fafc;
+}
+
+.admin-chat-detail__attach-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .admin-chat-detail__input input {
@@ -438,6 +468,34 @@ body.admin-body.admin-body--chat {
     margin: 8px 0 0 0;
     font-size: 12px;
     color: var(--admin-text-muted);
+}
+
+.admin-chat-detail__attachments {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-bg);
+}
+
+.admin-chat-detail__attachments-text {
+    min-width: 0;
+    font-size: 12px;
+    color: var(--admin-text-secondary);
+    line-height: 1.45;
+}
+
+.admin-chat-detail__attachments-clear {
+    border: none;
+    background: transparent;
+    color: var(--admin-accent);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 @media (max-width: 1024px) {
@@ -492,6 +550,6 @@ body.admin-body.admin-body--chat {
     }
 
     .admin-chat-detail__input form {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 }

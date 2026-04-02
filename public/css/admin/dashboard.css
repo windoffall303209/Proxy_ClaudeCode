@@ -19,6 +19,35 @@
     margin: 0;
 }
 
+.stats-grid .stat-card {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: start;
+}
+
+.stats-grid .stat-card__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    margin-bottom: 0;
+}
+
+.stats-grid .stat-card__content {
+    min-width: 0;
+}
+
+.stats-grid .stat-card__label {
+    margin: 0;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+}
+
+.stats-grid .stat-card__value {
+    margin: 4px 0 0;
+}
+
 /* Stat Card with Icon */
 .stat-card__icon {
     width: 48px;
@@ -154,6 +183,14 @@
 
 /* Responsive */
 @media (max-width: 1024px) {
+    .dashboard-analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-chart-card__canvas {
+        height: 260px;
+    }
+
     .quick-actions {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -175,10 +212,18 @@
         align-items: flex-start;
         gap: 12px;
     }
+
+    .dashboard-chart-legend {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-chart-card__canvas {
+        height: 220px;
+    }
 }
 
 .stats-grid--spaced {
-    margin-top: 24px;
+    margin-top: 14px;
 }
 
 .stat-card__icon--users {
@@ -204,4 +249,141 @@
 .admin-section--spaced,
 .admin-empty--spaced {
     margin-top: 32px;
+}
+
+.dashboard-analytics-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+    gap: 24px;
+    margin-top: 28px;
+}
+
+.dashboard-chart-card {
+    padding: 24px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 250, 242, 0.92));
+    border: 1px solid rgba(204, 191, 167, 0.78);
+    box-shadow: var(--admin-shadow-sm);
+}
+
+.dashboard-chart-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.dashboard-chart-card__title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--admin-text-primary);
+}
+
+.dashboard-chart-card__text {
+    margin: 8px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--admin-text-secondary);
+}
+
+.dashboard-chart-card__canvas {
+    position: relative;
+    height: 280px;
+}
+
+.dashboard-chart-card__canvas canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.dashboard-chart-card__canvas--compact {
+    height: 240px;
+}
+
+.dashboard-chart-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.dashboard-chart-legend__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(247, 242, 232, 0.9);
+    color: var(--admin-text-secondary);
+    font-size: 13px;
+}
+
+.dashboard-chart-legend__item strong {
+    margin-left: auto;
+    color: var(--admin-text-primary);
+    font-size: 15px;
+}
+
+.dashboard-chart-legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+.dashboard-chart-legend__dot--pending {
+    background: #d98b1b;
+}
+
+.dashboard-chart-legend__dot--processing {
+    background: #2f6fd3;
+}
+
+.dashboard-chart-legend__dot--delivered {
+    background: #2e8b57;
+}
+
+.dashboard-chart-legend__dot--cancelled {
+    background: #c54f35;
+}
+
+.dashboard-chart-legend__dot--live {
+    background: #e2b84b;
+}
+
+.dashboard-chart-legend__dot--stockout {
+    background: #d98b1b;
+}
+
+.dashboard-chart-legend__dot--hidden {
+    background: #b0a18d;
+}
+
+.dashboard-section__subtext {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--admin-text-secondary);
+}
+
+.dashboard-section__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.dashboard-limit-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--admin-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.dashboard-limit-form__select {
+    min-width: 110px;
 }

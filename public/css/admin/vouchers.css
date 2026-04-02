@@ -11,6 +11,13 @@
 }
 
 /* Voucher Info */
+.voucher-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 220px;
+}
+
 .voucher-info {
     display: flex;
     flex-direction: column;
@@ -76,6 +83,11 @@
 .admin-form__checkbox label {
     cursor: pointer;
     color: var(--admin-text-primary);
+}
+
+.admin-form__checkbox--stacked {
+    align-items: flex-start;
+    padding-bottom: 4px;
 }
 
 /* Textarea */
@@ -328,9 +340,32 @@
 }
 
 .admin-actions-group {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(2, 44px);
+    gap: 10px;
     justify-content: center;
+}
+
+.admin-actions-group .admin-btn,
+.admin-actions-group .admin-btn--warning,
+.admin-actions-group .admin-btn--success,
+.admin-actions-group .admin-btn--mail {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-actions-group .admin-btn svg,
+.admin-actions-group .admin-btn--warning svg,
+.admin-actions-group .admin-btn--success svg,
+.admin-actions-group .admin-btn--mail svg {
+    width: 18px;
+    height: 18px;
 }
 
 /* Collapsible Section */

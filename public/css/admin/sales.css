@@ -124,6 +124,11 @@
     color: var(--admin-text-primary);
 }
 
+.admin-form__checkbox--stacked {
+    align-items: flex-start;
+    padding-bottom: 4px;
+}
+
 .admin-product-checklist__toolbar {
     display: flex;
     gap: 12px;
@@ -291,6 +296,15 @@
     display: flex;
     gap: 8px;
     justify-content: center;
+    flex-wrap: wrap;
+}
+
+.admin-actions-group .admin-btn--mail {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 14px;
 }
 
 /* Collapsible Section */

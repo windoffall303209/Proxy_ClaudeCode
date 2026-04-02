@@ -52,4 +52,25 @@ function initAdminMobileMenu() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', initAdminMobileMenu);
+function initAdminNoticeToast() {
+    const params = new URLSearchParams(window.location.search);
+    const notice = params.get('notice');
+
+    if (!notice || typeof showGlobalToast !== 'function') {
+        return;
+    }
+
+    const type = params.get('notice_type') || 'info';
+    showGlobalToast(notice, type);
+
+    params.delete('notice');
+    params.delete('notice_type');
+
+    const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, '', nextUrl);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initAdminMobileMenu();
+    initAdminNoticeToast();
+});

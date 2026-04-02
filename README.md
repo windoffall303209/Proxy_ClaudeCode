@@ -62,9 +62,11 @@ mysql -u root -p tmdt_ecommerce < database/seed.sql
 
 ```bash
 mysql -u root -p tmdt_ecommerce < migrations/001_add_image_id_to_variants.sql
+mysql -u root -p tmdt_ecommerce < migrations/007_add_rich_media_to_chat_messages.sql
 ```
 
-Migration này chỉ thêm cột `image_id` cho bảng `product_variants`. Ứng dụng hiện tại chưa expose UI/API đầy đủ để quản lý ảnh theo variant.
+Migration `001` thêm cột `image_id` cho bảng `product_variants`.
+Migration `007` thêm `message_type` và `message_metadata` cho chat để hỗ trợ media và card sản phẩm.
 
 ### 5. Tạo file môi trường
 
@@ -130,6 +132,7 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 MAX_FILE_SIZE=5242880
+MAX_CHAT_FILE_SIZE=31457280
 
 # VNPay
 VNPAY_TMN_CODE=your_vnpay_tmn_code
@@ -149,12 +152,15 @@ MOMO_NOTIFY_URL=http://localhost:3000/orders/payment/momo/callback
 OPENAI_API_KEY=your_openai_compatible_key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
+OPENAI_VISION_MODEL=gpt-4o-mini
 AI_PROVIDER=openai
 # GEMINI_API_KEY=your_gemini_api_key
 # GEMINI_MODEL=gemini-2.0-flash
 ```
 
 ## Ghi chú quan trọng
+
+Luu y: neu dung endpoint NVIDIA NIM (`https://integrate.api.nvidia.com/v1`) thi nen dat rieng `OPENAI_VISION_MODEL=meta/llama-3.2-90b-vision-instruct`, vi model text nhu `meta/llama-3.3-70b-instruct` khong phan tich duoc anh.
 
 ### Email
 Code hiện tại chỉ dùng Resend trong `services/emailService.js`.

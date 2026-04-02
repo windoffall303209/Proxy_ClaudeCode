@@ -1,5 +1,6 @@
 const Chat = require('../models/Chat');
 const Product = require('../models/Product');
+const { describeProductFromImage } = require('../services/chatVisionService');
 
 const CHAT_PRODUCT_KEYWORDS = [
     'ao', 'ao thun', 'ao so mi', 'ao polo', 'quan', 'quan jean', 'jeans', 'kaki',
@@ -13,6 +14,16 @@ const CHAT_SUPPORT_KEYWORDS = [
     'don hang', 'ma don', 'van chuyen', 'giao hang', 'ship', 'thanh toan',
     'doi tra', 'hoan tien', 'bao hanh', 'tai khoan', 'dang nhap', 'dang ky',
     'voucher', 'ma giam', 'khuyen mai', 'loi he thong'
+];
+
+const CHAT_IMAGE_SEARCH_HINTS = [
+    'bang hinh anh', 'bang anh', 'theo anh', 'tu anh', 'gui anh', 'upload anh',
+    'anh san pham', 'hinh san pham', 'photo', 'image'
+];
+
+const CHAT_IMAGE_SEARCH_ACTIONS = [
+    'tim', 'tim kiem', 'tim san pham', 'goi y', 'tu van', 'nhan dien',
+    'so sanh', 'tuong dong', 'co the', 'duoc khong', 'ho tro', 'giup'
 ];
 
 const CHAT_GENDER_RULES = [
@@ -111,6 +122,142 @@ function buildChatSuggestionBlock(products = []) {
         const reason = product.chat_reason ? `, ${product.chat_reason}` : '';
         return `- ${product.name} (${price}${reason}): ${getChatProductPath(product)}`;
     }).join('\n')}`;
+}
+
+function calculateChatDiscountPercent(product) {
+    const basePrice = Number(product?.price || 0);
+    const finalPrice = Number(product?.final_price || product?.price || 0);
+
+    if (!basePrice || finalPrice >= basePrice) {
+        return 0;
+    }
+
+    return Math.max(0, Math.round(((basePrice - finalPrice) / basePrice) * 100));
+}
+
+function serializeChatProductCards(products = []) {
+    return products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        url: getChatProductPath(product),
+        subtitle: product.category_name || 'WIND OF FALL',
+        image: Product.getOptimizedCardImageUrl(product.card_image || product.primary_image),
+        price: Number(product.price || 0),
+        final_price: Number(product.final_price || product.price || 0),
+        discount_percent: calculateChatDiscountPercent(product),
+        reason: product.chat_reason || ''
+    })).filter((product) => product.name && product.url);
+}
+
+function buildChatAttachmentMetadata(mediaItems = []) {
+    return mediaItems.map((media, index) => ({
+        mediaType: media.mediaType || media.media_type || 'image',
+        mediaUrl: media.mediaUrl || media.media_url || '',
+        publicId: media.publicId || media.public_id || null,
+        mimeType: media.mimeType || media.mime_type || null,
+        originalName: media.originalName || media.original_name || null,
+        width: Number(media.width) || null,
+        height: Number(media.height) || null,
+        bytes: Number(media.bytes) || 0,
+        format: media.format || null,
+        displayOrder: Number.isInteger(Number(media.displayOrder ?? media.display_order))
+            ? Number(media.displayOrder ?? media.display_order)
+            : index
+    })).filter((media) => media.mediaUrl);
+}
+
+function buildChatMessageType(messageText, metadata = {}) {
+    const hasMessage = Boolean(normalizeMessage(messageText));
+    const hasProducts = Array.isArray(metadata.products) && metadata.products.length > 0;
+    const hasAttachments = Array.isArray(metadata.attachments) && metadata.attachments.length > 0;
+
+    if (hasProducts) {
+        return 'product_cards';
+    }
+
+    if (hasAttachments) {
+        return 'media';
+    }
+
+    return hasMessage ? 'text' : 'media';
+}
+
+function buildChatMessageMetadata({ attachments = [], products = [] } = {}) {
+    const normalizedAttachments = buildChatAttachmentMetadata(attachments);
+    const normalizedProducts = serializeChatProductCards(products);
+
+    if (!normalizedAttachments.length && !normalizedProducts.length) {
+        return null;
+    }
+
+    return {
+        attachments: normalizedAttachments,
+        products: normalizedProducts
+    };
+}
+
+function getFirstChatImageAttachment(mediaItems = []) {
+    return (Array.isArray(mediaItems) ? mediaItems : []).find((media) => (media.mediaType || media.media_type) === 'image') || null;
+}
+
+function buildMediaAnalysisMessage(userMessage, imageAnalysis) {
+    const baseMessage = normalizeMessage(userMessage);
+    const analysisParts = [];
+
+    if (imageAnalysis?.description) {
+        analysisParts.push(`Mo ta tu anh: ${imageAnalysis.description}`);
+    }
+
+    if (imageAnalysis?.searchQuery) {
+        analysisParts.push(`Tu khoa tim kiem: ${imageAnalysis.searchQuery}`);
+    }
+
+    if (!baseMessage && !analysisParts.length) {
+        return '';
+    }
+
+    if (!analysisParts.length) {
+        return baseMessage;
+    }
+
+    return [baseMessage, analysisParts.join('. ')].filter(Boolean).join('\n');
+}
+
+function buildMediaOnlyFallbackReply(mediaItems = []) {
+    const hasImage = mediaItems.some((media) => (media.mediaType || media.media_type) === 'image');
+
+    if (hasImage) {
+        return 'Mình đã nhận ảnh của bạn. Bạn có thể nói thêm màu sắc, kiểu dáng hoặc ngân sách để mình lọc sản phẩm sát hơn.';
+    }
+
+    return 'Mình đã nhận media của bạn. Hiện mình đối sánh tốt nhất với ảnh sản phẩm, nên bạn có thể gửi thêm ảnh rõ món đồ hoặc mô tả ngắn để mình gợi ý chính xác hơn.';
+}
+
+function isChatImageSearchIntent(normalizedMessage) {
+    if (!normalizedMessage) {
+        return false;
+    }
+
+    const hasImageHint = CHAT_IMAGE_SEARCH_HINTS.some((phrase) => includesChatPhrase(normalizedMessage, phrase));
+    if (!hasImageHint) {
+        return false;
+    }
+
+    return CHAT_IMAGE_SEARCH_ACTIONS.some((phrase) => includesChatPhrase(normalizedMessage, phrase))
+        || CHAT_PRODUCT_KEYWORDS.some((phrase) => includesChatPhrase(normalizedMessage, phrase));
+}
+
+function buildChatImageSearchQuickReply(normalizedMessage, uploadedMedia = []) {
+    if (uploadedMedia.length > 0 || !isChatImageSearchIntent(normalizedMessage)) {
+        return null;
+    }
+
+    return {
+        text: 'Duoc nhe. Ban cu gui anh san pham ngay trong o chat, minh se dua tren hinh anh de tim cac mau tuong dong. Neu co them mo ta nhu mau sac, kieu dang hoac ngan sach thi ket qua se sat hon.',
+        messageType: 'text',
+        metadata: null
+    };
 }
 
 function isGreetingOnlyMessage(normalizedMessage) {
@@ -619,14 +766,14 @@ async function getChatSuggestedProducts(userMessage, messages = []) {
         const fallbackGenderSafeProducts = rankedProducts.filter((product) => getChatAudienceMatch(product, intent));
 
         if (genderSafeProducts.length) {
-            return genderSafeProducts.slice(0, 3);
+            return genderSafeProducts.slice(0, 6);
         }
 
         if (fallbackGenderSafeProducts.length) {
-            return fallbackGenderSafeProducts.slice(0, 3);
+            return fallbackGenderSafeProducts.slice(0, 6);
         }
 
-        return (stockProducts.length ? stockProducts : rankedProducts).slice(0, 3);
+        return (stockProducts.length ? stockProducts : rankedProducts).slice(0, 6);
     } catch (error) {
         console.error('Chat suggestion lookup error:', error);
         return [];
@@ -660,11 +807,12 @@ async function buildEnhancedChatSystemPrompt(messages, userMessage) {
 Nhiem vu: tu van san pham, ho tro mua hang va giai dap cau hoi co ban ve don hang.
 
 Quy tac:
-- Tra loi bang tieng Viet, than thien, ngan gon, toi da 4 cau chinh truoc khi liet ke link
+- Tra loi bang tieng Viet, than thien, ngan gon, toi da 4 cau chinh
 - Khong bua thong tin ve gia, ton kho, chinh sach hay khuyen mai
 - Chi tu van dua tren thong tin co trong ngu canh
-- Neu gioi thieu san pham cu the, chi dung dung ten san pham va dung link co trong ngu canh
-- Khi can gui link cho khach, uu tien dung duong dan noi bo dang /products/slug
+- Neu gioi thieu san pham cu the, chi dung dung ten san pham co trong ngu canh
+- Khong can liet ke link raw hay bullet link, he thong se tu render card san pham khi co goi y
+- Neu khach hoi co ho tro tim san pham bang hinh anh hay khong, khang dinh la co va moi khach gui anh truc tiep trong khung chat
 - Neu khach moi noi chung chung ma chua noi ro loai san pham, khong goi y san pham hay link ngay; hay hoi 1 cau lam ro ngan gon ve kieu do, phong cach hoac ngan sach
 - Neu khach can ho tro sau hon, noi ro admin se ho tro them
 
@@ -765,72 +913,84 @@ async function callEnhancedGemini(systemPrompt, messages, userMessage) {
     return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 }
 
-function attachChatSuggestedLinks(reply, suggestedProducts = []) {
+function finalizeChatReply(reply, suggestedProducts = [], options = {}) {
     const baseReply = normalizeMessage(reply);
+    const fallbackReply = options.fallbackReply
+        || 'Xin lỗi, tôi chưa thể xử lý yêu cầu này lúc này. Admin sẽ hỗ trợ bạn thêm.';
 
     if (!baseReply) {
-        return suggestedProducts.length
-            ? buildChatSuggestionBlock(suggestedProducts)
-            : 'Xin l\u1ed7i, t\u00f4i ch\u01b0a th\u1ec3 x\u1eed l\u00fd y\u00eau c\u1ea7u n\u00e0y l\u00fac n\u00e0y. Admin s\u1ebd h\u1ed7 tr\u1ee3 b\u1ea1n th\u00eam.';
+        if (options.imageAnalysis?.matchSummary) {
+            return options.imageAnalysis.matchSummary;
+        }
+
+        if (suggestedProducts.length) {
+            return `Mình đã chọn được ${suggestedProducts.length} sản phẩm phù hợp để bạn tham khảo ngay bên dưới.`;
+        }
+
+        return fallbackReply;
     }
 
-    if (!suggestedProducts.length || CHAT_PRODUCT_LINK_PATTERN.test(baseReply)) {
-        return baseReply;
-    }
-
-    return `${baseReply}\n\n${buildChatSuggestionBlock(suggestedProducts)}`;
+    return baseReply;
 }
 
-async function callEnhancedAI(messages, userMessage) {
+async function callEnhancedAI(messages, userMessage, options = {}) {
     const provider = process.env.AI_PROVIDER || 'openai';
     const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
     const hasGemini = Boolean(process.env.GEMINI_API_KEY);
     const { prompt, suggestedProducts } = await buildEnhancedChatSystemPrompt(messages, userMessage);
+    const fallbackReply = options.fallbackReply
+        || (options.attachments?.length ? buildMediaOnlyFallbackReply(options.attachments) : null)
+        || 'Xin lỗi, tôi chưa thể xử lý yêu cầu này lúc này. Admin sẽ hỗ trợ bạn thêm.';
+
+    const buildResult = (reply) => {
+        const text = finalizeChatReply(reply, suggestedProducts, {
+            imageAnalysis: options.imageAnalysis,
+            fallbackReply
+        });
+
+        return {
+            text,
+            suggestedProducts,
+            messageType: buildChatMessageType(text, { products: suggestedProducts }),
+            metadata: buildChatMessageMetadata({ products: suggestedProducts })
+        };
+    };
 
     if (!hasOpenAI && !hasGemini) {
-        return attachChatSuggestedLinks(
-            'Xin l\u1ed7i, h\u1ec7 th\u1ed1ng AI \u0111ang t\u1ea1m b\u1ea3o tr\u00ec. Admin s\u1ebd h\u1ed7 tr\u1ee3 b\u1ea1n s\u1edbm nh\u1ea5t c\u00f3 th\u1ec3.',
-            suggestedProducts
-        );
+        return buildResult('Xin lỗi, hệ thống AI đang tạm bảo trì. Admin sẽ hỗ trợ bạn sớm nhất có thể.');
     }
 
     try {
         if (provider === 'gemini' && hasGemini) {
             const geminiResult = await callEnhancedGemini(prompt, messages, userMessage);
             if (geminiResult) {
-                return attachChatSuggestedLinks(geminiResult, suggestedProducts);
+                return buildResult(geminiResult);
             }
 
             if (hasOpenAI) {
                 const fallback = await callEnhancedOpenAI(prompt, messages, userMessage);
                 if (fallback) {
-                    return attachChatSuggestedLinks(fallback, suggestedProducts);
+                    return buildResult(fallback);
                 }
             }
         } else if (hasOpenAI) {
             const openAIResult = await callEnhancedOpenAI(prompt, messages, userMessage);
             if (openAIResult) {
-                return attachChatSuggestedLinks(openAIResult, suggestedProducts);
+                return buildResult(openAIResult);
             }
 
             if (hasGemini) {
                 const fallback = await callEnhancedGemini(prompt, messages, userMessage);
                 if (fallback) {
-                    return attachChatSuggestedLinks(fallback, suggestedProducts);
+                    return buildResult(fallback);
                 }
             }
         }
 
-        return attachChatSuggestedLinks(
-            'Xin l\u1ed7i, t\u00f4i ch\u01b0a th\u1ec3 x\u1eed l\u00fd y\u00eau c\u1ea7u n\u00e0y l\u00fac n\u00e0y. Admin s\u1ebd h\u1ed7 tr\u1ee3 b\u1ea1n th\u00eam.',
-            suggestedProducts
-        );
+        return buildResult('');
     } catch (error) {
         console.error('Enhanced AI API error:', error);
-        return attachChatSuggestedLinks(
-            'Xin l\u1ed7i, h\u1ec7 th\u1ed1ng \u0111ang b\u1eadn. Admin s\u1ebd h\u1ed7 tr\u1ee3 b\u1ea1n th\u00eam trong \u00edt ph\u00fat n\u1eefa.',
-            suggestedProducts
-        );
+        return buildResult('Xin lỗi, hệ thống đang bận. Admin sẽ hỗ trợ bạn thêm trong ít phút nữa.');
     }
 }
 
@@ -1012,20 +1172,49 @@ function resolveGuestName(req) {
     return 'Khách';
 }
 
+async function buildCustomerAiContext(message, uploadedMedia = []) {
+    const normalizedMessage = normalizeMessage(message);
+    const firstImage = getFirstChatImageAttachment(uploadedMedia);
+    const imageAnalysis = firstImage ? await describeProductFromImage(firstImage, normalizedMessage) : null;
+    const effectiveMessage = normalizeMessage(buildMediaAnalysisMessage(normalizedMessage, imageAnalysis));
+
+    return {
+        imageAnalysis,
+        effectiveMessage,
+        fallbackReply: uploadedMedia.length > 0
+            ? buildMediaOnlyFallbackReply(uploadedMedia)
+            : null
+    };
+}
+
 exports.sendMessage = async (req, res) => {
     try {
         const message = normalizeMessage(req.body.message);
-        if (!message) {
-            return res.status(400).json({ success: false, message: 'Tin nhắn không được để trống' });
+        const normalizedMessage = normalizeChatText(message);
+        const uploadedMedia = Array.isArray(req.uploadedChatMedia) ? req.uploadedChatMedia : [];
+
+        if (!message && !uploadedMedia.length) {
+            return res.status(400).json({ success: false, message: 'Tin nhắn hoặc media không được để trống' });
         }
 
         const userId = req.user ? req.user.id : null;
         const sessionId = req.sessionID;
         const guestName = resolveGuestName(req);
+        const customerMessageMetadata = buildChatMessageMetadata({ attachments: uploadedMedia });
+        const customerMessageType = buildChatMessageType(message, { attachments: uploadedMedia });
 
         const conversation = await Chat.findOrCreateConversation(userId, sessionId, guestName);
         const previousMessages = await Chat.getMessages(conversation.id, 20);
-        const customerMessage = await Chat.addMessage(conversation.id, 'customer', userId, message);
+        const customerMessage = await Chat.addMessage(
+            conversation.id,
+            'customer',
+            userId,
+            message,
+            {
+                messageType: customerMessageType,
+                metadata: customerMessageMetadata
+            }
+        );
 
         if (conversation.handling_mode === 'manual') {
             const hasAdminMessage = previousMessages.some((item) => item.sender_type === 'admin');
@@ -1041,8 +1230,29 @@ exports.sendMessage = async (req, res) => {
             });
         }
 
-        const aiResponse = await callEnhancedAI(previousMessages, message);
-        const botMessage = await Chat.addMessage(conversation.id, 'bot', null, aiResponse);
+        const aiContext = await buildCustomerAiContext(message, uploadedMedia);
+        const quickReply = buildChatImageSearchQuickReply(normalizedMessage, uploadedMedia);
+        const aiResponse = quickReply || (aiContext.effectiveMessage
+            ? await callEnhancedAI(previousMessages, aiContext.effectiveMessage, {
+                attachments: uploadedMedia,
+                imageAnalysis: aiContext.imageAnalysis,
+                fallbackReply: aiContext.fallbackReply
+            })
+            : {
+                text: aiContext.fallbackReply || 'Mình đã nhận media của bạn. Bạn mô tả thêm giúp mình để mình gợi ý sản phẩm sát hơn nhé.',
+                messageType: 'text',
+                metadata: null
+            });
+        const botMessage = await Chat.addMessage(
+            conversation.id,
+            'bot',
+            null,
+            aiResponse.text,
+            {
+                messageType: aiResponse.messageType,
+                metadata: aiResponse.metadata
+            }
+        );
 
         return res.json({
             success: true,
@@ -1148,9 +1358,10 @@ exports.adminReply = async (req, res) => {
     try {
         const conversationId = req.params.id;
         const message = normalizeMessage(req.body.message);
+        const uploadedMedia = Array.isArray(req.uploadedChatMedia) ? req.uploadedChatMedia : [];
 
-        if (!message) {
-            return res.status(400).json({ success: false, message: 'Tin nhắn không được để trống' });
+        if (!message && !uploadedMedia.length) {
+            return res.status(400).json({ success: false, message: 'Tin nhắn hoặc media không được để trống' });
         }
 
         const conversation = await Chat.getConversationById(conversationId);
@@ -1163,7 +1374,16 @@ exports.adminReply = async (req, res) => {
         }
 
         await Chat.setHandlingMode(conversationId, 'manual');
-        const adminMessage = await Chat.addMessage(conversationId, 'admin', req.user.id, message);
+        const adminMessage = await Chat.addMessage(
+            conversationId,
+            'admin',
+            req.user.id,
+            message,
+            {
+                messageType: buildChatMessageType(message, { attachments: uploadedMedia }),
+                metadata: buildChatMessageMetadata({ attachments: uploadedMedia })
+            }
+        );
         const updatedConversation = await Chat.getConversationById(conversationId);
 
         return res.json({
