@@ -1,10 +1,13 @@
+
 const Chat = require('../models/Chat');
 const Product = require('../models/Product');
 const { describeProductFromImage } = require('../services/chatVisionService');
+const { retrieveChatRagContext } = require('../services/chatRagService');
+const productVisualEmbeddingService = require('../services/productVisualEmbeddingService');
 
 const CHAT_PRODUCT_KEYWORDS = [
     'ao', 'ao thun', 'ao so mi', 'ao polo', 'quan', 'quan jean', 'jeans', 'kaki',
-    'dam', 'vay', 'chan vay', 'hoodie', 'jacket', 'outfit', 'phoi do',
+    'dam', 'vay', 'chan vay', 'croptop', 'crop top', 'hoodie', 'jacket', 'outfit', 'phoi do',
     'thoi trang', 'mac di lam', 'di lam', 'cong so', 'di choi', 'size', 'mau',
     'goi y', 'tu van', 'phu hop', 'tim san pham', 'do nam', 'do nu',
     'nam', 'nu', 'tre em', 'be trai', 'be gai'
@@ -41,6 +44,7 @@ const CHAT_OCCASION_RULES = [
 
 const CHAT_CATEGORY_RULES = [
     { id: 'shirt', family: 'top', generic: true, label: '\u00e1o', searchPhrase: 'ao', keywords: ['ao'] },
+    { id: 'croptop', family: 'top', generic: false, label: '\u00e1o croptop', searchPhrase: 'ao croptop', keywords: ['ao croptop', 'croptop', 'crop top'] },
     { id: 'shirt-office', family: 'top', generic: false, label: '\u00e1o s\u01a1 mi', searchPhrase: 'ao so mi', keywords: ['ao so mi', 'so mi', 'shirt', 'oxford'] },
     { id: 'shirt-polo', family: 'top', generic: false, label: '\u00e1o polo', searchPhrase: 'ao polo', keywords: ['ao polo', 'polo'] },
     { id: 'shirt-tee', family: 'top', generic: false, label: '\u00e1o thun', searchPhrase: 'ao thun', keywords: ['ao thun', 'thun', 't-shirt', 'tee'] },
@@ -53,11 +57,27 @@ const CHAT_CATEGORY_RULES = [
     { id: 'skirt', family: 'dress', generic: false, label: 'v\u00e1y', searchPhrase: 'vay', keywords: ['vay', 'chan vay', 'skirt'] }
 ];
 
+const CHAT_COLOR_RULES = [
+    { id: 'yellow', label: 'v\u00e0ng', searchPhrase: 'vang', keywords: ['mau vang', 'vang', 'yellow'] },
+    { id: 'black', label: '\u0111en', searchPhrase: 'den', keywords: ['mau den', 'den', 'black'] },
+    { id: 'white', label: 'tr\u1eafng', searchPhrase: 'trang', keywords: ['mau trang', 'trang', 'white'] },
+    { id: 'blue', label: 'xanh', searchPhrase: 'xanh', keywords: ['mau xanh', 'xanh', 'xanh duong', 'xanh bien', 'blue'] },
+    { id: 'green', label: 'xanh l\u00e1', searchPhrase: 'xanh la', keywords: ['mau xanh la', 'xanh la', 'xanh reu', 'green'] },
+    { id: 'pink', label: 'h\u1ed3ng', searchPhrase: 'hong', keywords: ['mau hong', 'hong', 'pink'] },
+    { id: 'gray', label: 'x\u00e1m', searchPhrase: 'xam', keywords: ['mau xam', 'xam', 'ghi', 'gray', 'grey'] },
+    { id: 'brown', label: 'n\u00e2u', searchPhrase: 'nau', keywords: ['mau nau', 'nau', 'brown'] },
+    { id: 'beige', label: 'be/kem', searchPhrase: 'kem', keywords: ['mau kem', 'kem', 'be', 'beige', 'cream'] },
+    { id: 'orange', label: 'cam', searchPhrase: 'cam', keywords: ['mau cam', 'cam', 'orange'] },
+    { id: 'red', label: '\u0111\u1ecf', searchPhrase: 'do', keywords: ['mau do', 'ao do', 'quan do', 'vay do', 'dam do', 'red'] },
+    { id: 'purple', label: 't\u00edm', searchPhrase: 'tim', keywords: ['mau tim', 'ao tim', 'quan tim', 'vay tim', 'dam tim', 'purple'] }
+];
+
 const CHAT_STOP_WORDS = new Set([
     'shop', 'minh', 'toi', 'cho', 'voi', 'can', 'muon', 'tim', 'goi', 'y', 'giup',
     'tu', 'van', 'san', 'pham', 'loai', 'cua', 'nay', 'kia', 'dep', 'mac', 'mua',
     'mot', 'nhung', 'dang', 'roi', 'nhe', 'a', 'ah', 'ha', 'nua', 'tam', 'khoang',
-    'duoi', 'tren', 'tu', 'den'
+    'duoi', 'tren', 'tu', 'den', 'ban', 'de', 'xuat', 'cac', 'trong', 'gia',
+    'neu', 'ko', 'khong', 'du', 'thi', 'co', 'the', 'chiec', 'danh', 'item', 'top'
 ]);
 
 const CHAT_GREETING_TOKENS = new Set([
@@ -106,9 +126,29 @@ function buildChatProductContext(title, products = []) {
 
     return `\n\n${title}:\n${products.map((product) => {
         const price = formatChatCurrency(product.final_price || product.price);
+        const originalPrice = Number(product.price || 0);
+        const finalPrice = Number(product.final_price || product.price || 0);
+        const priceStr = (finalPrice < originalPrice)
+            ? `${formatChatCurrency(finalPrice)} (giam tu ${formatChatCurrency(originalPrice)})`
+            : formatChatCurrency(finalPrice);
         const stock = Number(product.stock_quantity || 0);
+        const colors = String(product.variant_colors || '').trim();
+        const sizes = String(product.variant_sizes || '').trim();
         const reason = product.chat_reason ? ` | Phu hop: ${product.chat_reason}` : '';
-        return `- ${product.name} | Gia: ${price} | Ton kho: ${stock}${reason} | Link: ${getChatProductPath(product)}`;
+        const colorStr = colors ? ` | Mau: ${colors}` : '';
+        const sizeStr = sizes ? ` | Size: ${sizes}` : '';
+        return `- ${product.name} | Gia: ${priceStr} | Ton kho: ${stock}${colorStr}${sizeStr}${reason} | Link: ${getChatProductPath(product)}`;
+    }).join('\n')}`;
+}
+
+function buildChatKnowledgeContext(title, chunks = []) {
+    if (!chunks.length) {
+        return '';
+    }
+
+    return `\n\n${title}:\n${chunks.map((chunk) => {
+        const heading = chunk?.title ? `${chunk.title}: ` : '';
+        return `- ${heading}${chunk.content}`;
     }).join('\n')}`;
 }
 
@@ -346,6 +386,11 @@ function parseChatMoneyAmount(rawAmount, rawUnit) {
         return Math.round(amount);
     }
 
+    // In chat budget shorthand, users often omit "k" for ranges like 300-500.
+    if (!unit && amount >= 100 && amount < 1000) {
+        return Math.round(amount * 1000);
+    }
+
     return null;
 }
 
@@ -354,7 +399,7 @@ function parseChatBudget(normalizedMessage) {
         return null;
     }
 
-    const rangeMatch = normalizedMessage.match(/(\d+(?:[.,]\d+)?)\s*(trieu|tr|m|k|nghin|ngan)?\s*(?:-|den|toi)\s*(\d+(?:[.,]\d+)?)\s*(trieu|tr|m|k|nghin|ngan)?/);
+    const rangeMatch = normalizedMessage.match(/(\d+(?:[.,]\d+)?)\s*(trieu|tr|m|k|nghin|ngan)?\s*(?:->|–|-|den|toi|tới|đến)\s*(\d+(?:[.,]\d+)?)\s*(trieu|tr|m|k|nghin|ngan)?/);
     if (rangeMatch) {
         const first = parseChatMoneyAmount(rangeMatch[1], rangeMatch[2]);
         const second = parseChatMoneyAmount(rangeMatch[3], rangeMatch[4] || rangeMatch[2]);
@@ -426,6 +471,47 @@ function extractChatTerms(normalizedMessage) {
         );
 }
 
+function detectChatColors(normalizedMessage) {
+    if (!normalizedMessage) {
+        return [];
+    }
+
+    return CHAT_COLOR_RULES.filter((color) =>
+        color.keywords.some((keyword) => includesChatPhrase(normalizedMessage, keyword))
+    );
+}
+
+function getChatRequestedProductLimit(userMessage, fallbackLimit = 6) {
+    const normalizedMessage = normalizeChatText(userMessage);
+    const requestPattern = /\b(?:goi y|de xuat|tu van|chon|liet ke|show|tim|tim kiem|xem|cho)\b/;
+    const quantityPattern = /\b(\d{1,2})\s+(?:san pham|mau|ao|quan|dam|vay|set|item|mon)\b/;
+    const match = normalizedMessage.match(quantityPattern);
+
+    if (!match || !requestPattern.test(normalizedMessage)) {
+        return fallbackLimit;
+    }
+
+    return Math.max(1, Math.min(10, Number.parseInt(match[1], 10) || fallbackLimit));
+}
+
+function getChatMatchedColors(product, intent) {
+    if (!Array.isArray(intent?.colors) || !intent.colors.length) {
+        return [];
+    }
+
+    const productColorText = normalizeChatText([
+        product?.variant_colors,
+        product?.name,
+        product?.description
+    ].filter(Boolean).join(' '));
+
+    return intent.colors.filter((color) => includesChatPhrase(productColorText, color.searchPhrase));
+}
+
+function hasChatColorMatch(product, intent) {
+    return getChatMatchedColors(product, intent).length > 0;
+}
+
 function buildChatSearchQueries(intent, userMessage) {
     const queries = [];
     const compactTokens = [];
@@ -434,6 +520,7 @@ function buildChatSearchQueries(intent, userMessage) {
     if (intent.gender) {
         compactTokens.push(intent.gender.searchPhrase);
     }
+    intent.colors.forEach((color) => compactTokens.push(color.searchPhrase));
     if (intent.occasion) {
         compactTokens.push(intent.occasion.searchPhrase);
     }
@@ -447,6 +534,10 @@ function buildChatSearchQueries(intent, userMessage) {
 
     if (intent.categories[0] && intent.gender) {
         queries.push(`${intent.categories[0].searchPhrase} ${intent.gender.searchPhrase}`.trim());
+    }
+
+    if (intent.categories[0] && intent.colors[0]) {
+        queries.push(`${intent.categories[0].searchPhrase} ${intent.colors[0].searchPhrase}`.trim());
     }
 
     if (typeof userMessage === 'string' && userMessage.trim()) {
@@ -477,16 +568,21 @@ function buildChatIntent(userMessage) {
     const gender = detectChatRule(normalizedMessage, CHAT_GENDER_RULES);
     const occasion = detectChatRule(normalizedMessage, CHAT_OCCASION_RULES);
     const categories = detectChatCategories(normalizedMessage);
+    const colors = detectChatColors(normalizedMessage);
     const budget = parseChatBudget(normalizedMessage);
     const focusTerms = extractChatTerms(normalizedMessage);
+    const imageGuided = includesChatPhrase(normalizedMessage, 'mo ta tu anh')
+        || includesChatPhrase(normalizedMessage, 'tu khoa tim kiem');
 
     const intent = {
         normalizedMessage,
         gender,
         occasion,
         categories,
+        colors,
         budget,
-        focusTerms
+        focusTerms,
+        imageGuided
     };
 
     intent.searchQueries = buildChatSearchQueries(intent, userMessage);
@@ -531,11 +627,15 @@ function buildChatIntentFromContext(messages = [], userMessage = '') {
         categories: currentIntent.categories.length
             ? currentIntent.categories
             : (getLastChatIntentValue(priorCustomerIntents, (intent) => intent.categories) || []),
+        colors: currentIntent.colors.length
+            ? currentIntent.colors
+            : (getLastChatIntentValue(priorCustomerIntents, (intent) => intent.colors) || []),
         budget: currentIntent.budget || getLastChatIntentValue(priorCustomerIntents, (intent) => intent.budget),
         focusTerms: mergeChatFocusTerms(
             currentIntent.focusTerms,
             getLastChatIntentValue(priorCustomerIntents, (intent) => intent.focusTerms) || []
-        )
+        ),
+        imageGuided: currentIntent.imageGuided || Boolean(getLastChatIntentValue(priorCustomerIntents, (intent) => intent.imageGuided))
     };
 
     mergedIntent.searchQueries = buildChatSearchQueries(mergedIntent, userMessage);
@@ -543,8 +643,27 @@ function buildChatIntentFromContext(messages = [], userMessage = '') {
     return mergedIntent;
 }
 
+function hasChatContextualSuggestionSignals(intent) {
+    let signalCount = 0;
+
+    if (intent?.gender) {
+        signalCount += 1;
+    }
+
+    if (intent?.occasion) {
+        signalCount += 1;
+    }
+
+    if (intent?.budget) {
+        signalCount += 1;
+    }
+
+    return signalCount >= 2;
+}
+
 function canChatDirectlySuggestProducts(intent) {
-    return Array.isArray(intent?.categories) && intent.categories.length > 0;
+    return (Array.isArray(intent?.categories) && intent.categories.length > 0)
+        || hasChatContextualSuggestionSignals(intent);
 }
 
 function buildChatIntentSummary(intent) {
@@ -556,6 +675,9 @@ function buildChatIntentSummary(intent) {
     if (intent.categories.length) {
         parts.push(`loai san pham: ${intent.categories.map((item) => item.label).join(', ')}`);
     }
+    if (intent.colors.length) {
+        parts.push(`mau uu tien: ${intent.colors.map((item) => item.label).join(', ')}`);
+    }
     if (intent.occasion) {
         parts.push(`muc dich mac: ${intent.occasion.label}`);
     }
@@ -566,47 +688,119 @@ function buildChatIntentSummary(intent) {
     return parts.length ? `\n\nNhu cau khach hien tai:\n- ${parts.join('\n- ')}` : '';
 }
 
-async function collectChatCandidateProducts(intent, userMessage) {
+async function collectChatCandidateProducts(intent, userMessage, options = {}) {
+    const desiredLimit = Number.parseInt(options.limit, 10) || 6;
+    const fetchLimit = Math.max(30, desiredLimit * 5);
+
+    const chatSearchBase = { accent_sensitive: false };
+    const budgetParams = intent.budget
+        ? {
+            min_price: intent.budget.minPrice || undefined,
+            max_price: intent.budget.maxPrice || undefined,
+            use_final_price: true
+        }
+        : {};
+
     const searchQueries = intent.searchQueries.slice(0, 3);
-    const searchTasks = searchQueries.map((query) =>
-        Product.findAll({
-            search: query,
+    const specificQuery = searchQueries[0] || '';
+    const broaderQueries = searchQueries.slice(1);
+
+    // Query cụ thể nhất trước (vd "ao nu tre vai")
+    const specificProducts = specificQuery
+        ? await Product.findAll({
+            search: specificQuery,
+            ...chatSearchBase,
+            ...budgetParams,
             sort_by: 'sold_count',
             sort_order: 'DESC',
-            limit: 12
+            limit: fetchLimit
         }).catch(() => [])
-    );
+        : [];
 
-    const [searchBuckets, bestSellers, featuredProducts] = await Promise.all([
-        Promise.all(searchTasks),
-        Product.getBestSellers(10).catch(() => []),
-        Product.getFeaturedProducts(8).catch(() => [])
-    ]);
-
-    let fuzzyProducts = [];
-    if (searchBuckets.flat().length < 5) {
-        const fuzzyBuckets = await Promise.all(
-            searchQueries.slice(0, 2).map((query) => Product.search(query || userMessage, 8).catch(() => []))
+    // Chỉ query rộng hơn nếu query cụ thể không đủ kết quả
+    let broaderProducts = [];
+    if (specificProducts.length < desiredLimit * 2 && broaderQueries.length) {
+        const broaderTasks = broaderQueries.map((query) =>
+            Product.findAll({
+                search: query,
+                ...chatSearchBase,
+                ...budgetParams,
+                sort_by: 'sold_count',
+                sort_order: 'DESC',
+                limit: fetchLimit
+            }).catch(() => [])
         );
-        fuzzyProducts = fuzzyBuckets.flat();
+        const broaderBuckets = await Promise.all(broaderTasks);
+        broaderProducts = broaderBuckets.flat();
+    }
+
+    // Fallback không lọc giá khi budget hẹp quá
+    let nobudgetProducts = [];
+    const allProducts = dedupeChatProducts([...specificProducts, ...broaderProducts]);
+    if (allProducts.length < desiredLimit && intent.budget) {
+        nobudgetProducts = await Product.findAll({
+            search: specificQuery || String(userMessage || '').trim(),
+            ...chatSearchBase,
+            sort_by: 'sold_count',
+            sort_order: 'DESC',
+            limit: fetchLimit
+        }).catch(() => []);
     }
 
     return dedupeChatProducts([
-        ...searchBuckets.flat(),
-        ...fuzzyProducts,
-        ...featuredProducts,
-        ...bestSellers
+        ...specificProducts,
+        ...broaderProducts,
+        ...nobudgetProducts
     ]);
 }
 
+function getChatProductText(product, options = {}) {
+    const fields = [
+        product?.name,
+        product?.variant_colors,
+        product?.variant_sizes,
+        product?.category_name,
+        product?.category_slug,
+        product?.sku
+    ];
+
+    if (!options.strictCategory) {
+        fields.splice(1, 0, product?.description);
+    }
+
+    return normalizeChatText(fields.filter(Boolean).join(' '));
+}
+
+function getChatCategoryKeywords(category, options = {}) {
+    if (!options.strict || category.generic) {
+        return category.keywords;
+    }
+
+    return Array.from(new Set([
+        category.searchPhrase,
+        ...category.keywords.filter((keyword) => keyword.includes(' ') || keyword.length >= 6)
+    ]));
+}
+
+function getChatMatchedCategories(product, intent, options = {}) {
+    const productText = getChatProductText(product, {
+        strictCategory: Boolean(options.strict)
+    });
+    return intent.categories.filter((category) =>
+        getChatCategoryKeywords(category, options).some((keyword) => includesChatPhrase(productText, keyword))
+    );
+}
+
+function hasChatStrictCategoryIntent(intent) {
+    return Array.isArray(intent?.categories) && intent.categories.some((category) => !category.generic);
+}
+
+function hasChatStrictCategoryMatch(product, intent) {
+    return getChatMatchedCategories(product, intent, { strict: true }).some((category) => !category.generic);
+}
+
 function scoreChatCandidate(product, intent) {
-    const productText = normalizeChatText([
-        product.name,
-        product.description,
-        product.category_name,
-        product.category_slug,
-        product.sku
-    ].filter(Boolean).join(' '));
+    const productText = getChatProductText(product);
     const finalPrice = Number(product.final_price || product.price || 0);
     const soldCount = Number(product.sold_count || 0);
     const stock = Number(product.stock_quantity || 0);
@@ -619,14 +813,12 @@ function scoreChatCandidate(product, intent) {
         score -= 60;
     }
 
-    const matchedCategory = intent.categories.find((category) =>
-        category.keywords.some((keyword) => includesChatPhrase(productText, keyword))
-    );
+    const matchedCategory = getChatMatchedCategories(product, intent)[0] || null;
     if (matchedCategory) {
         score += 28;
         reasons.push(`h\u1ee3p ki\u1ec3u ${matchedCategory.label}`);
     } else if (intent.categories.length) {
-        score -= 12;
+        score -= intent.imageGuided && hasChatStrictCategoryIntent(intent) ? 40 : 12;
     }
 
     if (intent.gender) {
@@ -652,6 +844,14 @@ function scoreChatCandidate(product, intent) {
         }
     }
 
+    const matchedColors = getChatMatchedColors(product, intent);
+    if (matchedColors.length) {
+        score += 24;
+        reasons.push(`c\u00f3 m\u00e0u ${matchedColors.map((color) => color.label).join(', ')}`);
+    } else if (intent.colors.length) {
+        score -= 28;
+    }
+
     if (intent.budget && finalPrice > 0) {
         if (intent.budget.minPrice && intent.budget.maxPrice && finalPrice >= intent.budget.minPrice && finalPrice <= intent.budget.maxPrice) {
             score += 20;
@@ -675,10 +875,19 @@ function scoreChatCandidate(product, intent) {
         }
     }
 
+    const totalFocusTerms = intent.focusTerms.length;
     const termMatches = intent.focusTerms.reduce((count, term) => (
         includesChatPhrase(productText, term) ? count + 1 : count
     ), 0);
-    score += Math.min(termMatches * 4, 16);
+    const nameText = normalizeChatText((product?.name || '') + ' ' + (product?.category_name || ''));
+    const nameTermMatches = intent.focusTerms.reduce((count, term) => (
+        includesChatPhrase(nameText, term) ? count + 1 : count
+    ), 0);
+    score += nameTermMatches * 15;
+    score += Math.min((termMatches - nameTermMatches) * 3, 12);
+    if (totalFocusTerms > 0 && nameTermMatches === 0) {
+        score -= 30;
+    }
 
     if (product.sale_type) {
         score += 4;
@@ -718,7 +927,7 @@ function shouldChatSuggestProducts(intentOrMessage, messages = []) {
         return false;
     }
 
-    return canChatDirectlySuggestProducts(intent);
+    return true;
 }
 
 function getChatAudienceMatch(product, intent) {
@@ -741,52 +950,280 @@ function getChatAudienceMatch(product, intent) {
     return audience === intent.gender.id || (intent.gender.id === 'kids' && audience === 'kids');
 }
 
-async function getChatSuggestedProducts(userMessage, messages = []) {
+function matchesChatColors(product, intent) {
+    if (!Array.isArray(intent?.colors) || !intent.colors.length) {
+        return true;
+    }
+
+    return hasChatColorMatch(product, intent);
+}
+
+function matchesChatBudget(product, intent) {
+    if (!intent?.budget) {
+        return true;
+    }
+
+    const finalPrice = Number(product.final_price || product.price || 0);
+    if (finalPrice <= 0) {
+        return false;
+    }
+
+    const { minPrice, maxPrice, targetPrice, kind } = intent.budget;
+
+    if (kind === 'range' && minPrice && maxPrice) {
+        return finalPrice >= minPrice && finalPrice <= maxPrice;
+    }
+
+    if (kind === 'max' && maxPrice) {
+        return finalPrice <= maxPrice;
+    }
+
+    if (kind === 'min' && minPrice) {
+        return finalPrice >= minPrice;
+    }
+
+    if (kind === 'target' && targetPrice) {
+        const minTarget = Math.round(targetPrice * 0.8);
+        const maxTarget = Math.round(targetPrice * 1.2);
+        return finalPrice >= minTarget && finalPrice <= maxTarget;
+    }
+
+    return true;
+}
+
+function fuseVisualAndTextImageProducts(visualProducts, textProducts, intent, maxItems) {
+    const cap = Math.max(Number(maxItems) || 6, 1);
+    const tScores = new Map();
+    textProducts.forEach((p, i) => {
+        const denom = Math.max(textProducts.length, 1);
+        tScores.set(p.id, 1 - (i / denom) * 0.9);
+    });
+    const vMap = new Map(visualProducts.map((p) => [p.id, p]));
+    const ids = new Set([...vMap.keys(), ...textProducts.map((p) => p.id)]);
+
+    const merged = [];
+    ids.forEach((id) => {
+        const vp = vMap.get(id);
+        const tp = textProducts.find((p) => p.id === id);
+        const product = vp || tp;
+        if (!product) {
+            return;
+        }
+
+        const v = vp ? Math.max(0, Math.min(1, Number(vp.visual_similarity || 0))) : 0;
+        const t = tScores.has(id) ? tScores.get(id) : 0;
+        let combined;
+        if (v > 0 && t > 0) {
+            combined = 0.55 * v + 0.45 * t;
+        } else if (v > 0) {
+            combined = v * 0.98;
+        } else {
+            combined = t * 0.72;
+        }
+
+        const chat_score = 40 + combined * 58;
+        const ranking = scoreChatCandidate(product, intent);
+        const chat_reason = v > 0.34
+            ? 'gan ve hinh anh va tim kiem'
+            : v > 0
+                ? 'tuong dong hinh anh'
+                : ranking.reason;
+
+        merged.push({
+            ...product,
+            chat_score,
+            chat_reason
+        });
+    });
+
+    return merged.sort((left, right) => right.chat_score - left.chat_score).slice(0, cap * 2);
+}
+
+function selectChatSuggestedProducts(products = [], intent, options = {}) {
+    const maxItems = Number.parseInt(options.limit, 10) || 6;
+    const ignoreBudget = Boolean(options.ignoreBudget);
+    const usePresetScores = Boolean(options.usePresetScores);
+    const rankedProducts = dedupeChatProducts(products)
+        .map((product) => {
+            if (usePresetScores && typeof product.chat_score === 'number') {
+                return {
+                    ...product,
+                    chat_reason: product.chat_reason || 'goi y da ket hop'
+                };
+            }
+            const ranking = scoreChatCandidate(product, intent);
+            return {
+                ...product,
+                chat_reason: ranking.reason,
+                chat_score: ranking.score
+            };
+        })
+        .sort((left, right) => right.chat_score - left.chat_score);
+
+    if (!rankedProducts.length) {
+        return [];
+    }
+
+    let candidates = rankedProducts.filter((product) => Number(product.stock_quantity || 0) > 0);
+    if (!candidates.length) {
+        candidates = rankedProducts;
+    }
+
+    if (intent?.gender) {
+        candidates = candidates.filter((product) => getChatAudienceMatch(product, intent));
+        if (!candidates.length) {
+            return [];
+        }
+    }
+
+    if (hasChatStrictCategoryIntent(intent)) {
+        candidates = candidates.filter((product) => hasChatStrictCategoryMatch(product, intent));
+        if (!candidates.length) {
+            return [];
+        }
+    }
+
+    if (intent?.colors?.length) {
+        candidates = candidates.filter((product) => matchesChatColors(product, intent));
+        if (!candidates.length) {
+            return [];
+        }
+    }
+
+    if (intent?.focusTerms?.length > 0 && !options.skipFocusTermFilter) {
+        const focusMatched = candidates.filter((product) => {
+            const nameText = normalizeChatText((product?.name || '') + ' ' + (product?.category_name || ''));
+            return intent.focusTerms.some((term) => includesChatPhrase(nameText, term));
+        });
+        if (focusMatched.length >= Math.min(maxItems, 2)) {
+            candidates = focusMatched;
+        }
+    }
+
+    if (!ignoreBudget && intent?.budget) {
+        candidates = candidates.filter((product) => matchesChatBudget(product, intent));
+        if (!candidates.length) {
+            return [];
+        }
+    }
+
+    return candidates.slice(0, maxItems);
+}
+
+async function getChatSuggestedProducts(userMessage, messages = [], options = {}) {
     const intent = buildChatIntentFromContext(messages, userMessage);
+    const desiredLimit = Number.parseInt(options.limit, 10) || 6;
 
     if (!shouldChatSuggestProducts(intent) || !canChatDirectlySuggestProducts(intent)) {
         return [];
     }
 
     try {
-        const candidates = await collectChatCandidateProducts(intent, userMessage);
-        const rankedProducts = candidates
-            .map((product) => {
-                const ranking = scoreChatCandidate(product, intent);
-                return {
-                    ...product,
-                    chat_reason: ranking.reason,
-                    chat_score: ranking.score
-                };
-            })
-            .sort((left, right) => right.chat_score - left.chat_score);
-
-        const stockProducts = rankedProducts.filter((product) => Number(product.stock_quantity || 0) > 0);
-        const genderSafeProducts = stockProducts.filter((product) => getChatAudienceMatch(product, intent));
-        const fallbackGenderSafeProducts = rankedProducts.filter((product) => getChatAudienceMatch(product, intent));
-
-        if (genderSafeProducts.length) {
-            return genderSafeProducts.slice(0, 6);
-        }
-
-        if (fallbackGenderSafeProducts.length) {
-            return fallbackGenderSafeProducts.slice(0, 6);
-        }
-
-        return (stockProducts.length ? stockProducts : rankedProducts).slice(0, 6);
+        const candidates = await collectChatCandidateProducts(intent, userMessage, { limit: desiredLimit });
+        return selectChatSuggestedProducts(candidates, intent, { limit: desiredLimit });
     } catch (error) {
         console.error('Chat suggestion lookup error:', error);
         return [];
     }
 }
 
-async function buildEnhancedChatSystemPrompt(messages, userMessage) {
+async function buildEnhancedChatSystemPrompt(messages, userMessage, flowOptions = {}) {
     let featuredContext = '';
     const intent = buildChatIntentFromContext(messages, userMessage);
-    const suggestedProducts = await getChatSuggestedProducts(userMessage, messages);
-    const shouldAskClarifyingQuestion = !canChatDirectlySuggestProducts(intent);
+    const desiredProductLimit = getChatRequestedProductLimit(userMessage, 6);
+    const hasProductIntent = shouldChatSuggestProducts(intent);
+    const canDirectlySuggest = hasProductIntent && canChatDirectlySuggestProducts(intent);
+    const visualImageUrl = flowOptions.visualImageUrl || null;
 
-    if (!shouldAskClarifyingQuestion) {
+    const ragContext = await retrieveChatRagContext(userMessage, {
+        productLimit: desiredProductLimit,
+        knowledgeLimit: 4
+    }).catch((error) => {
+        console.error('Chat RAG retrieval error:', error);
+        return { products: [], knowledge: [] };
+    });
+    const ragSuggestedProducts = canDirectlySuggest
+        ? selectChatSuggestedProducts(ragContext.products || [], intent, { limit: desiredProductLimit })
+        : [];
+    const searchSuggestedProducts = canDirectlySuggest
+        ? await getChatSuggestedProducts(userMessage, messages, { limit: desiredProductLimit })
+        : [];
+    let imageReferenceProducts = [];
+
+    let visualFromEmbeddings = [];
+    if (
+        intent.imageGuided
+        && canDirectlySuggest
+        && visualImageUrl
+        && productVisualEmbeddingService.hasVisualEmbeddingCredentials()
+    ) {
+        visualFromEmbeddings = await productVisualEmbeddingService
+            .searchSimilarProductsByImageUrl(visualImageUrl, desiredProductLimit * 3)
+            .catch((err) => {
+                console.error('Visual embedding search error:', err.message || err);
+                return [];
+            });
+    }
+
+    if (intent.imageGuided && canDirectlySuggest) {
+        if (visualFromEmbeddings.length) {
+            imageReferenceProducts = selectChatSuggestedProducts(visualFromEmbeddings, intent, {
+                limit: 2,
+                ignoreBudget: true,
+                skipFocusTermFilter: true
+            });
+        } else {
+            const imageCandidateProducts = dedupeChatProducts([
+                ...(ragContext.products || []),
+                ...(await collectChatCandidateProducts(intent, userMessage, { limit: desiredProductLimit }).catch(() => []))
+            ]);
+
+            imageReferenceProducts = selectChatSuggestedProducts(imageCandidateProducts, intent, {
+                limit: 2,
+                ignoreBudget: true
+            });
+        }
+    }
+
+    let suggestedProducts;
+    if (intent.imageGuided && canDirectlySuggest && visualFromEmbeddings.length) {
+        const textPool = dedupeChatProducts([
+            ...(ragContext.products || []),
+            ...ragSuggestedProducts,
+            ...searchSuggestedProducts,
+            ...(await collectChatCandidateProducts(intent, userMessage, { limit: desiredProductLimit }).catch(() => []))
+        ]);
+        const fused = fuseVisualAndTextImageProducts(
+            visualFromEmbeddings,
+            textPool,
+            intent,
+            desiredProductLimit
+        );
+        suggestedProducts = selectChatSuggestedProducts(fused, intent, {
+            limit: desiredProductLimit,
+            ignoreBudget: true,
+            usePresetScores: true,
+            skipFocusTermFilter: true
+        });
+    } else if (intent.imageGuided) {
+        suggestedProducts = dedupeChatProducts([
+            ...imageReferenceProducts,
+            ...ragSuggestedProducts,
+            ...searchSuggestedProducts
+        ]).slice(0, desiredProductLimit);
+    } else {
+        suggestedProducts = selectChatSuggestedProducts(
+            dedupeChatProducts([
+                ...ragSuggestedProducts,
+                ...searchSuggestedProducts
+            ]),
+            intent,
+            { limit: desiredProductLimit }
+        );
+    }
+    const shouldAskClarifyingQuestion = hasProductIntent && !canDirectlySuggest;
+
+    if (!hasProductIntent && !shouldAskClarifyingQuestion) {
         try {
             const bestSellers = await Product.getBestSellers(4);
             featuredContext = buildChatProductContext(
@@ -802,6 +1239,10 @@ async function buildEnhancedChatSystemPrompt(messages, userMessage) {
         'San pham nen goi y cho nhu cau hien tai',
         suggestedProducts
     );
+    const knowledgeContext = buildChatKnowledgeContext(
+        'Nguon thong tin uu tien de tra loi',
+        ragContext.knowledge || []
+    );
 
     const prompt = `Ban la tro ly ban hang AI cua cua hang thoi trang "WIND OF FALL".
 Nhiem vu: tu van san pham, ho tro mua hang va giai dap cau hoi co ban ve don hang.
@@ -812,18 +1253,22 @@ Quy tac:
 - Chi tu van dua tren thong tin co trong ngu canh
 - Neu gioi thieu san pham cu the, chi dung dung ten san pham co trong ngu canh
 - Khong can liet ke link raw hay bullet link, he thong se tu render card san pham khi co goi y
+- Khi da co muc "San pham nen goi y cho nhu cau hien tai", chi duoc phep nhac ten cac san pham trong danh sach do
 - Neu khach hoi co ho tro tim san pham bang hinh anh hay khong, khang dinh la co va moi khach gui anh truc tiep trong khung chat
+- Neu trong noi dung co cum "Mo ta tu anh" hoac "Tu khoa tim kiem", nghia la he thong da phan tich anh xong; khong duoc yeu cau khach gui anh lai
+- Voi tim kiem bang anh, chi nen goi y cac san pham cung loai hoac rat gan; neu catalog khong co mau gan, noi ro la shop chua co mau phu hop thay vi dua ra san pham khong lien quan
 - Neu khach moi noi chung chung ma chua noi ro loai san pham, khong goi y san pham hay link ngay; hay hoi 1 cau lam ro ngan gon ve kieu do, phong cach hoac ngan sach
 - Neu khach can ho tro sau hon, noi ro admin se ho tro them
 
 Thong tin cua hang:
 - Chuyen thoi trang nam nu
 - Ho tro thanh toan: COD, VNPay, MoMo
-- Giao hang toan quoc${buildChatIntentSummary(intent)}${featuredContext}${suggestedContext}`;
+- Giao hang toan quoc${knowledgeContext}${buildChatIntentSummary(intent)}${featuredContext}${suggestedContext}`;
 
     return {
         prompt,
-        suggestedProducts
+        suggestedProducts,
+        imageReferenceProducts
     };
 }
 
@@ -918,8 +1363,40 @@ function finalizeChatReply(reply, suggestedProducts = [], options = {}) {
     const fallbackReply = options.fallbackReply
         || 'Xin lỗi, tôi chưa thể xử lý yêu cầu này lúc này. Admin sẽ hỗ trợ bạn thêm.';
 
+    const normalizedReply = normalizeChatText(baseReply);
+    const shouldOverrideImageReply = options.imageAnalysis && (
+        !baseReply ||
+        !suggestedProducts.length ||
+        includesChatPhrase(normalizedReply, 'ho tro tim san pham bang hinh anh') ||
+        includesChatPhrase(normalizedReply, 'gui hinh anh') ||
+        includesChatPhrase(normalizedReply, 'gui anh truc tiep')
+    );
+    const imageReplyClaimsNoMatch = options.imageAnalysis && suggestedProducts.length && (
+        includesChatPhrase(normalizedReply, 'chua co mau') ||
+        includesChatPhrase(normalizedReply, 'khong co mau') ||
+        includesChatPhrase(normalizedReply, 'chua co san pham') ||
+        includesChatPhrase(normalizedReply, 'khong co san pham') ||
+        includesChatPhrase(normalizedReply, 'khong tim thay')
+    );
+
+    if (shouldOverrideImageReply) {
+        if (suggestedProducts.length) {
+            return options.imageAnalysis.matchSummary
+                || 'Dua tren anh ban gui, minh da loc cac mau gan nhat hien co ngay ben duoi de ban de so sanh.';
+        }
+
+        if (options.imageAnalysis?.description) {
+            return `Dua tren anh ban gui, minh nhan ra day la ${options.imageAnalysis.description.toLowerCase()}. Hien shop chua co mau that su gan trong catalog, nen minh khong muon goi y sai cho ban.`;
+        }
+    }
+
+    if (imageReplyClaimsNoMatch) {
+        return options.imageAnalysis.matchSummary
+            || 'Dua tren anh ban gui, minh da loc cac mau gan nhat hien co ngay ben duoi de ban de so sanh.';
+    }
+
     if (!baseReply) {
-        if (options.imageAnalysis?.matchSummary) {
+        if (options.imageAnalysis?.matchSummary && suggestedProducts.length) {
             return options.imageAnalysis.matchSummary;
         }
 
@@ -933,11 +1410,22 @@ function finalizeChatReply(reply, suggestedProducts = [], options = {}) {
     return baseReply;
 }
 
+function getFirstChatImageUrlFromAttachments(attachments = []) {
+    const list = Array.isArray(attachments) ? attachments : [];
+    const img = list.find((item) => (item.mediaType || item.media_type) === 'image');
+    return img?.mediaUrl || img?.media_url || null;
+}
+
 async function callEnhancedAI(messages, userMessage, options = {}) {
     const provider = process.env.AI_PROVIDER || 'openai';
     const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
     const hasGemini = Boolean(process.env.GEMINI_API_KEY);
-    const { prompt, suggestedProducts } = await buildEnhancedChatSystemPrompt(messages, userMessage);
+    const visualImageUrl = getFirstChatImageUrlFromAttachments(options.attachments);
+    const { prompt, suggestedProducts, imageReferenceProducts } = await buildEnhancedChatSystemPrompt(
+        messages,
+        userMessage,
+        { visualImageUrl }
+    );
     const fallbackReply = options.fallbackReply
         || (options.attachments?.length ? buildMediaOnlyFallbackReply(options.attachments) : null)
         || 'Xin lỗi, tôi chưa thể xử lý yêu cầu này lúc này. Admin sẽ hỗ trợ bạn thêm.';
@@ -945,6 +1433,7 @@ async function callEnhancedAI(messages, userMessage, options = {}) {
     const buildResult = (reply) => {
         const text = finalizeChatReply(reply, suggestedProducts, {
             imageAnalysis: options.imageAnalysis,
+            imageReferenceProducts,
             fallbackReply
         });
 

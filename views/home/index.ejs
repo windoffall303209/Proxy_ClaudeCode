@@ -10,7 +10,12 @@
 %>
 
 <% if (banners && banners.length > 0) { %>
-<div id="popupBanner" class="popup-banner">
+<div
+    id="popupBanner"
+    class="popup-banner"
+    data-popup-banner-key="<%= `${banners[0].id || 'banner'}:${banners[0].updated_at || banners[0].image_url || banners[0].title || 'default'}` %>"
+    hidden
+>
     <div class="popup-banner__overlay" data-popup-close></div>
     <div class="popup-banner__content">
         <button class="popup-banner__close" data-popup-close aria-label="Đóng popup">
@@ -166,7 +171,7 @@
 
         <% if (newProducts && newProducts.length > 0) { %>
             <div class="home-products-grid">
-                <% newProducts.slice(0, 8).forEach(product => { %>
+                <% newProducts.slice(0, 10).forEach(product => { %>
                     <%- include('../partials/product-card', { product }) %>
                 <% }) %>
             </div>
@@ -230,7 +235,7 @@
         </div>
 
         <div class="home-products-grid home-products-grid--featured">
-            <% bestSellers.slice(0, 4).forEach(product => { %>
+            <% bestSellers.slice(0, 5).forEach(product => { %>
                 <%- include('../partials/product-card', { product }) %>
             <% }) %>
         </div>

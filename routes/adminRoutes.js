@@ -3,6 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const productImportUpload = require('../middleware/productImportUpload');
 const { uploadToCloud } = require('../middleware/upload');
 
 // All admin routes require authentication and admin role
@@ -20,6 +21,13 @@ router.delete('/categories/:id', adminController.deleteCategory);
 
 // Products
 router.get('/products', adminController.getProducts);
+router.get('/products/export', adminController.exportProducts);
+router.get('/products/import-template', adminController.downloadProductImportTemplate);
+router.post('/products/delete-all', adminController.deleteAllProducts);
+router.post('/products/import', productImportUpload.fields([
+    { name: 'import_file', maxCount: 1 },
+    { name: 'images_zip', maxCount: 1 }
+]), adminController.importProducts);
 router.post('/products', upload.any(), uploadToCloud, adminController.createProduct);
 router.put('/products/:id', upload.any(), uploadToCloud, adminController.updateProduct);
 router.delete('/products/:id', adminController.deleteProduct);

@@ -86,6 +86,34 @@ const REVIEW_FEEDBACK_MESSAGES = {
     }
 };
 
+const PER_PAGE_OPTIONS = [10, 20, 30, 40, 50];
+const DEFAULT_PER_PAGE = 20;
+
+function normalizePositiveInteger(value, fallback = 1) {
+    const parsedValue = Number.parseInt(value, 10);
+    return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
+}
+
+function normalizePerPage(value) {
+    const parsedValue = normalizePositiveInteger(value, DEFAULT_PER_PAGE);
+    return PER_PAGE_OPTIONS.includes(parsedValue) ? parsedValue : DEFAULT_PER_PAGE;
+}
+
+function buildPagination(totalItems, requestedPage, perPage) {
+    const safeTotalItems = Math.max(0, Number.parseInt(totalItems, 10) || 0);
+    const safePerPage = normalizePerPage(perPage);
+    const totalPages = Math.max(1, Math.ceil(safeTotalItems / safePerPage) || 1);
+    const currentPage = Math.min(Math.max(normalizePositiveInteger(requestedPage, 1), 1), totalPages);
+
+    return {
+        totalItems: safeTotalItems,
+        totalPages,
+        currentPage,
+        perPage: safePerPage,
+        offset: (currentPage - 1) * safePerPage
+    };
+}
+
 function normalizeReviewComment(comment) {
     if (typeof comment !== 'string') {
         return '';
@@ -240,7 +268,7 @@ exports.getHomePage = async (req, res) => {
         });
 
         // Lấy 8 sản phẩm mới nhất
-        const newProducts = await Product.getNewProducts(8).catch(err => {
+        const newProducts = await Product.getNewProducts(10).catch(err => {
             console.error('New products error:', err);
             // Dữ liệu mẫu fallback
             return [
@@ -252,7 +280,7 @@ exports.getHomePage = async (req, res) => {
         });
 
         // Lấy 8 sản phẩm bán chạy nhất
-        const bestSellers = await Product.getBestSellers(8).catch(err => {
+        const bestSellers = await Product.getBestSellers(10).catch(err => {
             console.error('Best sellers error:', err);
             // Dữ liệu mẫu fallback
             return [
@@ -424,6 +452,7 @@ exports.getProducts = async (req, res) => {
             max_price,      // Giá tối đa
             sort,           // Sắp xếp (price-asc, price-desc, name-asc, name-desc, newest)
             page = 1,       // Số trang (mặc định: 1)
+            per_page,       // Số sản phẩm mỗi trang
             sale            // Lọc sản phẩm đang khuyến mãi
         } = req.query;
 
@@ -457,40 +486,51 @@ exports.getProducts = async (req, res) => {
             }
         }
 
-        // Cấu hình phân trang
-        const limit = 12;                    // 12 sản phẩm mỗi trang
-        const offset = (page - 1) * limit;   // Bỏ qua bao nhiêu sản phẩm
+        const requestedPage = normalizePositiveInteger(page, 1);
+        const normalizedPerPage = normalizePerPage(per_page);
 
         // Xây dựng object filter
-        const filters = {
-            limit,
-            offset,
+        const baseFilters = {
             sort_by,
-            sort_order
+            sort_order,
+            prioritize_in_stock: true
         };
 
         // Lọc theo danh mục nếu có
         if (category) {
             const cat = await Category.findBySlug(category).catch(() => null);
-            if (cat) filters.category_id = cat.id;
+            if (cat) baseFilters.category_id = cat.id;
         }
 
         // Lọc theo từ khóa tìm kiếm
-        if (search) filters.search = search;
+        if (search) baseFilters.search = search;
 
         // Lọc theo khoảng giá
-        if (min_price) filters.min_price = parseFloat(min_price);
-        if (max_price) filters.max_price = parseFloat(max_price);
+        if (min_price) baseFilters.min_price = parseFloat(min_price);
+        if (max_price) baseFilters.max_price = parseFloat(max_price);
 
         // Lọc sản phẩm đang khuyến mãi
-        if (sale === 'true') filters.on_sale = true;
+        if (sale === 'true') baseFilters.on_sale = true;
 
         // Lấy danh sách sản phẩm với error handling
         let products = [];
         let categories = [];
+        let totalItems = 0;
+        let pagination = buildPagination(totalItems, requestedPage, normalizedPerPage);
 
         try {
-            products = await Product.findAll(filters);
+            totalItems = await Product.count(baseFilters);
+            pagination = buildPagination(totalItems, requestedPage, normalizedPerPage);
+        } catch (err) {
+            console.error('Product count error:', err);
+        }
+
+        try {
+            products = await Product.findAll({
+                ...baseFilters,
+                limit: pagination.perPage,
+                offset: pagination.offset
+            });
         } catch (err) {
             console.error('Product findAll error:', err);
             // Dữ liệu mẫu fallback
@@ -500,6 +540,10 @@ exports.getProducts = async (req, res) => {
                 { id: 3, name: 'Áo Thun Basic', slug: 'ao-thun-basic', price: 250000, final_price: 250000, primary_image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600' },
                 { id: 4, name: 'Váy Công Sở', slug: 'vay-cong-so', price: 420000, final_price: 420000, primary_image: 'https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=600' }
             ];
+            if (totalItems === 0) {
+                totalItems = products.length;
+                pagination = buildPagination(totalItems, requestedPage, normalizedPerPage);
+            }
         }
 
         // Lấy danh sách danh mục cho sidebar
@@ -518,8 +562,10 @@ exports.getProducts = async (req, res) => {
         if (req.headers.accept && req.headers.accept.includes('application/json')) {
             return res.json({
                 products,
-                currentPage: parseInt(page),
-                totalPages: Math.ceil(products.length / limit) || 1
+                currentPage: pagination.currentPage,
+                perPage: pagination.perPage,
+                totalPages: pagination.totalPages,
+                totalItems: pagination.totalItems
             });
         }
 
@@ -529,7 +575,14 @@ exports.getProducts = async (req, res) => {
             categories,
             category: null,                  // Không có category cụ thể
             filters: req.query,              // Giữ lại filter để hiển thị
-            currentPage: parseInt(page),
+            currentPage: pagination.currentPage,
+            currentSort: sort || 'newest',
+            totalItems: pagination.totalItems,
+            totalPages: pagination.totalPages,
+            perPage: pagination.perPage,
+            perPageOptions: PER_PAGE_OPTIONS,
+            paginationPath: '/products',
+            paginationQuery: req.query,
             user: req.user || null,
             isSalePage: sale === 'true'      // Đánh dấu đây là trang sale
         });
@@ -598,7 +651,8 @@ exports.getProductDetail = async (req, res) => {
             relatedProducts = await Product.findAll({
                 category_id: product.category_id,
                 limit: 4,
-                offset: 0
+                offset: 0,
+                prioritize_in_stock: true
             });
             // Loại bỏ sản phẩm hiện tại khỏi danh sách liên quan
             relatedProducts = relatedProducts.filter(p => p.id !== product.id);
@@ -639,20 +693,32 @@ exports.getProductDetail = async (req, res) => {
  */
 exports.searchProducts = async (req, res) => {
     try {
-        const { q } = req.query;
+        const { q, page = 1, per_page } = req.query;
 
         // Redirect về trang danh sách nếu không có từ khóa
         if (!q) {
             return res.redirect('/products');
         }
 
-        // Tìm kiếm sản phẩm (tối đa 20 kết quả)
-        const products = await Product.search(q, 20);
+        const requestedPage = normalizePositiveInteger(page, 1);
+        const normalizedPerPage = normalizePerPage(per_page);
+        const activeProductCount = await Product.count().catch(() => 0);
+        const searchPoolSize = Math.max(activeProductCount, normalizedPerPage, 20);
+        const allProducts = await Product.search(q, searchPoolSize);
+        const pagination = buildPagination(allProducts.length, requestedPage, normalizedPerPage);
+        const products = allProducts.slice(pagination.offset, pagination.offset + pagination.perPage);
 
         // Render trang kết quả
         res.render('products/search-results', {
             products,
             query: q,
+            currentPage: pagination.currentPage,
+            totalPages: pagination.totalPages,
+            totalItems: pagination.totalItems,
+            perPage: pagination.perPage,
+            perPageOptions: PER_PAGE_OPTIONS,
+            paginationPath: '/products/search',
+            paginationQuery: req.query,
             user: req.user || null
         });
     } catch (error) {
@@ -679,7 +745,7 @@ exports.searchProducts = async (req, res) => {
 exports.getProductsByCategory = async (req, res) => {
     try {
         const { slug } = req.params;
-        const { sort, page = 1 } = req.query;
+        const { sort, page = 1, per_page } = req.query;
 
         // Tìm danh mục theo slug
         let category = await Category.findBySlug(slug);
@@ -732,15 +798,29 @@ exports.getProductsByCategory = async (req, res) => {
             }
         }
 
+        const requestedPage = normalizePositiveInteger(page, 1);
+        const normalizedPerPage = normalizePerPage(per_page);
+
         // Lấy sản phẩm thuộc danh mục
         let products = [];
+        let totalItems = 0;
+        let pagination = buildPagination(totalItems, requestedPage, normalizedPerPage);
+
+        try {
+            totalItems = await Product.count({ category_id: category.id });
+            pagination = buildPagination(totalItems, requestedPage, normalizedPerPage);
+        } catch (err) {
+            console.error('Product count error:', err);
+        }
+
         try {
             products = await Product.findAll({
                 category_id: category.id,
-                limit: 50,
-                offset: 0,
+                limit: pagination.perPage,
+                offset: pagination.offset,
                 sort_by,
-                sort_order
+                sort_order,
+                prioritize_in_stock: true
             });
         } catch (err) {
             console.error('Product findAll error:', err);
@@ -749,7 +829,14 @@ exports.getProductsByCategory = async (req, res) => {
 
         // Nếu là AJAX request, trả về JSON
         if (req.xhr || req.headers.accept?.includes('application/json')) {
-            return res.json({ products, category });
+            return res.json({
+                products,
+                category,
+                currentPage: pagination.currentPage,
+                perPage: pagination.perPage,
+                totalPages: pagination.totalPages,
+                totalItems: pagination.totalItems
+            });
         }
 
         // Render trang danh mục
@@ -757,6 +844,13 @@ exports.getProductsByCategory = async (req, res) => {
             category,
             products,
             currentSort: sort || 'newest',
+            currentPage: pagination.currentPage,
+            totalPages: pagination.totalPages,
+            totalItems: pagination.totalItems,
+            perPage: pagination.perPage,
+            perPageOptions: PER_PAGE_OPTIONS,
+            paginationPath: `/products/category/${category.slug}`,
+            paginationQuery: req.query,
             user: req.user || null
         });
     } catch (error) {

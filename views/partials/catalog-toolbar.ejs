@@ -1,0 +1,66 @@
+<%
+    const toolbarQuery = typeof paginationQuery !== 'undefined' ? (paginationQuery || {}) : {};
+    const toolbarPath = typeof paginationPath !== 'undefined' ? (paginationPath || '/products') : '/products';
+    const toolbarTotalItems = Number(typeof totalItems !== 'undefined' ? (totalItems || 0) : 0);
+    const queryPerPageValue = toolbarQuery.per_page;
+    const toolbarPerPage = Number(
+        queryPerPageValue !== undefined && queryPerPageValue !== null && queryPerPageValue !== ''
+            ? queryPerPageValue
+            : (typeof perPage !== 'undefined' ? (perPage || 20) : 20)
+    );
+    const toolbarSort = typeof currentSort !== 'undefined' ? (currentSort || 'newest') : 'newest';
+    const toolbarPerPageOptions = (typeof perPageOptions !== 'undefined' && Array.isArray(perPageOptions))
+        ? perPageOptions
+        : [10, 20, 30, 40, 50];
+    const toolbarShowSort = typeof allowSort !== 'undefined' ? allowSort !== false : true;
+    const toolbarSummaryLabel = typeof resultsLabel !== 'undefined' ? (resultsLabel || 'sản phẩm') : 'sản phẩm';
+    const preservedEntries = Object.entries(toolbarQuery).filter(([key, value]) => (
+        !['page', 'sort', 'per_page'].includes(key) &&
+        value !== undefined &&
+        value !== null &&
+        value !== ''
+    ));
+%>
+
+<section class="catalog-toolbar">
+    <div class="catalog-toolbar__summary">
+        <span class="catalog-toolbar__count"><%= toolbarTotalItems.toLocaleString('vi-VN') %></span>
+        <span class="catalog-toolbar__summary-label"><%= toolbarSummaryLabel %></span>
+    </div>
+
+    <form class="catalog-toolbar__form" method="get" action="<%= toolbarPath %>">
+        <% preservedEntries.forEach(([key, value]) => { %>
+            <% if (Array.isArray(value)) { %>
+                <% value.forEach((item) => { %>
+                    <input type="hidden" name="<%= key %>" value="<%= item %>">
+                <% }) %>
+            <% } else { %>
+                <input type="hidden" name="<%= key %>" value="<%= value %>">
+            <% } %>
+        <% }) %>
+
+        <input type="hidden" name="page" value="1">
+
+        <% if (toolbarShowSort) { %>
+            <label class="catalog-toolbar__field">
+                <span>Sắp xếp</span>
+                <select name="sort" data-catalog-control="sort">
+                    <option value="newest" <%= toolbarSort === 'newest' ? 'selected' : '' %>>Mới nhất</option>
+                    <option value="price-asc" <%= toolbarSort === 'price-asc' ? 'selected' : '' %>>Giá tăng dần</option>
+                    <option value="price-desc" <%= toolbarSort === 'price-desc' ? 'selected' : '' %>>Giá giảm dần</option>
+                    <option value="name-asc" <%= toolbarSort === 'name-asc' ? 'selected' : '' %>>Tên A-Z</option>
+                    <option value="name-desc" <%= toolbarSort === 'name-desc' ? 'selected' : '' %>>Tên Z-A</option>
+                </select>
+            </label>
+        <% } %>
+
+        <label class="catalog-toolbar__field">
+            <span>Hiển thị</span>
+            <select name="per_page" data-catalog-control="per-page">
+                <% toolbarPerPageOptions.forEach((option) => { %>
+                    <option value="<%= option %>" <%= toolbarPerPage === option ? 'selected' : '' %>><%= option %> / trang</option>
+                <% }) %>
+            </select>
+        </label>
+    </form>
+</section>

@@ -153,6 +153,7 @@ OPENAI_API_KEY=your_openai_compatible_key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 OPENAI_VISION_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 AI_PROVIDER=openai
 # GEMINI_API_KEY=your_gemini_api_key
 # GEMINI_MODEL=gemini-2.0-flash
@@ -160,7 +161,7 @@ AI_PROVIDER=openai
 
 ## Ghi chú quan trọng
 
-Luu y: neu dung endpoint NVIDIA NIM (`https://integrate.api.nvidia.com/v1`) thi nen dat rieng `OPENAI_VISION_MODEL=meta/llama-3.2-90b-vision-instruct`, vi model text nhu `meta/llama-3.3-70b-instruct` khong phan tich duoc anh.
+Luu y: neu dung endpoint NVIDIA NIM (`https://integrate.api.nvidia.com/v1`) thi nen dat rieng `OPENAI_VISION_MODEL=meta/llama-3.2-90b-vision-instruct` va `OPENAI_EMBEDDING_MODEL=nvidia/nv-embedqa-e5-v5`, vi model text nhu `meta/llama-3.3-70b-instruct` khong phan tich duoc anh va khong dung cho retrieval.
 
 ### Email
 Code hiện tại chỉ dùng Resend trong `services/emailService.js`.

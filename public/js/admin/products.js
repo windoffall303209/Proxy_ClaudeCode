@@ -1,26 +1,115 @@
-// Admin Products page JavaScript
+﻿// Admin Products page JavaScript
 
 function showToast(message, type = 'success') {
     if (typeof showGlobalToast === 'function') showGlobalToast(message, type);
 }
 
-function showConfirm(message, title = 'Xác nhận', yesText = 'Xác nhận', yesColor = '#f44336') {
+const DELETE_ALL_CONFIRMATION_TEXT = 'Xóa tất cả';
+
+function showConfirm(message, title = 'Xác nhận', yesText = 'Xác nhận', yesColor = '#f44336', options = {}) {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirmModal');
-        document.getElementById('confirmTitle').textContent = title;
-        document.getElementById('confirmMessage').textContent = message;
-        document.getElementById('confirmYes').textContent = yesText;
-        document.getElementById('confirmYes').style.background = yesColor;
+        const titleElement = document.getElementById('confirmTitle');
+        const messageElement = document.getElementById('confirmMessage');
+        const confirmButton = document.getElementById('confirmYes');
+        const cancelButton = document.getElementById('confirmNo');
+        const typingGroup = document.getElementById('confirmTypingGroup');
+        const typingLabel = document.getElementById('confirmTypingLabel');
+        const typingInput = document.getElementById('confirmTypingInput');
+        const typingHint = document.getElementById('confirmTypingHint');
+        const requiredText = options.requireText?.trim() || '';
+
+        const closeModal = (confirmed) => {
+            modal.style.display = 'none';
+            confirmButton.onclick = null;
+            cancelButton.onclick = null;
+            modal.onclick = null;
+            document.removeEventListener('keydown', handleEscape);
+
+            if (typingInput) {
+                typingInput.oninput = null;
+                typingInput.value = '';
+            }
+
+            if (typingGroup) {
+                typingGroup.hidden = true;
+            }
+
+            if (typingHint) {
+                typingHint.textContent = '';
+            }
+
+            resolve(confirmed);
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                closeModal(false);
+            }
+        };
+
+        const updateTypingState = () => {
+            if (!requiredText || !typingInput || !typingHint) {
+                confirmButton.disabled = false;
+                return;
+            }
+
+            const isMatched = typingInput.value.trim() === requiredText;
+            confirmButton.disabled = !isMatched;
+            typingHint.textContent = isMatched
+                ? 'Chuỗi xác nhận hợp lệ.'
+                : `Nhập chính xác "${requiredText}" để tiếp tục.`;
+        };
+
+        titleElement.textContent = title;
+        messageElement.textContent = message;
+        confirmButton.textContent = yesText;
+        cancelButton.textContent = options.cancelText || 'Hủy';
+        confirmButton.style.background = yesColor;
+        confirmButton.disabled = false;
+
+        if (typingGroup && typingLabel && typingInput && typingHint) {
+            if (requiredText) {
+                typingGroup.hidden = false;
+                typingLabel.textContent = `Nhập "${requiredText}" để xác nhận`;
+                typingInput.placeholder = requiredText;
+                typingInput.value = '';
+                typingInput.oninput = updateTypingState;
+                updateTypingState();
+            } else {
+                typingGroup.hidden = true;
+                typingHint.textContent = '';
+            }
+        }
+
         modal.style.display = 'flex';
 
-        document.getElementById('confirmYes').onclick = () => {
-            modal.style.display = 'none';
-            resolve(true);
+        confirmButton.onclick = () => {
+            if (requiredText && typingInput?.value.trim() !== requiredText) {
+                showToast(`Hãy nhập chính xác "${requiredText}" để xác nhận.`, 'warning');
+                typingInput?.focus();
+                return;
+            }
+
+            closeModal(true);
         };
-        document.getElementById('confirmNo').onclick = () => {
-            modal.style.display = 'none';
-            resolve(false);
+        cancelButton.onclick = () => {
+            closeModal(false);
         };
+        modal.onclick = (event) => {
+            if (event.target === modal) {
+                closeModal(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleEscape);
+        window.setTimeout(() => {
+            if (requiredText && typingInput) {
+                typingInput.focus();
+            } else {
+                confirmButton.focus();
+            }
+        }, 0);
     });
 }
 
@@ -96,7 +185,7 @@ function buildExistingImageOption(image) {
         previewUrl: image.image_url,
         imageId: image.id,
         kind: 'existing',
-        fileName: `Anh #${image.id}`
+        fileName: `Ảnh #${image.id}`
     };
 }
 
@@ -114,7 +203,7 @@ function buildMainImageOption(upload, index) {
 function buildUploadedImageOption(token, file, previewUrl) {
     return {
         value: `upload:${token}`,
-        label: `Ảnh variant: ${file.name}`,
+        label: `Ảnh biến thể: ${file.name}`,
         previewUrl,
         kind: 'upload',
         token,
@@ -199,13 +288,13 @@ function renderCreateImagesPreview() {
                 type="button"
                 class="product-upload-preview__remove"
                 data-file-key="${encodeURIComponent(upload.key)}"
-                title="Xoa anh nay"
-                aria-label="Xoa anh nay"
+                title="Xóa ảnh này"
+                aria-label="Xóa ảnh này"
                 style="position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border: none; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: #dc2626; font-size: 14px; font-weight: 700; cursor: pointer; z-index: 1;"
             >
                 x
             </button>
-            ${index === 0 ? '<span class="product-upload-preview__badge" style="position: absolute; left: 6px; top: 6px; padding: 2px 6px; border-radius: 999px; background: rgba(102, 126, 234, 0.95); color: #fff; font-size: 9px; font-weight: 700; z-index: 1;">Chinh</span>' : ''}
+            ${index === 0 ? '<span class="product-upload-preview__badge" style="position: absolute; left: 6px; top: 6px; padding: 2px 6px; border-radius: 999px; background: rgba(102, 126, 234, 0.95); color: #fff; font-size: 9px; font-weight: 700; z-index: 1;">Chính</span>' : ''}
             <div class="product-upload-preview__thumb" style="width: 100%; height: 100%;">
                 <img src="${upload.previewUrl}" alt="${escapeHtml(upload.file.name)}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
             </div>
@@ -279,7 +368,7 @@ function syncCreateMainImageOptions() {
 
 function getImageOptionsHtml(mode, selectedValue = '') {
     const state = getModeState(mode);
-    const baseOption = '<option value="">-- Ảnh variant --</option>';
+    const baseOption = '<option value="">-- Ảnh biến thể --</option>';
     const options = state.images.map(image => {
         const selected = image.value === selectedValue ? 'selected' : '';
         return `<option value="${image.value}" ${selected}>${image.label}</option>`;
@@ -452,7 +541,12 @@ function closeEditModal() {
 }
 
 async function deleteProduct(productId) {
-    const confirmed = await showConfirm('Bạn có chắc muốn xóa sản phẩm này?', 'Xóa Sản Phẩm', 'Xóa', '#f44336');
+    const confirmed = await showConfirm(
+        'Bạn có chắc muốn xóa sản phẩm này?',
+        'Xóa sản phẩm',
+        'Xóa',
+        '#f44336'
+    );
     if (!confirmed) return;
 
     try {
@@ -461,14 +555,53 @@ async function deleteProduct(productId) {
             credentials: 'same-origin'
         });
         if (response.ok) {
-            showToast('Xóa sản phẩm thành công!', 'success');
+            showToast('Xóa sản phẩm thành công.', 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
             const result = await response.json();
-            showToast('Lỗi xóa sản phẩm: ' + (result.message || 'Unknown error'), 'error');
+            showToast(`Lỗi xóa sản phẩm: ${result.message || 'Không rõ nguyên nhân'}`, 'error');
         }
     } catch (error) {
-        showToast('Lỗi: ' + error.message, 'error');
+        showToast(`Lỗi: ${error.message}`, 'error');
+    }
+}
+
+async function deleteAllProducts(totalProductCount = 0) {
+    if (Number(totalProductCount) <= 0) {
+        showToast('Không có sản phẩm nào trong database để xóa.', 'warning');
+        return;
+    }
+
+    const confirmed = await showConfirm(
+        `Bạn sắp xóa vĩnh viễn ${totalProductCount} sản phẩm trong database. Cả sản phẩm đang hiển thị lẫn sản phẩm đang ẩn đều sẽ bị xóa. Ảnh, biến thể, review, wishlist và cart items liên quan sẽ bị xóa theo. Sản phẩm đã xuất hiện trong lịch sử đơn hàng sẽ không thể xóa.`,
+        'Xóa vĩnh viễn tất cả sản phẩm',
+        'Xóa vĩnh viễn',
+        '#dc2626',
+        {
+            requireText: DELETE_ALL_CONFIRMATION_TEXT
+        }
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch('/admin/products/delete-all', {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(
+                result.message || 'Đã xóa vĩnh viễn sản phẩm.',
+                result.blockedCount > 0 ? 'warning' : 'success'
+            );
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(result.message || 'Không thể xóa toàn bộ sản phẩm.', 'error');
+        }
+    } catch (error) {
+        showToast(`Lỗi: ${error.message}`, 'error');
     }
 }
 
@@ -530,13 +663,13 @@ async function deleteImage(imageId) {
         });
 
         if (response.ok) {
-            showGlobalToast('Đã xóa ảnh!', 'success');
+            showGlobalToast('Đã xóa ảnh.', 'success');
             await loadProductImages(productId);
         } else {
-            showGlobalToast('Lỗi xóa ảnh', 'error');
+            showGlobalToast('Lỗi xóa ảnh.', 'error');
         }
     } catch (error) {
-        showGlobalToast('Lỗi: ' + error.message, 'error');
+        showGlobalToast(`Lỗi: ${error.message}`, 'error');
     }
 }
 
@@ -550,20 +683,20 @@ async function setPrimaryImage(imageId) {
         });
 
         if (response.ok) {
-            showGlobalToast('Đã đặt làm ảnh chính!', 'success');
+            showGlobalToast('Đã đặt làm ảnh chính.', 'success');
             await loadProductImages(productId);
         } else {
-            showGlobalToast('Lỗi đặt ảnh chính', 'error');
+            showGlobalToast('Lỗi đặt ảnh chính.', 'error');
         }
     } catch (error) {
-        showGlobalToast('Lỗi: ' + error.message, 'error');
+        showGlobalToast(`Lỗi: ${error.message}`, 'error');
     }
 }
 
 async function addImageByUrl() {
     const url = document.getElementById('newImageUrl').value;
     if (!url) {
-        showGlobalToast('Vui lòng nhập URL ảnh', 'warning');
+        showGlobalToast('Vui lòng nhập URL ảnh.', 'warning');
         return;
     }
 
@@ -579,14 +712,14 @@ async function addImageByUrl() {
         });
 
         if (response.ok) {
-            showGlobalToast('Đã thêm ảnh!', 'success');
+            showGlobalToast('Đã thêm ảnh.', 'success');
             document.getElementById('newImageUrl').value = '';
             await loadProductImages(productId);
         } else {
-            showGlobalToast('Lỗi thêm ảnh', 'error');
+            showGlobalToast('Lỗi thêm ảnh.', 'error');
         }
     } catch (error) {
-        showGlobalToast('Lỗi: ' + error.message, 'error');
+        showGlobalToast(`Lỗi: ${error.message}`, 'error');
     }
 }
 
@@ -657,7 +790,7 @@ function addVariantRow(mode, data = {}) {
             <div class="variant-image-preview"></div>
         </div>
         <div class="variant-row__action">
-            <button type="button" class="variant-remove-btn" title="Xoa bien the" aria-label="Xoa bien the">x</button>
+            <button type="button" class="variant-remove-btn" title="Xóa biến thể" aria-label="Xóa biến thể">x</button>
         </div>
     `;
 
@@ -811,13 +944,13 @@ function initAdminProducts() {
 
             const result = await response.json();
             if (response.ok) {
-                showToast('Cập nhật sản phẩm thành công!', 'success');
+                showToast('Cập nhật sản phẩm thành công.', 'success');
                 setTimeout(() => location.reload(), 1500);
             } else {
-                showToast('Lỗi: ' + (result.message || 'Không thể cập nhật sản phẩm'), 'error');
+                showToast(`Lỗi: ${result.message || 'Không thể cập nhật sản phẩm.'}`, 'error');
             }
         } catch (error) {
-            showToast('Lỗi: ' + error.message, 'error');
+            showToast(`Lỗi: ${error.message}`, 'error');
         }
     });
 
@@ -830,7 +963,7 @@ function initAdminProducts() {
 
         const files = Array.from(imageModalFileInput?.files || []);
         if (files.length === 0) {
-            showGlobalToast('Vui lòng chọn ít nhất 1 ảnh', 'warning');
+            showGlobalToast('Vui lòng chọn ít nhất 1 ảnh.', 'warning');
             return;
         }
 
@@ -849,14 +982,14 @@ function initAdminProducts() {
 
             const result = await response.json();
             if (response.ok) {
-                showGlobalToast(result.message || 'Đã tải lên ảnh!', 'success');
+                showGlobalToast(result.message || 'Đã tải lên ảnh.', 'success');
                 imageModalFileInput.value = '';
                 await loadProductImages(productId);
             } else {
-                showGlobalToast(result.message || 'Lỗi tải lên ảnh', 'error');
+                showGlobalToast(result.message || 'Lỗi tải lên ảnh.', 'error');
             }
         } catch (error) {
-            showGlobalToast('Lỗi: ' + error.message, 'error');
+            showGlobalToast(`Lỗi: ${error.message}`, 'error');
         }
     });
 
@@ -900,6 +1033,11 @@ function initAdminProducts() {
 
             if (action === 'delete-product') {
                 deleteProduct(Number(actionButton.dataset.productId));
+                return;
+            }
+
+            if (action === 'delete-all-products') {
+                deleteAllProducts(Number(actionButton.dataset.totalProductCount || 0));
                 return;
             }
 
@@ -949,19 +1087,19 @@ function initAdminProducts() {
     function generateSku() {
         if (!autoSkuCheckbox?.checked) return;
 
-        // Lấy tên danh mục đã chọn
+        // Láº¥y tÃªn danh má»¥c Ä‘Ã£ chá»n
         const selectedOption = categorySelect?.options[categorySelect.selectedIndex];
         const categoryName = selectedOption?.text || '';
 
-        // Tạo viết tắt từ tên danh mục (lấy 3 chữ cái đầu, chuyển thành uppercase không dấu)
+        // Táº¡o viáº¿t táº¯t tá»« tÃªn danh má»¥c (láº¥y 3 chá»¯ cÃ¡i Ä‘áº§u, chuyá»ƒn thÃ nh uppercase khÃ´ng dáº¥u)
         const abbr = categoryName
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // bỏ dấu
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // bá» dáº¥u
             .replace(/[^a-zA-Z\s]/g, '')
             .trim()
             .substring(0, 3)
             .toUpperCase() || 'PRD';
 
-        // Random 4 ký tự alphanumeric
+        // Random 4 kÃ½ tá»± alphanumeric
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let randomPart = '';
         for (let i = 0; i < 4; i++) {
@@ -985,7 +1123,7 @@ function initAdminProducts() {
             }
         });
 
-        // Khi thay đổi danh mục => cập nhật lại SKU nếu đang ở chế độ tự động
+        // Khi thay Ä‘á»•i danh má»¥c => cáº­p nháº­t láº¡i SKU náº¿u Ä‘ang á»Ÿ cháº¿ Ä‘á»™ tá»± Ä‘á»™ng
         categorySelect?.addEventListener('change', generateSku);
     }
 
@@ -993,3 +1131,4 @@ function initAdminProducts() {
 }
 
 document.addEventListener('DOMContentLoaded', initAdminProducts);
+

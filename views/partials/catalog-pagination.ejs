@@ -1,0 +1,82 @@
+<%
+    const pagerQuery = typeof paginationQuery !== 'undefined' ? (paginationQuery || {}) : {};
+    const pagerPath = typeof paginationPath !== 'undefined' ? (paginationPath || '/products') : '/products';
+    const pagerCurrentPage = Number(typeof currentPage !== 'undefined' ? (currentPage || 1) : 1);
+    const pagerTotalPages = Number(typeof totalPages !== 'undefined' ? (totalPages || 1) : 1);
+    const queryPerPageValue = pagerQuery.per_page;
+    const pagerPerPage = Number(
+        queryPerPageValue !== undefined && queryPerPageValue !== null && queryPerPageValue !== ''
+            ? queryPerPageValue
+            : (typeof perPage !== 'undefined' ? (perPage || 20) : 20)
+    );
+    const pageWindowStart = Math.max(1, pagerCurrentPage - 2);
+    const pageWindowEnd = Math.min(pagerTotalPages, pagerCurrentPage + 2);
+    const pageItems = [];
+
+    if (pagerTotalPages <= 7) {
+        for (let pageNumber = 1; pageNumber <= pagerTotalPages; pageNumber += 1) {
+            pageItems.push(pageNumber);
+        }
+    } else {
+        pageItems.push(1);
+
+        if (pageWindowStart > 2) {
+            pageItems.push('dots-left');
+        }
+
+        for (let pageNumber = Math.max(2, pageWindowStart); pageNumber <= Math.min(pagerTotalPages - 1, pageWindowEnd); pageNumber += 1) {
+            pageItems.push(pageNumber);
+        }
+
+        if (pageWindowEnd < pagerTotalPages - 1) {
+            pageItems.push('dots-right');
+        }
+
+        pageItems.push(pagerTotalPages);
+    }
+
+    const buildPageUrl = (pageNumber) => {
+        const params = new URLSearchParams();
+        const mergedQuery = { ...pagerQuery, page: pageNumber, per_page: pagerPerPage };
+
+        Object.entries(mergedQuery).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '') {
+                return;
+            }
+
+            if (Array.isArray(value)) {
+                value.forEach((item) => params.append(key, String(item)));
+                return;
+            }
+
+            params.set(key, String(value));
+        });
+
+        const queryString = params.toString();
+        return queryString ? `${pagerPath}?${queryString}` : pagerPath;
+    };
+%>
+
+<% if (pagerTotalPages > 1) { %>
+    <div class="catalog-pagination">
+        <p class="catalog-pagination__info">Trang <%= pagerCurrentPage %> / <%= pagerTotalPages %></p>
+
+        <nav class="pagination" aria-label="Phân trang sản phẩm">
+            <% if (pagerCurrentPage > 1) { %>
+                <a href="<%= buildPageUrl(pagerCurrentPage - 1) %>" class="pagination__btn">Trước</a>
+            <% } %>
+
+            <% pageItems.forEach((pageItem) => { %>
+                <% if (typeof pageItem === 'number') { %>
+                    <a href="<%= buildPageUrl(pageItem) %>" class="pagination__btn <%= pagerCurrentPage === pageItem ? 'active' : '' %>"><%= pageItem %></a>
+                <% } else { %>
+                    <span class="pagination__dots">...</span>
+                <% } %>
+            <% }) %>
+
+            <% if (pagerCurrentPage < pagerTotalPages) { %>
+                <a href="<%= buildPageUrl(pagerCurrentPage + 1) %>" class="pagination__btn">Sau</a>
+            <% } %>
+        </nav>
+    </div>
+<% } %>

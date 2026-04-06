@@ -31,3 +31,9 @@ build/
 # Temporary files
 *.tmp
 *.temp
+
+# Tests
+__tests__/
+
+#design
+DESIGN.md

@@ -534,6 +534,39 @@ CREATE TABLE chat_messages (
 ) ENGINE=InnoDB;
 
 -- =============================================================================
+-- CHAT RAG TABLES
+-- =============================================================================
+CREATE TABLE chat_rag_chunks (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    source_type ENUM('product', 'knowledge') NOT NULL,
+    source_key VARCHAR(255) NOT NULL,
+    source_id INT NULL,
+    chunk_key VARCHAR(100) NOT NULL DEFAULT 'base',
+    title VARCHAR(255) NOT NULL,
+    content MEDIUMTEXT NOT NULL,
+    metadata LONGTEXT DEFAULT NULL,
+    embedding_model VARCHAR(255) NOT NULL,
+    embedding_vector LONGTEXT NOT NULL,
+    token_count INT NOT NULL DEFAULT 0,
+    content_hash CHAR(64) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_chat_rag_chunk (source_type, source_key, chunk_key),
+    INDEX idx_chat_rag_source_type (source_type),
+    INDEX idx_chat_rag_source_id (source_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE chat_rag_sync_state (
+    source_type VARCHAR(50) PRIMARY KEY,
+    source_count INT NOT NULL DEFAULT 0,
+    status ENUM('idle', 'syncing', 'error') NOT NULL DEFAULT 'idle',
+    last_synced_at DATETIME DEFAULT NULL,
+    detail TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- =============================================================================
 -- END OF SCHEMA
 -- =============================================================================
 SELECT 'Database schema created successfully!' AS Status;

@@ -703,6 +703,46 @@
     font-size: 14px;
     color: var(--admin-text-secondary);
     margin: 0;
+    line-height: 1.7;
+}
+
+.confirm-modal__typing {
+    display: grid;
+    gap: 10px;
+    margin: -4px 0 24px;
+    text-align: left;
+}
+
+.confirm-modal__typing[hidden] {
+    display: none !important;
+}
+
+.confirm-modal__typing-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--admin-text-primary);
+}
+
+.confirm-modal__typing-input {
+    width: 100%;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font: inherit;
+    color: var(--admin-text-primary);
+    background: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.confirm-modal__typing-input:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.14);
+}
+
+.confirm-modal__typing-hint {
+    font-size: 12px;
+    color: var(--admin-text-secondary);
 }
 
 /* Admin Button Ghost */
@@ -726,6 +766,13 @@
 .admin-btn--danger:hover {
     background: #dc2626;
     color: white;
+}
+
+.admin-btn--danger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: #f39aa0;
+    box-shadow: none;
 }
 
 /* Responsive */

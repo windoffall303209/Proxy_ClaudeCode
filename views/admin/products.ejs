@@ -58,6 +58,148 @@
             </form>
         </div>
 
+        <div class="admin-section admin-section--collapsible<%= bulkImportResult ? ' is-open' : '' %>">
+            <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import H&agrave;ng Lo&#7841;t T&#7915; Excel
+                <svg class="admin-section__chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </h3>
+            <div class="admin-section__content">
+                <div class="admin-toolbar" style="margin-bottom: 20px;">
+                    <div class="admin-toolbar__info">
+                        <p class="admin-toolbar__title">Workbook + ZIP &#7843;nh</p>
+                        <p class="admin-toolbar__text">
+                            D&ugrave;ng 3 sheet <strong>Products</strong>, <strong>Images</strong>, <strong>Variants</strong>.
+                            Excel ch&#7881; c&#7847;n ghi t&ecirc;n file &#7843;nh; &#7843;nh th&#7853;t &#273;i k&egrave;m trong file <strong>.zip</strong> &#273;&#7875; g&#7855;n cho s&#7843;n ph&#7849;m v&agrave; bi&#7871;n th&#7875;.
+                        </p>
+                    </div>
+                    <div class="admin-search-form__actions">
+                        <a href="/admin/products/export<%= searchQuery ? ('?search=' + encodeURIComponent(searchQuery)) : '' %>" class="admin-btn admin-btn--ghost">Xu&#7845;t d&#7919; li&#7879;u</a>
+                        <a href="/admin/products/import-template" class="admin-btn admin-btn--ghost">T&#7843;i file m&#7851;u</a>
+                    </div>
+                </div>
+
+                <form action="/admin/products/import" method="POST" enctype="multipart/form-data" class="admin-form">
+                    <div class="admin-form__row">
+                        <div class="admin-form__group">
+                            <label class="admin-form__label">File Excel <span>*</span></label>
+                            <input type="file" name="import_file" accept=".xlsx,.xls" required class="admin-form__input">
+                            <small class="admin-form__hint">H&#7895; tr&#7907; `.xlsx` v&agrave; `.xls`.</small>
+                        </div>
+                        <div class="admin-form__group">
+                            <label class="admin-form__label">ZIP &#7843;nh</label>
+                            <input type="file" name="images_zip" accept=".zip" class="admin-form__input">
+                            <small class="admin-form__hint">D&ugrave;ng khi workbook tham chi&#7871;u t&#7899;i `image_file`. N&#7871;u d&ugrave;ng `image_url` th&igrave; c&oacute; th&#7875; b&#7887; tr&#7889;ng.</small>
+                        </div>
+                    </div>
+                    <div class="admin-form__actions">
+                        <button type="submit" class="admin-btn admin-btn--primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            Ch&#7841;y Import
+                        </button>
+                    </div>
+                </form>
+
+                <div class="admin-form__hint" style="margin-top: 16px; line-height: 1.7;">
+                    <strong>Quy &#432;&#7899;c nhanh:</strong><br>
+                    `Products`: `product_key`, `name`, `category_name` ho&#7863;c `category_id`, `price`.<br>
+                    `Images`: m&#7895;i d&ograve;ng l&agrave; 1 &#7843;nh, g&#7855;n theo `product_key`.<br>
+                    `Variants`: m&#7895;i d&ograve;ng l&agrave; 1 bi&#7871;n th&#7875;, c&oacute; th&#7875; g&aacute;n `image_file` ri&ecirc;ng.<br>
+                    C&ugrave;ng m&#7897;t `product_key` c&oacute; th&#7875; c&oacute; nhi&#7873;u &#7843;nh v&agrave; nhi&#7873;u bi&#7871;n th&#7875;.
+                </div>
+
+                <% if (bulkImportResult) { %>
+                    <div class="admin-section" style="margin-top: 24px;">
+                        <h4 class="admin-section__title">K&#7871;t qu&#7843; import g&#7847;n nh&#7845;t</h4>
+                        <div class="stats-grid" style="margin-bottom: 16px;">
+                            <div class="stat-card stat-card--blue">
+                                <h3 class="stat-card__label">T&#7893;ng d&ograve;ng s&#7843;n ph&#7849;m</h3>
+                                <p class="stat-card__value"><%= bulkImportResult.totalProducts || 0 %></p>
+                            </div>
+                            <div class="stat-card stat-card--green">
+                                <h3 class="stat-card__label">Import th&agrave;nh c&ocirc;ng</h3>
+                                <p class="stat-card__value"><%= bulkImportResult.createdCount || 0 %></p>
+                            </div>
+                            <div class="stat-card stat-card--pink">
+                                <h3 class="stat-card__label">B&#7883; l&#7895;i</h3>
+                                <p class="stat-card__value"><%= bulkImportResult.failedCount || 0 %></p>
+                            </div>
+                        </div>
+
+                        <% if (bulkImportResult.createdProducts && bulkImportResult.createdProducts.length > 0) { %>
+                            <div class="admin-table-wrapper" style="margin-bottom: 16px;">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Product Key</th>
+                                            <th>S&#7843;n ph&#7849;m</th>
+                                            <th class="text-center">ID</th>
+                                            <th class="text-center">&#7842;nh</th>
+                                            <th class="text-center">Bi&#7871;n th&#7875;</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% bulkImportResult.createdProducts.forEach(item => { %>
+                                            <tr>
+                                                <td><%= item.productKey %></td>
+                                                <td><%= item.name %></td>
+                                                <td class="text-center"><%= item.productId %></td>
+                                                <td class="text-center"><%= item.imageCount %></td>
+                                                <td class="text-center"><%= item.variantCount %></td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+
+                        <% if (bulkImportResult.errors && bulkImportResult.errors.length > 0) { %>
+                            <div class="admin-table-wrapper">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Product Key</th>
+                                            <th>S&#7843;n ph&#7849;m</th>
+                                            <th>L&#7895;i</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% bulkImportResult.errors.forEach(item => { %>
+                                            <tr>
+                                                <td><%= item.productKey || '-' %></td>
+                                                <td><%= item.name || '-' %></td>
+                                                <td><%= item.message %></td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    </div>
+                <% } %>
+            </div>
+            <div class="admin-page-header__right">
+                <button
+                    type="button"
+                    class="admin-btn admin-btn--danger"
+                    data-product-action="delete-all-products"
+                    data-total-product-count="<%= totalProductCount || 0 %>"
+                >
+                    Xóa vĩnh viễn tất cả sản phẩm
+                </button>
+            </div>
+        </div>
+
         <!-- Add Product Form -->
         <div class="admin-section admin-section--collapsible">
             <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
@@ -403,6 +545,18 @@
         <div class="confirm-modal__text">
             <h3 id="confirmTitle">Xóa Sản Phẩm</h3>
             <p id="confirmMessage">Bạn có chắc muốn xóa sản phẩm này? Hành động không thể hoàn tác.</p>
+        </div>
+        <div id="confirmTypingGroup" class="confirm-modal__typing" hidden>
+            <label id="confirmTypingLabel" for="confirmTypingInput" class="confirm-modal__typing-label">Nhập "Xóa tất cả" để xác nhận</label>
+            <input
+                id="confirmTypingInput"
+                type="text"
+                class="confirm-modal__typing-input"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Xóa tất cả"
+            >
+            <small id="confirmTypingHint" class="confirm-modal__typing-hint"></small>
         </div>
         <div class="confirm-modal__buttons">
             <button id="confirmNo" class="admin-btn admin-btn--ghost">Hủy</button>

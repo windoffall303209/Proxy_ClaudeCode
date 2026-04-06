@@ -3,15 +3,21 @@ process.env.NODE_ENV = 'test';
 jest.mock('../models/Product', () => ({
     findBySlug: jest.fn(),
     findAll: jest.fn(),
+    count: jest.fn(),
+    search: jest.fn(),
     getReviewContext: jest.fn(),
     createReview: jest.fn(),
     updateReview: jest.fn()
 }));
 
-jest.mock('../models/Category', () => ({}));
+jest.mock('../models/Category', () => ({
+    findBySlug: jest.fn(),
+    findAll: jest.fn()
+}));
 jest.mock('../models/Banner', () => ({}));
 
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const productController = require('../controllers/productController');
 
 function createRes() {
@@ -325,5 +331,158 @@ describe('productController.updateProductReview', () => {
 
         expect(Product.updateReview).not.toHaveBeenCalled();
         expect(res.redirect).toHaveBeenCalledWith('/products/quan-linen?review=invalid-media');
+    });
+});
+
+describe('productController product listing rules', () => {
+    let consoleErrorSpy;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        consoleErrorSpy?.mockRestore();
+    });
+
+    it('prioritizes in-stock products on the main listing page', async () => {
+        Product.count.mockResolvedValue(28);
+        Product.findAll.mockResolvedValue([]);
+        Category.findAll.mockResolvedValue([]);
+
+        const req = {
+            query: {
+                sort: 'price-asc',
+                page: '2',
+                per_page: '10',
+                search: 'ao so mi'
+            },
+            headers: {
+                accept: 'text/html'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.getProducts(req, res);
+
+        expect(Product.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            limit: 10,
+            offset: 10,
+            search: 'ao so mi',
+            sort_by: 'price',
+            sort_order: 'ASC',
+            prioritize_in_stock: true
+        }));
+        expect(res.render).toHaveBeenCalledWith('products/list', expect.objectContaining({
+            products: [],
+            categories: [],
+            totalItems: 28,
+            totalPages: 3,
+            perPage: 10
+        }));
+    });
+
+    it('prioritizes in-stock products on category pages', async () => {
+        Category.findBySlug.mockResolvedValue({
+            id: 9,
+            name: 'Ao nu',
+            slug: 'ao-nu'
+        });
+        Product.count.mockResolvedValue(45);
+        Product.findAll.mockResolvedValue([]);
+
+        const req = {
+            params: { slug: 'ao-nu' },
+            query: {
+                sort: 'name-desc',
+                per_page: '30',
+                page: '2'
+            },
+            headers: {
+                accept: 'text/html'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.getProductsByCategory(req, res);
+
+        expect(Product.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            category_id: 9,
+            limit: 30,
+            offset: 30,
+            sort_by: 'name',
+            sort_order: 'DESC',
+            prioritize_in_stock: true
+        }));
+        expect(res.render).toHaveBeenCalledWith('products/category', expect.objectContaining({
+            category: expect.objectContaining({ id: 9 }),
+            totalItems: 45,
+            totalPages: 2,
+            perPage: 30
+        }));
+    });
+
+    it('prioritizes in-stock products for related items on product detail', async () => {
+        Product.findBySlug.mockResolvedValue({
+            id: 14,
+            slug: 'dam-midi',
+            category_id: 3,
+            description: 'Mo ta'
+        });
+        Product.findAll.mockResolvedValue([]);
+        Product.getReviewContext.mockResolvedValue({
+            canReview: false,
+            eligibleOrder: null,
+            existingReview: null
+        });
+
+        const req = {
+            params: { slug: 'dam-midi' },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.getProductDetail(req, res);
+
+        expect(Product.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            category_id: 3,
+            limit: 4,
+            offset: 0,
+            prioritize_in_stock: true
+        }));
+    });
+
+    it('paginates search results using the selected per-page size', async () => {
+        const allResults = Array.from({ length: 25 }, (_, index) => ({
+            id: index + 1,
+            slug: `product-${index + 1}`
+        }));
+
+        Product.count.mockResolvedValue(80);
+        Product.search.mockResolvedValue(allResults);
+
+        const req = {
+            query: {
+                q: 'ao khoac',
+                page: '2',
+                per_page: '10'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.searchProducts(req, res);
+
+        expect(Product.search).toHaveBeenCalledWith('ao khoac', 80);
+        expect(res.render).toHaveBeenCalledWith('products/search-results', expect.objectContaining({
+            products: allResults.slice(10, 20),
+            totalItems: 25,
+            totalPages: 3,
+            currentPage: 2,
+            perPage: 10
+        }));
     });
 });

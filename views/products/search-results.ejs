@@ -12,12 +12,22 @@
                     <span>Kết quả cho "<%= query %>"</span>
                 </h1>
             </div>
-            <p class="catalog-intro__meta"><%= products ? products.length : 0 %> sản phẩm</p>
+            <p class="catalog-intro__meta"><%= typeof totalItems !== 'undefined' ? totalItems : (products ? products.length : 0) %> sản phẩm</p>
         </section>
+
+        <%- include('../partials/catalog-toolbar', {
+            paginationPath,
+            paginationQuery,
+            totalItems,
+            perPage,
+            perPageOptions,
+            allowSort: false,
+            resultsLabel: 'kết quả phù hợp'
+        }) %>
 
         <% if (products && products.length > 0) { %>
             <div class="products-grid catalog-grid">
-                <% products.forEach(product => { %>
+                <% products.forEach((product) => { %>
                     <%- include('../partials/product-card', { product }) %>
                 <% }) %>
             </div>
@@ -32,7 +42,16 @@
                 </div>
             </div>
         <% } %>
+
+        <%- include('../partials/catalog-pagination', {
+            paginationPath,
+            paginationQuery,
+            currentPage,
+            totalPages,
+            perPage
+        }) %>
     </div>
 </div>
 
+<script src="/js/catalog-controls.js"></script>
 <%- include('../partials/footer') %>

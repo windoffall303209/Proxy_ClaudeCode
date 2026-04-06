@@ -89,6 +89,109 @@ class Product {
         return products;
     }
 
+    static getAvailabilityOrderExpression(productAlias = 'p') {
+        return `CASE WHEN ${productAlias}.stock_quantity > 0 THEN 0 ELSE 1 END`;
+    }
+
+    static buildOrderByClause(orderSegments = [], options = {}) {
+        const {
+            prioritizeInStock = false,
+            productAlias = 'p'
+        } = options;
+
+        const clauses = [];
+
+        if (prioritizeInStock) {
+            clauses.push(`${this.getAvailabilityOrderExpression(productAlias)} ASC`);
+        }
+
+        clauses.push(...orderSegments.filter(Boolean));
+        clauses.push(`${productAlias}.id DESC`);
+
+        return clauses.join(', ');
+    }
+
+    static getVariantAggregateSelect(productAlias = 'p') {
+        return `
+                   (
+                       SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.color), '') ORDER BY pv.color SEPARATOR ', ')
+                       FROM product_variants pv
+                       WHERE pv.product_id = ${productAlias}.id
+                   ) as variant_colors,
+                   (
+                       SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.size), '') ORDER BY pv.size SEPARATOR ', ')
+                       FROM product_variants pv
+                       WHERE pv.product_id = ${productAlias}.id
+                   ) as variant_sizes`;
+    }
+
+    static buildSearchFilterClause(searchValue, params = [], productAlias = 'p', options = {}) {
+        const normalizedSearch = String(searchValue || '').trim();
+        if (!normalizedSearch) {
+            return '';
+        }
+
+        // accentSensitive (default true): dùng BINARY LOWER() phân biệt dấu tiếng Việt
+        // Tắt khi caller đã strip dấu (ví dụ chatbot intent search)
+        const accentSensitive = options.accentSensitive !== false;
+
+        const searchBase = accentSensitive ? normalizedSearch.toLowerCase() : normalizedSearch;
+        const exactSearchTerm = `%${searchBase}%`;
+        const terms = Array.from(new Set(
+            searchBase
+                .split(/\s+/)
+                .map((term) => term.trim())
+                .filter((term) => term.length >= 2)
+        )).slice(0, 8);
+
+        const safeLike = accentSensitive
+            ? (field) => `BINARY LOWER(${field}) LIKE ?`
+            : (field) => `${field} LIKE ?`;
+
+        const productFieldClause = `(
+            ${safeLike(`${productAlias}.name`)}
+            OR ${safeLike(`${productAlias}.description`)}
+            OR ${safeLike(`${productAlias}.sku`)}
+            OR EXISTS (
+                SELECT 1
+                FROM product_variants pv
+                WHERE pv.product_id = ${productAlias}.id
+                  AND (
+                      ${safeLike('pv.color')}
+                      OR ${safeLike('pv.size')}
+                      OR ${safeLike('pv.sku')}
+                  )
+            )
+        )`;
+
+        const nameOnlyLike = safeLike(`${productAlias}.name`);
+
+        const groups = [productFieldClause];
+        params.push(
+            exactSearchTerm,
+            exactSearchTerm,
+            exactSearchTerm,
+            exactSearchTerm,
+            exactSearchTerm,
+            exactSearchTerm
+        );
+
+        if (terms.length > 1) {
+            const allTermsClause = terms.map(() => productFieldClause).join(' AND ');
+            const anyTermInName = terms.map(() => nameOnlyLike).join(' OR ');
+            groups.push(`(${allTermsClause} AND (${anyTermInName}))`);
+            terms.forEach((term) => {
+                const likeTerm = `%${term}%`;
+                params.push(likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm);
+            });
+            terms.forEach((term) => {
+                params.push(`%${term}%`);
+            });
+        }
+
+        return ` AND (${groups.join(' OR ')})`;
+    }
+
     static groupReviewMediaByReviewId(mediaRows = []) {
         const mediaMap = new Map();
 
@@ -236,7 +339,8 @@ class Product {
                    (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) as image_count,
                    s.type as sale_type,
                    s.value as sale_value,
-                   s.name as sale_name
+                   s.name as sale_name,
+${this.getVariantAggregateSelect('p')}
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
@@ -253,20 +357,29 @@ class Product {
         }
 
         // Lọc theo khoảng giá
+        // use_final_price: lọc theo giá sau khuyến mãi (giá hiển thị) thay vì giá gốc
+        const finalPriceExpr = `CASE
+            WHEN s.type = 'percent' AND s.value IS NOT NULL
+                THEN p.price * (1 - s.value / 100)
+            WHEN s.type = 'fixed' AND s.value IS NOT NULL
+                THEN GREATEST(0, p.price - s.value)
+            ELSE p.price
+        END`;
+        const priceCol = filters.use_final_price ? finalPriceExpr : 'p.price';
         if (filters.min_price) {
-            query += ' AND p.price >= ?';
+            query += ` AND ${priceCol} >= ?`;
             params.push(filters.min_price);
         }
         if (filters.max_price) {
-            query += ' AND p.price <= ?';
+            query += ` AND ${priceCol} <= ?`;
             params.push(filters.max_price);
         }
 
         // Tìm kiếm theo từ khóa (an toàn SQL injection)
         if (filters.search) {
-            query += ' AND (p.name LIKE ? OR p.description LIKE ? OR p.sku LIKE ?)';
-            const searchTerm = `%${filters.search}%`;
-            params.push(searchTerm, searchTerm, searchTerm);
+            query += this.buildSearchFilterClause(filters.search, params, 'p', {
+                accentSensitive: filters.accent_sensitive !== false
+            });
         }
 
         // Lọc sản phẩm nổi bật
@@ -281,13 +394,22 @@ class Product {
 
         // Xử lý sắp xếp (whitelist để tránh SQL injection)
         const sortField = filters.sort_by || 'created_at';
-        const sortOrder = filters.sort_order || 'DESC';
+        const sortOrder = (filters.sort_order || 'DESC').toUpperCase();
+        const prioritizeInStock = filters.prioritize_in_stock === true;
         const allowedSortFields = ['created_at', 'price', 'name', 'sold_count', 'view_count'];
         const allowedSortOrders = ['ASC', 'DESC'];
 
+        const orderSegments = [];
         if (allowedSortFields.includes(sortField) && allowedSortOrders.includes(sortOrder.toUpperCase())) {
-            query += ` ORDER BY p.${sortField} ${sortOrder}`;
+            orderSegments.push(`p.${sortField} ${sortOrder}`);
+        } else {
+            orderSegments.push('p.created_at DESC');
         }
+
+        query += ` ORDER BY ${this.buildOrderByClause(orderSegments, {
+            prioritizeInStock,
+            productAlias: 'p'
+        })}`;
 
         // Phân trang
         const limit = parseInt(filters.limit) || 12;
@@ -319,9 +441,7 @@ class Product {
         }
 
         if (filters.search) {
-            query += ' AND (p.name LIKE ? OR p.description LIKE ? OR p.sku LIKE ?)';
-            const searchTerm = `%${filters.search}%`;
-            params.push(searchTerm, searchTerm, searchTerm);
+            query += this.buildSearchFilterClause(filters.search, params, 'p');
         }
 
         if (filters.is_featured) {
@@ -346,6 +466,75 @@ class Product {
 
         const [rows] = await pool.query(query, params);
         return rows[0]?.total || 0;
+    }
+
+    static async countAllRecords() {
+        const [rows] = await pool.query('SELECT COUNT(*) AS total FROM products');
+        return rows[0]?.total || 0;
+    }
+
+    static async getByIds(ids = []) {
+        const normalizedIds = Array.from(new Set(
+            (Array.isArray(ids) ? ids : [])
+                .map((id) => Number.parseInt(id, 10))
+                .filter((id) => Number.isInteger(id) && id > 0)
+        ));
+
+        if (!normalizedIds.length) {
+            return [];
+        }
+
+        const placeholders = normalizedIds.map(() => '?').join(', ');
+        const [rows] = await pool.query(
+            `SELECT p.*,
+                    c.name as category_name,
+                    c.slug as category_slug,
+                    (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as primary_image,
+                    (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) as image_count,
+                    s.type as sale_type,
+                    s.value as sale_value,
+                    s.name as sale_name,
+${this.getVariantAggregateSelect('p')}
+             FROM products p
+             LEFT JOIN categories c ON p.category_id = c.id
+             LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
+                AND NOW() BETWEEN s.start_date AND s.end_date
+             WHERE p.is_active = TRUE
+               AND p.id IN (${placeholders})`,
+            normalizedIds
+        );
+
+        const hydratedRows = this.hydrateListingProducts(rows);
+        const productMap = new Map(hydratedRows.map((product) => [product.id, product]));
+
+        return normalizedIds
+            .map((id) => productMap.get(id))
+            .filter(Boolean);
+    }
+
+    static async getActiveChatCatalog() {
+        const [rows] = await pool.query(
+            `SELECT p.*,
+                    c.name as category_name,
+                    c.slug as category_slug,
+                    (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as primary_image,
+                    (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) as image_count,
+                    s.type as sale_type,
+                    s.value as sale_value,
+                    s.name as sale_name,
+${this.getVariantAggregateSelect('p')}
+             FROM products p
+             LEFT JOIN categories c ON p.category_id = c.id
+             LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
+                AND NOW() BETWEEN s.start_date AND s.end_date
+             WHERE p.is_active = TRUE
+             ORDER BY ${this.buildOrderByClause(['p.created_at DESC'], {
+                 prioritizeInStock: true,
+                 productAlias: 'p'
+             })}`
+        );
+
+        return this.hydrateListingProducts(rows);
     }
 
     // =============================================================================
@@ -653,32 +842,66 @@ class Product {
      * @returns {Promise<Array>} Mảng sản phẩm khớp với từ khóa
      */
     static async search(searchQuery, limit = 20) {
-        const searchTerm = `%${searchQuery}%`;
-        const exactSearchTerm = `${searchQuery}%`;
         const limitNum = parseInt(limit) || 20;
+        const params = [];
+        const searchClause = this.buildSearchFilterClause(searchQuery, params, 'p');
+        const lowerSearch = String(searchQuery || '').trim().toLowerCase();
+        const exactPrefixTerm = `${lowerSearch}%`;
+        const looseSearchTerm = `%${lowerSearch}%`;
 
-        // Query tìm kiếm chính xác
+        const terms = Array.from(new Set(
+            lowerSearch
+                .split(/\s+/)
+                .map((t) => t.trim())
+                .filter((t) => t.length >= 2)
+        )).slice(0, 8);
+
+        const safeName = 'BINARY LOWER(p.name)';
+        const safeDesc = 'BINARY LOWER(p.description)';
+
+        const nameMatchScore = terms.length > 0
+            ? terms.map(() => `(CASE WHEN ${safeName} LIKE ? THEN 1 ELSE 0 END)`).join(' + ')
+            : '0';
+
+        const nameMatchParams = terms.map((t) => `%${t}%`);
+
         const query = `
             SELECT p.*,
+                   c.name as category_name,
+                   c.slug as category_slug,
                    (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as primary_image,
                    s.type as sale_type,
-                   s.value as sale_value
+                   s.value as sale_value,
+                   s.name as sale_name,
+${this.getVariantAggregateSelect('p')}
             FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
                 AND NOW() BETWEEN s.start_date AND s.end_date
             WHERE p.is_active = TRUE
-              AND (p.name LIKE ? OR p.description LIKE ? OR p.sku LIKE ?)
-            ORDER BY CASE
-                WHEN p.name LIKE ? THEN 1
-                WHEN p.description LIKE ? THEN 2
-                ELSE 3
-            END, p.sold_count DESC
+              ${searchClause}
+            ORDER BY ${this.buildOrderByClause([
+                `CASE
+                    WHEN ${safeName} LIKE ? THEN 0
+                    WHEN ${safeName} LIKE ? THEN 1
+                    WHEN ${safeDesc} LIKE ? THEN 3
+                    ELSE 2
+                END`,
+                `(${nameMatchScore}) DESC`,
+                'p.sold_count DESC'
+            ], {
+                prioritizeInStock: true,
+                productAlias: 'p'
+            })}
             LIMIT ${limitNum}
         `;
 
         let [rows] = await pool.query(query, [
-            searchTerm, searchTerm, searchTerm,
-            exactSearchTerm, exactSearchTerm
+            ...params,
+            ...nameMatchParams,
+            exactPrefixTerm,
+            looseSearchTerm,
+            looseSearchTerm
         ]);
 
         // Nếu không tìm thấy kết quả, thực hiện fuzzy search
@@ -707,54 +930,98 @@ class Product {
     static async fuzzySearch(searchQuery, limit = 20) {
         const limitNum = parseInt(limit) || 20;
 
-        // Tách query thành các từ riêng lẻ
-        const words = searchQuery.trim().split(/\s+/).filter(w => w.length >= 2);
+        const lowerQuery = String(searchQuery || '').trim().toLowerCase();
+        const words = lowerQuery.split(/\s+/).filter(w => w.length >= 2);
 
         if (words.length === 0) {
-            // Nếu query quá ngắn, trả về sản phẩm bán chạy
             return await this.getBestSellers(limitNum);
         }
 
-        // Tạo điều kiện LIKE cho từng từ
-        const likeConditions = words.map(() => 'p.name LIKE ?').join(' OR ');
-        const likeParams = words.map(word => `%${word}%`);
+        const safeLike = (field) => `BINARY LOWER(${field}) LIKE ?`;
+
+        const buildVariantExistsClause = () => `EXISTS (
+            SELECT 1
+            FROM product_variants pv
+            WHERE pv.product_id = p.id
+              AND (
+                  ${safeLike('pv.color')}
+                  OR ${safeLike('pv.size')}
+                  OR ${safeLike('pv.sku')}
+              )
+        )`;
+        const buildFieldClause = () => `(
+            ${safeLike('p.name')}
+            OR ${safeLike('p.description')}
+            OR ${safeLike('p.sku')}
+            OR ${buildVariantExistsClause()}
+        )`;
+        const nameMatchClause = () => `(CASE WHEN ${safeLike('p.name')} THEN 1 ELSE 0 END)`;
+        const likeConditions = words.map(() => buildFieldClause()).join(' OR ');
+        const matchScoreClauses = words.map(() => nameMatchClause()).join(' + ');
+        const params = [];
+        const appendLikeParams = (word) => {
+            const likeTerm = `%${word}%`;
+            params.push(likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm);
+        };
+        const appendNameParam = (word) => {
+            params.push(`%${word}%`);
+        };
+        words.forEach((word) => appendNameParam(word));
+        words.forEach((word) => appendLikeParams(word));
 
         // Query fuzzy: tìm sản phẩm có chứa ít nhất 1 từ trong query
         const fuzzyQuery = `
             SELECT p.*,
+                   c.name as category_name,
+                   c.slug as category_slug,
                    (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as primary_image,
                    s.type as sale_type,
                    s.value as sale_value,
+                   s.name as sale_name,
+${this.getVariantAggregateSelect('p')},
                    (
-                       ${words.map(() => `(CASE WHEN p.name LIKE ? THEN 1 ELSE 0 END)`).join(' + ')}
+                       ${matchScoreClauses}
                    ) as match_score
             FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
                 AND NOW() BETWEEN s.start_date AND s.end_date
             WHERE p.is_active = TRUE
               AND (${likeConditions})
-            ORDER BY match_score DESC, p.sold_count DESC
+            ORDER BY ${this.buildOrderByClause([
+                'match_score DESC',
+                'p.sold_count DESC'
+            ], {
+                prioritizeInStock: true,
+                productAlias: 'p'
+            })}
             LIMIT ${limitNum}
         `;
 
         // Params: lặp lại likeParams 2 lần (cho match_score và điều kiện WHERE)
-        const params = [...likeParams, ...likeParams];
-
         let [rows] = await pool.query(fuzzyQuery, params);
 
         // Nếu vẫn không có kết quả, tìm theo SOUNDEX (phát âm tương tự)
         if (rows.length === 0) {
             const soundexQuery = `
                 SELECT p.*,
+                       c.name as category_name,
+                       c.slug as category_slug,
                        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as primary_image,
                        s.type as sale_type,
-                       s.value as sale_value
+                       s.value as sale_value,
+                       s.name as sale_name,
+${this.getVariantAggregateSelect('p')}
                 FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
                 LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
                     AND NOW() BETWEEN s.start_date AND s.end_date
                 WHERE p.is_active = TRUE
                   AND SOUNDEX(p.name) = SOUNDEX(?)
-                ORDER BY p.sold_count DESC
+                ORDER BY ${this.buildOrderByClause(['p.sold_count DESC'], {
+                    prioritizeInStock: true,
+                    productAlias: 'p'
+                })}
                 LIMIT ${limitNum}
             `;
 
@@ -828,6 +1095,7 @@ class Product {
         return await this.findAll({
             sort_by: 'sold_count',
             sort_order: 'DESC',
+            prioritize_in_stock: true,
             limit
         });
     }
@@ -849,6 +1117,7 @@ class Product {
         return await this.findAll({
             sort_by: 'created_at',
             sort_order: 'DESC',
+            prioritize_in_stock: true,
             limit
         });
     }
@@ -869,6 +1138,7 @@ class Product {
     static async getFeaturedProducts(limit = 8) {
         return await this.findAll({
             is_featured: true,
+            prioritize_in_stock: true,
             limit
         });
     }
@@ -976,6 +1246,58 @@ class Product {
     static async delete(id) {
         const query = 'UPDATE products SET is_active = FALSE WHERE id = ?';
         await pool.execute(query, [id]);
+    }
+
+    static async deleteAll() {
+        const query = 'UPDATE products SET is_active = FALSE WHERE is_active = TRUE';
+        const [result] = await pool.execute(query);
+        return Number(result?.affectedRows || 0);
+    }
+
+    static async deleteAllPermanently() {
+        const connection = await pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            const [[summary]] = await connection.query(`
+                SELECT
+                    COUNT(*) AS total_products,
+                    SUM(CASE WHEN order_refs.product_id IS NOT NULL THEN 1 ELSE 0 END) AS blocked_products
+                FROM products p
+                LEFT JOIN (
+                    SELECT DISTINCT product_id
+                    FROM order_items
+                ) order_refs ON order_refs.product_id = p.id
+            `);
+
+            const [deleteResult] = await connection.query(`
+                DELETE p
+                FROM products p
+                LEFT JOIN (
+                    SELECT DISTINCT product_id
+                    FROM order_items
+                ) order_refs ON order_refs.product_id = p.id
+                WHERE order_refs.product_id IS NULL
+            `);
+
+            await connection.commit();
+
+            const totalProducts = Number(summary?.total_products || 0);
+            const blockedProducts = Number(summary?.blocked_products || 0);
+            const deletedProducts = Number(deleteResult?.affectedRows || 0);
+
+            return {
+                totalProducts,
+                deletedProducts,
+                blockedProducts
+            };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 
     // =============================================================================
