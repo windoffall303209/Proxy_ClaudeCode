@@ -1,6 +1,8 @@
+// Điều phối tương tác trình duyệt cho chat định dạng nâng cao tin nhắn, tách khỏi template EJS.
 (function initChatRichMessage(global) {
     const CHAT_LINK_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+|\/(?:products|cart|checkout|chat|auth|admin|orders)[^\s<]*)/gi;
 
+    // Chuẩn hóa chat link.
     function normalizeChatLink(rawValue) {
         if (!rawValue) {
             return null;
@@ -22,6 +24,7 @@
         return { href, text: value, trailing };
     }
 
+    // Xử lý append linked text.
     function appendLinkedText(container, text) {
         const value = typeof text === 'string' ? text : '';
         const lines = value.split(/\r?\n/);
@@ -66,6 +69,7 @@
         });
     }
 
+    // Phân tích tin nhắn metadata.
     function parseMessageMetadata(rawValue) {
         if (!rawValue) {
             return null;
@@ -82,10 +86,12 @@
         }
     }
 
+    // Định dạng currency.
     function formatCurrency(value) {
         return `${Number(value || 0).toLocaleString('vi-VN')} đ`;
     }
 
+    // Tạo media element.
     function createMediaElement(attachment) {
         const mediaType = attachment?.mediaType || attachment?.media_type || 'image';
         const mediaUrl = attachment?.mediaUrl || attachment?.media_url || '';
@@ -115,6 +121,7 @@
         return item;
     }
 
+    // Tạo sản phẩm card.
     function createProductCard(product) {
         const url = product?.url || (product?.slug ? `/products/${product.slug}` : '');
         if (!url || !product?.name) {
@@ -186,6 +193,7 @@
         return card;
     }
 
+    // Hiển thị tin nhắn content.
     function renderMessageContent(container, message) {
         if (!container) {
             return;

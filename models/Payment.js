@@ -1,6 +1,8 @@
+// Model truy vấn và chuẩn hóa dữ liệu thanh toán trong MySQL.
 const pool = require('../config/database');
 
 class Payment {
+    // Tìm latest theo đơn hàng.
     static async findLatestByOrder(orderId, paymentMethod = null) {
         let query = 'SELECT * FROM payments WHERE order_id = ?';
         const params = [orderId];
@@ -16,6 +18,7 @@ class Payment {
         return payments[0] || null;
     }
 
+    // Tìm theo transaction ID.
     static async findByTransactionId(transactionId) {
         if (!transactionId) {
             return null;
@@ -29,6 +32,7 @@ class Payment {
         return payments[0] || null;
     }
 
+    // Tạo pending.
     static async createPending(orderId, paymentMethod, amount, paymentData = null) {
         const existingPayment = await this.findLatestByOrder(orderId, paymentMethod);
 
@@ -54,6 +58,7 @@ class Payment {
         };
     }
 
+    // Thao tác với record gateway result.
     static async recordGatewayResult({ orderId, paymentMethod, transactionId = null, amount, status, paymentData = null }) {
         const existingPayment =
             (transactionId ? await this.findByTransactionId(transactionId) : null) ||

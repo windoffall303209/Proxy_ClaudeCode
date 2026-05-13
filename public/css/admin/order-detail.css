@@ -1,3 +1,4 @@
+/* Định nghĩa giao diện cho màn quản trị đơn hàng chi tiết trong khu vực admin. */
 .back-link {
     display: inline-flex;
     align-items: center;
@@ -93,11 +94,13 @@
 
 /* Order Status Select */
 .order-status-select { border: 1px solid var(--admin-border); border-radius: 8px; background: var(--admin-card-bg); }
-.order-status-select--pending { border-color: #f59e0b; color: #b45309; }
+.order-status-select--pending,
+.order-status-select--pending_payment { border-color: #f59e0b; color: #b45309; }
 .order-status-select--confirmed { border-color: #3b82f6; color: #1d4ed8; }
 .order-status-select--processing { border-color: #0ea5e9; color: #0369a1; }
 .order-status-select--shipping { border-color: #8b5cf6; color: #6d28d9; }
-.order-status-select--delivered { border-color: #10b981; color: #047857; }
+.order-status-select--delivered,
+.order-status-select--completed { border-color: #10b981; color: #047857; }
 .order-status-select--cancelled { border-color: #ef4444; color: #b91c1c; }
 
 @media (max-width: 768px) {

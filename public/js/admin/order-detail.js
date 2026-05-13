@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho màn quản trị đơn hàng chi tiết trong khu vực admin.
 function updateStatusSelectClass(select) {
     if (!select) {
         return;
@@ -6,10 +7,12 @@ function updateStatusSelectClass(select) {
     select.className = `admin-form__select order-status-select order-status-select--${select.value}`;
 }
 
+// Lấy field value.
 function getFieldValue(id) {
     return document.getElementById(id)?.value ?? '';
 }
 
+// Tạo dữ liệu theo dõi payload.
 function buildTrackingPayload(statusValue) {
     return {
         status: statusValue,
@@ -25,6 +28,7 @@ function buildTrackingPayload(statusValue) {
     };
 }
 
+// Khởi tạo quản trị đơn hàng chi tiết trang.
 function initAdminOrderDetailPage() {
     const page = document.querySelector('.admin-page[data-order-id]');
     const orderId = page?.dataset.orderId;
@@ -66,5 +70,4 @@ function initAdminOrderDetailPage() {
         });
     });
 }
-
 document.addEventListener('DOMContentLoaded', initAdminOrderDetailPage);

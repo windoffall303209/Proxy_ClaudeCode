@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho danh mục, tách khỏi template EJS.
 const filterButtons = document.querySelectorAll('.filter-btn');
 const sortSelect = document.getElementById('sortProducts');
 const productCount = document.getElementById('productCount');
@@ -10,6 +11,7 @@ filterButtons.forEach((button) => {
     });
 });
 
+// Lọc sản phẩm.
 function filterProducts(filter) {
     const cards = document.querySelectorAll('.product-card');
     let visibleCount = 0;
@@ -65,6 +67,7 @@ if (sortSelect) {
     });
 }
 
+// Hiển thị sản phẩm.
 function renderProducts(products) {
     const grid = document.getElementById('productsGrid');
     if (!grid) return;
@@ -83,6 +86,7 @@ function renderProducts(products) {
     grid.innerHTML = products.map((product) => buildProductCard(product)).join('');
 }
 
+// Tạo dữ liệu sản phẩm card.
 function buildProductCard(product) {
     const slug = product.slug || product.id;
     const price = Number(product.price || 0);
@@ -107,8 +111,8 @@ function buildProductCard(product) {
         : '';
     const priceHtml = hasDiscount
         ? `
-            <span class="product-card__price-original">${price.toLocaleString('vi-VN')}đ</span>
             <span class="product-card__price product-card__price--sale">${finalPrice.toLocaleString('vi-VN')}đ</span>
+            <span class="product-card__price-original">${price.toLocaleString('vi-VN')}đ</span>
         `
         : `<span class="product-card__price">${price.toLocaleString('vi-VN')}đ</span>`;
 

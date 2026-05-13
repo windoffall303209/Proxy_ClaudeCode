@@ -1,6 +1,8 @@
+// Model truy vấn và chuẩn hóa dữ liệu chat trong MySQL.
 const pool = require('../config/database');
 
 class Chat {
+    // Lấy last message preview sql.
     static getLastMessagePreviewSql(conversationAlias = 'cc') {
         return `(
                     SELECT COALESCE(
@@ -18,6 +20,7 @@ class Chat {
                 )`;
     }
 
+    // Phân tích message metadata.
     static parseMessageMetadata(rawValue) {
         if (!rawValue) {
             return null;
@@ -34,6 +37,7 @@ class Chat {
         }
     }
 
+    // Thao tác với serialize message metadata.
     static serializeMessageMetadata(metadata) {
         if (!metadata || typeof metadata !== 'object') {
             return null;
@@ -49,6 +53,7 @@ class Chat {
         return JSON.stringify(metadata);
     }
 
+    // Thao tác với hydrate message.
     static hydrateMessage(message) {
         if (!message || typeof message !== 'object') {
             return message;
@@ -61,10 +66,12 @@ class Chat {
         };
     }
 
+    // Thao tác với hydrate messages.
     static hydrateMessages(messages = []) {
         return messages.map((message) => this.hydrateMessage(message));
     }
 
+    // Tạo dữ liệu customer scope.
     static buildCustomerScope(userId, sessionId, alias = 'cc') {
         if (userId) {
             return {
@@ -79,6 +86,7 @@ class Chat {
         };
     }
 
+    // Lấy đang bật conversation for customer.
     static async getActiveConversationForCustomer(userId, sessionId) {
         const scope = this.buildCustomerScope(userId, sessionId);
         const [rows] = await pool.execute(
@@ -112,6 +120,7 @@ class Chat {
         return rows[0] || null;
     }
 
+    // TìT?m ho?c t?o conversation.
     static async findOrCreateConversation(userId, sessionId, guestName = 'Khach') {
         const existingConversation = await this.getActiveConversationForCustomer(userId, sessionId);
         if (existingConversation) {
@@ -126,6 +135,7 @@ class Chat {
         return this.getConversationById(result.insertId);
     }
 
+    // Lấy conversation theo ID.
     static async getConversationById(conversationId) {
         const [rows] = await pool.execute(
             `SELECT cc.*,
@@ -156,6 +166,7 @@ class Chat {
         return rows[0] || null;
     }
 
+    // Lấy messages.
     static async getMessages(conversationId, limit = 50) {
         const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
         const [rows] = await pool.execute(
@@ -177,6 +188,7 @@ class Chat {
         return this.hydrateMessages(rows);
     }
 
+    // Thêm message.
     static async addMessage(conversationId, senderType, senderId, message, options = {}) {
         const safeMessage = typeof message === 'string' ? message : '';
         const messageType = options.messageType || 'text';
@@ -205,6 +217,7 @@ class Chat {
         return this.hydrateMessage(rows[0] || null);
     }
 
+    // Thao tác với mark as read.
     static async markAsRead(conversationId, readerType) {
         const senderCondition = readerType === 'admin'
             ? "sender_type = 'customer'"
@@ -220,6 +233,7 @@ class Chat {
         );
     }
 
+    // Lấy tất cả conversations.
     static async getAllConversations(page = 1, limit = 20) {
         const safePage = Math.max(1, parseInt(page, 10) || 1);
         const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
@@ -266,6 +280,7 @@ class Chat {
         };
     }
 
+    // Lấy unread count.
     static async getUnreadCount() {
         const [rows] = await pool.execute(
             `SELECT COUNT(DISTINCT cm.conversation_id) AS count
@@ -279,6 +294,7 @@ class Chat {
         return rows[0].count;
     }
 
+    // Lấy customer unread count.
     static async getCustomerUnreadCount(userId, sessionId) {
         const scope = this.buildCustomerScope(userId, sessionId, 'cc');
         const [rows] = await pool.execute(
@@ -295,6 +311,7 @@ class Chat {
         return rows[0].count;
     }
 
+    // Thao tác với set handling mode.
     static async setHandlingMode(conversationId, mode) {
         await pool.execute(
             'UPDATE chat_conversations SET handling_mode = ?, updated_at = NOW() WHERE id = ?',
@@ -304,6 +321,7 @@ class Chat {
         return this.getConversationById(conversationId);
     }
 
+    // Đóng conversation.
     static async closeConversation(conversationId) {
         await pool.execute(
             'UPDATE chat_conversations SET status = "closed", updated_at = NOW() WHERE id = ?',
@@ -311,6 +329,7 @@ class Chat {
         );
     }
 
+    // Thao tác với reopen conversation.
     static async reopenConversation(conversationId) {
         await pool.execute(
             'UPDATE chat_conversations SET status = "active", updated_at = NOW() WHERE id = ?',

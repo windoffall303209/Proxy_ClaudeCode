@@ -1,6 +1,14 @@
-<!-- Chat Widget - Include in footer.ejs -->
-<div id="chatWidget" class="chat-widget">
-    <!-- Chat Toggle Button -->
+<%# Partial EJS dùng lại cho chat widget để các view giữ cấu trúc thống nhất. %>
+<!-- Chat Widget - Được include trong footer.ejs -->
+<!-- ===== Khung tổng của chat widget nổi ===== -->
+<%
+    const chatSettings = typeof storefrontSettings !== 'undefined' && storefrontSettings ? storefrontSettings : {};
+    const chatTitle = chatSettings.chat_title || chatSettings.site_name || 'WIND OF FALL';
+    const chatInitials = chatSettings.brand_initials || 'WF';
+    const chatPosition = chatSettings.chat_position === 'left' ? 'left' : 'right';
+%>
+<div id="chatWidget" class="chat-widget chat-widget--<%= chatPosition %>">
+    <!-- Nút bật/tắt khung chat -->
     <button class="chat-widget__toggle" id="chatToggleBtn" type="button">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -8,13 +16,13 @@
         <span class="chat-widget__badge" id="chatBadge" hidden>0</span>
     </button>
 
-    <!-- Chat Box -->
+    <!-- Khung nội dung chat -->
     <div class="chat-widget__box" id="chatBox" hidden>
         <div class="chat-widget__header">
             <div class="chat-widget__header-info">
-                <div class="chat-widget__avatar">WF</div>
+                <div class="chat-widget__avatar"><%= chatInitials %></div>
                 <div>
-                    <div class="chat-widget__title">WIND OF FALL</div>
+                    <div class="chat-widget__title"><%= chatTitle %></div>
                     <div class="chat-widget__status">
                         <span class="chat-widget__dot"></span> Trực tuyến
                     </div>
@@ -43,14 +51,16 @@
             </div>
         </div>
 
+        <!-- Vùng danh sách tin nhắn (được render bởi chat-widget.js) -->
         <div class="chat-widget__messages" id="chatMessages">
             <div class="chat-widget__welcome">
-                <p>Xin chào! Tôi là trợ lý AI của <strong>WIND OF FALL</strong>.</p>
-                <p>Bạn cần hỗ trợ gì?</p>
+                <p><%= chatSettings.chat_greeting || 'Xin chào! Tôi là trợ lý AI của WIND OF FALL.' %></p>
+                <p><%= chatSettings.chat_prompt_text || 'Bạn cần hỗ trợ gì?' %></p>
             </div>
         </div>
 
         <div class="chat-widget__input-area">
+            <!-- Vùng soạn tin: văn bản + tệp đính kèm media -->
             <form id="chatForm">
                 <button type="button" class="chat-widget__attach-btn" id="chatAttachBtn" aria-label="Gửi ảnh hoặc video">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

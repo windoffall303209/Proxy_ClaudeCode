@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho chat widget, tách khỏi template EJS.
 const chatState = window.__tmdtChatWidgetState || (window.__tmdtChatWidgetState = {
     open: false,
     loaded: false,
@@ -11,6 +12,7 @@ const chatState = window.__tmdtChatWidgetState || (window.__tmdtChatWidgetState 
     expanded: false
 });
 
+// Lấy chat elements.
 function getChatElements() {
     return {
         box: document.getElementById('chatBox'),
@@ -30,6 +32,7 @@ function getChatElements() {
     };
 }
 
+// Cập nhật chat badge.
 function updateChatBadge(count) {
     const { badge } = getChatElements();
     if (!badge) {
@@ -46,10 +49,12 @@ function updateChatBadge(count) {
     badge.textContent = String(count);
 }
 
+// Kiểm tra chat trang visible.
 function isChatPageVisible() {
     return document.visibilityState !== 'hidden';
 }
 
+// Xử lý run chat task when idle.
 function runChatTaskWhenIdle(callback, fallbackDelay = 300) {
     if (typeof callback !== 'function') {
         return;
@@ -63,6 +68,7 @@ function runChatTaskWhenIdle(callback, fallbackDelay = 300) {
     window.setTimeout(callback, fallbackDelay);
 }
 
+// Xử lý refresh chat badge.
 async function refreshChatBadge() {
     if (chatState.open) {
         updateChatBadge(0);
@@ -98,12 +104,14 @@ async function refreshChatBadge() {
     return chatState.badgeRequest;
 }
 
+// Định dạng chat time.
 function formatChatTime(date) {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
 }
 
+// Xử lý scroll vào bottom.
 function scrollToBottom() {
     const { messages } = getChatElements();
     if (!messages) {
@@ -115,6 +123,7 @@ function scrollToBottom() {
     }, 50);
 }
 
+// Tạo dữ liệu tin nhắn label.
 function buildMessageLabel(type) {
     if (type === 'admin') {
         return 'Admin';
@@ -131,6 +140,7 @@ function buildMessageLabel(type) {
     return '';
 }
 
+// Tạo tin nhắn object.
 function createMessageObject(type, text, time, metadata) {
     return {
         sender_type: type,
@@ -140,10 +150,12 @@ function createMessageObject(type, text, time, metadata) {
     };
 }
 
+// Chuẩn hóa pending tin nhắn text.
 function normalizePendingMessageText(value) {
     return typeof value === 'string' ? value.trim() : '';
 }
 
+// Xử lý set pending customer tin nhắn.
 function setPendingCustomerMessage(text, element) {
     chatState.pendingCustomerMessage = {
         text: normalizePendingMessageText(text),
@@ -151,6 +163,7 @@ function setPendingCustomerMessage(text, element) {
     };
 }
 
+// Xử lý clear pending customer tin nhắn.
 function clearPendingCustomerMessage(options = {}) {
     const pending = chatState.pendingCustomerMessage;
     chatState.pendingCustomerMessage = null;
@@ -160,6 +173,7 @@ function clearPendingCustomerMessage(options = {}) {
     }
 }
 
+// Xử lý reconcile pending customer tin nhắn.
 function reconcilePendingCustomerMessage(message) {
     if (!message || message.sender_type !== 'customer' || !message.id) {
         return false;
@@ -196,6 +210,7 @@ function reconcilePendingCustomerMessage(message) {
     return true;
 }
 
+// Xử lý append tin nhắn.
 function appendMessage(type, text, time, options = {}) {
     const { messages } = getChatElements();
     if (!messages) {
@@ -242,6 +257,7 @@ function appendMessage(type, text, time, options = {}) {
     return wrapper;
 }
 
+// Xử lý append tin nhắn record.
 function appendMessageRecord(message) {
     if (!message) {
         return;
@@ -261,6 +277,7 @@ function appendMessageRecord(message) {
     });
 }
 
+// Xử lý show typing.
 function showTyping() {
     hideTyping();
 
@@ -277,6 +294,7 @@ function showTyping() {
     scrollToBottom();
 }
 
+// Xử lý hide typing.
 function hideTyping() {
     const typing = document.getElementById('chatTypingIndicator');
     if (typing) {
@@ -284,6 +302,7 @@ function hideTyping() {
     }
 }
 
+// Đồng bộ input state.
 function syncInputState() {
     const { input, sendButton, attachButton } = getChatElements();
     if (!input || !sendButton || !attachButton) {
@@ -300,6 +319,7 @@ function syncInputState() {
     attachButton.disabled = false;
 }
 
+// Xử lý describe selected tệp.
 function describeSelectedFiles(files = []) {
     if (!files.length) {
         return '';
@@ -316,6 +336,7 @@ function describeSelectedFiles(files = []) {
         : `${files.length} tệp: ${fileNames}`;
 }
 
+// Cập nhật attachment preview.
 function updateAttachmentPreview() {
     const { fileInput, attachmentPreview, attachmentPreviewText } = getChatElements();
     if (!fileInput || !attachmentPreview || !attachmentPreviewText) {
@@ -333,6 +354,7 @@ function updateAttachmentPreview() {
     attachmentPreviewText.textContent = describeSelectedFiles(files);
 }
 
+// Xử lý clear attachment selection.
 function clearAttachmentSelection() {
     const { fileInput } = getChatElements();
     if (!fileInput) {
@@ -343,6 +365,7 @@ function clearAttachmentSelection() {
     updateAttachmentPreview();
 }
 
+// Nạp chat history.
 async function loadChatHistory() {
     const { messages } = getChatElements();
     if (!messages) {
@@ -375,6 +398,7 @@ async function loadChatHistory() {
     }
 }
 
+// Gửi chat tin nhắn.
 async function sendChatMessage(event) {
     event.preventDefault();
 
@@ -458,6 +482,7 @@ async function sendChatMessage(event) {
     scrollToBottom();
 }
 
+// Xử lý poll new tin nhắn.
 async function pollNewMessages() {
     if (!chatState.open) {
         return;
@@ -503,6 +528,7 @@ async function pollNewMessages() {
     }
 }
 
+// Xử lý start chat polling.
 function startChatPolling() {
     if (chatState.pollInterval || !chatState.open || !isChatPageVisible()) {
         return;
@@ -518,6 +544,7 @@ function startChatPolling() {
     }, 7000);
 }
 
+// Xử lý stop chat polling.
 function stopChatPolling() {
     if (chatState.pollInterval) {
         clearInterval(chatState.pollInterval);
@@ -525,6 +552,7 @@ function stopChatPolling() {
     }
 }
 
+// Đồng bộ expand button.
 function syncExpandButton() {
     const { box, expandButton, expandIcon, collapseIcon } = getChatElements();
     if (!box || !expandButton || !expandIcon || !collapseIcon) {
@@ -540,12 +568,14 @@ function syncExpandButton() {
     );
 }
 
+// Bật/tắt chat expand.
 function toggleChatExpand() {
     chatState.expanded = !chatState.expanded;
     syncExpandButton();
     scrollToBottom();
 }
 
+// Bật/tắt chat widget.
 function toggleChatWidget() {
     const { box, toggleButton, input } = getChatElements();
     if (!box || !toggleButton) {
@@ -577,6 +607,7 @@ function toggleChatWidget() {
     refreshChatBadge();
 }
 
+// Đồng bộ chat after focus.
 function syncChatAfterFocus() {
     if (!isChatPageVisible()) {
         stopChatPolling();
@@ -597,6 +628,7 @@ function syncChatAfterFocus() {
     refreshChatBadge();
 }
 
+// Khởi tạo chat widget.
 function initChatWidget() {
     const {
         toggleButton,
@@ -613,7 +645,6 @@ function initChatWidget() {
     chatState.initialized = true;
     runChatTaskWhenIdle(() => refreshChatBadge());
     syncExpandButton();
-
     toggleButton.addEventListener('click', toggleChatWidget);
     document.querySelector('.chat-widget__close')?.addEventListener('click', toggleChatWidget);
     document.getElementById('chatForm')?.addEventListener('submit', sendChatMessage);
@@ -621,9 +652,7 @@ function initChatWidget() {
     fileInput?.addEventListener('change', updateAttachmentPreview);
     attachmentClearButton?.addEventListener('click', clearAttachmentSelection);
     expandButton?.addEventListener('click', toggleChatExpand);
-
     document.addEventListener('visibilitychange', syncChatAfterFocus);
     window.addEventListener('pagehide', stopChatPolling, { passive: true });
 }
-
 document.addEventListener('DOMContentLoaded', initChatWidget);

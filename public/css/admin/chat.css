@@ -1,3 +1,4 @@
+/* Định nghĩa giao diện cho màn quản trị chat trong khu vực admin. */
 body.admin-body.admin-body--chat {
     overflow: hidden;
 }

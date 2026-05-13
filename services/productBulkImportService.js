@@ -1,3 +1,4 @@
+// Service gom logic productbulkimportservice để controller không phải lặp xử lý nghiệp vụ.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -13,10 +14,12 @@ const BULK_IMPORT_FOLDER = 'tmdt_ecommerce/products/bulk-import';
 const DEFAULT_IMAGE_URL = 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600';
 const EXPORT_PRODUCT_LIMIT = 100000;
 
+// Chuẩn hóa text.
 function normalizeText(value) {
     return String(value ?? '').trim();
 }
 
+// Chuẩn hóa lookup key.
 function normalizeLookupKey(value) {
     return normalizeText(value)
         .toLowerCase()
@@ -27,6 +30,7 @@ function normalizeLookupKey(value) {
         .trim();
 }
 
+// Chuẩn hóa import path.
 function normalizeImportPath(value) {
     return normalizeText(value)
         .replace(/\\/g, '/')
@@ -35,11 +39,13 @@ function normalizeImportPath(value) {
         .toLowerCase();
 }
 
+// Phân tích boolean.
 function parseBoolean(value) {
     const normalized = normalizeLookupKey(value);
     return ['1', 'true', 'yes', 'y', 'co', 'x', 'on'].includes(normalized);
 }
 
+// Phân tích optional integer.
 function parseOptionalInteger(value, fieldName) {
     const normalized = normalizeText(value);
     if (!normalized) {
@@ -54,6 +60,7 @@ function parseOptionalInteger(value, fieldName) {
     return parsed;
 }
 
+// Phân tích optional decimal.
 function parseOptionalDecimal(value, fieldName) {
     const normalized = normalizeText(value);
     if (!normalized) {
@@ -68,6 +75,7 @@ function parseOptionalDecimal(value, fieldName) {
     return parsed;
 }
 
+// Tạo slug chuẩn hóa từ chuỗi đầu vào.
 function slugify(text) {
     return normalizeText(text)
         .toLowerCase()
@@ -78,6 +86,7 @@ function slugify(text) {
         .replace(/(^-|-$)/g, '');
 }
 
+// Dọn dẹp path.
 function cleanupPath(targetPath) {
     if (!targetPath) {
         return;
@@ -90,6 +99,7 @@ function cleanupPath(targetPath) {
     }
 }
 
+// Tìm sheet name.
 function findSheetName(workbook, expectedName) {
     const normalizedExpectedName = normalizeLookupKey(expectedName);
     return workbook.SheetNames.find(
@@ -97,6 +107,7 @@ function findSheetName(workbook, expectedName) {
     ) || null;
 }
 
+// Xử lý read sheet rows.
 function readSheetRows(workbook, sheetName) {
     const matchedSheetName = findSheetName(workbook, sheetName);
     if (!matchedSheetName) {
@@ -117,10 +128,12 @@ function readSheetRows(workbook, sheetName) {
     }));
 }
 
+// Kiểm tra meaningful row.
 function isMeaningfulRow(row, keys) {
     return keys.some((key) => normalizeText(row[key]));
 }
 
+// Phân tích workbook.
 function parseWorkbook(workbookPath) {
     if (!workbookPath || !fs.existsSync(workbookPath)) {
         throw new Error('Workbook file was not found');
@@ -144,6 +157,7 @@ function parseWorkbook(workbookPath) {
             productKey: normalizeText(row.product_key),
             name: normalizeText(row.name),
             slug: normalizeText(row.slug),
+            categorySlug: normalizeText(row.category_slug),
             categoryId: normalizeText(row.category_id),
             categoryName: normalizeText(row.category_name),
             description: normalizeText(row.description),
@@ -175,16 +189,18 @@ function parseWorkbook(workbookPath) {
     };
 }
 
+// Tạo dữ liệu instruction rows.
 function buildInstructionRows() {
     return [
         ['Sheet', 'Purpose', 'Required columns', 'Notes'],
-        ['Products', 'One row per product', 'product_key, name, category_name/category_id, price', 'product_key links all sheets together'],
+        ['Products', 'One row per product', 'product_key, name, category_slug/category_name/category_id, price', 'Prefer category_slug. product_key links all sheets together'],
         ['Images', 'One row per product image', 'product_key, image_file or image_url', 'Use image_file when the real file is inside the uploaded ZIP'],
         ['Variants', 'One row per variant', 'product_key, size or color', 'Variant image can reuse a file already listed in Images'],
         ['ZIP', 'Image source bundle', 'N/A', 'Upload a .zip containing the image files referenced by image_file']
     ];
 }
 
+// Tạo workbook buffer.
 function createWorkbookBuffer({ productsRows, imagesRows, variantsRows }) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(buildInstructionRows()), 'Instructions');
@@ -194,39 +210,73 @@ function createWorkbookBuffer({ productsRows, imagesRows, variantsRows }) {
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 }
 
+// Tạo dữ liệu danh mục maps.
 function buildCategoryMaps(categories = []) {
     const byId = new Map();
+    const bySlug = new Map();
     const byName = new Map();
 
     categories.forEach((category) => {
-        byId.set(String(category.id), category.id);
-        byName.set(normalizeLookupKey(category.name), category.id);
+        byId.set(String(category.id), category);
+        bySlug.set(normalizeLookupKey(category.slug), category);
+
+        const nameKey = normalizeLookupKey(category.name);
+        const nameMatches = byName.get(nameKey) || [];
+        nameMatches.push(category);
+        byName.set(nameKey, nameMatches);
     });
 
-    return { byId, byName };
+    return { byId, bySlug, byName };
 }
 
+// Xác định danh mục id.
 function resolveCategoryId(productRow, categoryMaps) {
-    if (productRow.categoryId) {
-        const resolvedCategoryId = categoryMaps.byId.get(String(productRow.categoryId));
-        if (!resolvedCategoryId) {
-            throw new Error(`Category ID "${productRow.categoryId}" was not found`);
+    let resolvedFromSlug = null;
+    let resolvedFromName = null;
+    let resolvedFromId = null;
+
+    if (productRow.categorySlug) {
+        resolvedFromSlug = categoryMaps.bySlug.get(normalizeLookupKey(productRow.categorySlug)) || null;
+        if (!resolvedFromSlug) {
+            throw new Error(`Category slug "${productRow.categorySlug}" was not found`);
         }
-        return resolvedCategoryId;
     }
 
-    if (!productRow.categoryName) {
+    if (productRow.categoryName) {
+        const matches = categoryMaps.byName.get(normalizeLookupKey(productRow.categoryName)) || [];
+        if (matches.length === 1) {
+            [resolvedFromName] = matches;
+        } else if (matches.length > 1) {
+            throw new Error(
+                `Category name "${productRow.categoryName}" is ambiguous; please provide category_slug or category_id`
+            );
+        } else if (!productRow.categorySlug && !productRow.categoryId) {
+            throw new Error(`Category "${productRow.categoryName}" was not found`);
+        }
+    }
+
+    if (productRow.categoryId) {
+        resolvedFromId = categoryMaps.byId.get(String(productRow.categoryId)) || null;
+        if (!resolvedFromId && !resolvedFromSlug && !resolvedFromName) {
+            throw new Error(`Category ID "${productRow.categoryId}" was not found`);
+        }
+    }
+
+    const chosenCategory = resolvedFromSlug || resolvedFromName || resolvedFromId;
+    if (!chosenCategory) {
         throw new Error('Category is required');
     }
 
-    const resolvedCategoryId = categoryMaps.byName.get(normalizeLookupKey(productRow.categoryName));
-    if (!resolvedCategoryId) {
-        throw new Error(`Category "${productRow.categoryName}" was not found`);
+    if (resolvedFromSlug && resolvedFromName && Number(resolvedFromSlug.id) !== Number(resolvedFromName.id)) {
+        throw new Error(
+            `Category slug "${productRow.categorySlug}" does not match category name "${productRow.categoryName}"`
+        );
     }
 
-    return resolvedCategoryId;
+    return chosenCategory.id;
 }
 
+// Tạo zip ảnh index.
 function createZipImageIndex(zipPath) {
     if (!zipPath) {
         return {
@@ -297,6 +347,7 @@ function createZipImageIndex(zipPath) {
     };
 }
 
+// Xử lý group rows theo sản phẩm key.
 function groupRowsByProductKey(rows = [], label) {
     const groupedRows = new Map();
 
@@ -314,6 +365,7 @@ function groupRowsByProductKey(rows = [], label) {
     return groupedRows;
 }
 
+// Kiểm tra hợp lệ workbook links.
 function validateWorkbookLinks(products, images, variants) {
     const productKeys = new Set();
 
@@ -342,6 +394,7 @@ function validateWorkbookLinks(products, images, variants) {
     });
 }
 
+// Tải lên ảnh từ source.
 async function uploadImageFromSource(imageSource, zipIndex, uploadCache) {
     if (imageSource.imageUrl) {
         return imageSource.imageUrl;
@@ -370,6 +423,7 @@ async function uploadImageFromSource(imageSource, zipIndex, uploadCache) {
     return uploadResult.url;
 }
 
+// Đảm bảo sản phẩm ảnh.
 async function ensureProductImage(productId, imageSource, context) {
     const sourceKey = imageSource.imageUrl
         ? `url:${normalizeText(imageSource.imageUrl)}`
@@ -392,6 +446,7 @@ async function ensureProductImage(productId, imageSource, context) {
     return image.id;
 }
 
+// Tạo dữ liệu biến thể payload.
 function buildVariantPayload(variantRow) {
     return {
         size: normalizeText(variantRow.size) || null,
@@ -402,6 +457,7 @@ function buildVariantPayload(variantRow) {
     };
 }
 
+// Nhập single sản phẩm.
 async function importSingleProduct(productRow, groupedImages, groupedVariants, categoryMaps, zipIndex, uploadCache) {
     let createdProductId = null;
 
@@ -545,6 +601,7 @@ async function importSingleProduct(productRow, groupedImages, groupedVariants, c
     }
 }
 
+// Nhập sản phẩm từ workbook.
 async function importProductsFromWorkbook({ workbookPath, zipPath }) {
     const workbookData = parseWorkbook(workbookPath);
     validateWorkbookLinks(workbookData.products, workbookData.images, workbookData.variants);
@@ -589,6 +646,7 @@ async function importProductsFromWorkbook({ workbookPath, zipPath }) {
     }
 }
 
+// Tạo dữ liệu export sản phẩm key.
 function buildExportProductKey(product) {
     if (product?.sku) {
         return normalizeText(product.sku);
@@ -597,6 +655,7 @@ function buildExportProductKey(product) {
     return `PRD-${product.id}`;
 }
 
+// Xuất sản phẩm vào workbook buffer.
 async function exportProductsToWorkbookBuffer(options = {}) {
     const search = normalizeText(options.search);
     const products = await Product.findAll({
@@ -623,6 +682,7 @@ async function exportProductsToWorkbookBuffer(options = {}) {
             product_key: productKey,
             name: product.name || '',
             slug: product.slug || '',
+            category_slug: product.category_slug || '',
             category_name: product.category_name || '',
             category_id: product.category_id ?? '',
             description: product.description || '',
@@ -660,12 +720,14 @@ async function exportProductsToWorkbookBuffer(options = {}) {
     return createWorkbookBuffer({ productsRows, imagesRows, variantsRows });
 }
 
+// Tạo sản phẩm import template buffer.
 function createProductImportTemplateBuffer() {
     const productsRows = [
         {
             product_key: 'NU-CROPTOP-01',
             name: 'Ao Croptop Nu',
             slug: '',
+            category_slug: 'nu',
             category_name: 'Nu',
             category_id: '',
             description: 'Ao croptop tay ngan co V',
@@ -679,6 +741,7 @@ function createProductImportTemplateBuffer() {
             product_key: 'NU-VAY-MIDI-01',
             name: 'Vay Midi Xoe',
             slug: '',
+            category_slug: 'nu',
             category_name: 'Nu',
             category_id: '',
             description: 'Vay midi hoa tiet',

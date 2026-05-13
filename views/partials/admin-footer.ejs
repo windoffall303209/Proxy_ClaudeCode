@@ -1,18 +1,17 @@
+<%# Partial EJS dùng lại cho quản trị footer để các view giữ cấu trúc thống nhất. %>
 </main>
 </div>
 <% const extraAdminPageScripts = Array.isArray(typeof pageScripts !== 'undefined' ? pageScripts : null) ? pageScripts : []; %>
 
+<!-- ===== Footer Admin + scripts theo từng trang ===== -->
 <% const shouldHideAdminFooter = typeof hideAdminFooter !== 'undefined' && hideAdminFooter; %>
+<% const adminFooterSettings = typeof storefrontSettings !== 'undefined' && storefrontSettings ? storefrontSettings : {}; %>
 <% if (!shouldHideAdminFooter) { %>
 <footer class="admin-footer">
     <div class="admin-footer__inner">
         <div>
-            <strong>WIND OF FALL Admin</strong>
+            <strong><%= adminFooterSettings.site_name || 'WIND OF FALL' %> Admin</strong>
             <p>Back office cho sản phẩm, đơn hàng, ưu đãi và chăm sóc khách hàng.</p>
-        </div>
-        <div class="admin-footer__meta">
-            <span>Storefront nội bộ</span>
-            <span>Thiết kế đồng bộ cùng user UI</span>
         </div>
     </div>
 </footer>

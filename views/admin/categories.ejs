@@ -1,3 +1,4 @@
+<%# Template admin render màn quản trị danh mục với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'categories', pageStyles: ['/css/admin/categories.css'] }) %>
 
 <div class="admin-page">
@@ -7,7 +8,28 @@
                 <h1>Quản Lý Danh Mục</h1>
                 <p><%= categories ? categories.length : 0 %> danh mục hiển thị</p>
             </div>
+            <div class="admin-page-header__actions">
+                <a
+                    href="/admin/categories/export<%= searchQuery ? '?search=' + encodeURIComponent(searchQuery) : '' %>"
+                    class="admin-btn admin-btn--ghost"
+                    data-category-action="export-categories"
+                >Xuất Excel</a>
+                <a href="/admin/categories/import-template" class="admin-btn admin-btn--ghost">Tải mẫu Excel</a>
+                <% if (categoryStats && categoryStats.total > 0) { %>
+                    <button
+                        type="button"
+                        class="admin-btn admin-btn--danger"
+                        data-category-action="delete-all-categories"
+                    >
+                        Xóa tất cả
+                    </button>
+                <% } %>
+            </div>
         </div>
+
+        <% if (notice) { %>
+            <div class="alert <%= noticeType === 'error' ? 'alert-error' : (noticeType === 'warning' ? 'alert-warning' : 'alert-success') %>"><%= notice %></div>
+        <% } %>
 
         <div class="stats-grid">
             <div class="stat-card stat-card--purple">
@@ -23,7 +45,7 @@
                 <p class="stat-card__value"><%= categoryStats ? categoryStats.children : 0 %></p>
             </div>
             <div class="stat-card stat-card--pink">
-                <h3 class="stat-card__label">Sản phẩm đã gán</h3>
+                <h3 class="stat-card__label">Sản phẩm đã gắn</h3>
                 <p class="stat-card__value"><%= categoryStats ? categoryStats.assignedProducts : 0 %></p>
             </div>
         </div>
@@ -31,12 +53,9 @@
         <div class="admin-toolbar">
             <div class="admin-toolbar__info">
                 <p class="admin-toolbar__title">Tổ chức hệ thống danh mục bán hàng</p>
-                <p class="admin-toolbar__text">
-                    Quản lý tên, slug, thứ tự hiển thị và quan hệ cha con cho danh mục quần áo.
-                    <% if (searchQuery) { %>
-                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
-                    <% } %>
-                </p>
+                <% if (searchQuery) { %>
+                    <p class="admin-toolbar__text">Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"</p>
+                <% } %>
             </div>
             <form action="/admin/categories" method="GET" class="admin-search-form">
                 <input
@@ -55,7 +74,33 @@
             </form>
         </div>
 
-        <div class="admin-section admin-section--collapsible">
+        <div class="admin-section admin-section--collapsible admin-section--category-import">
+            <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import danh mục nhanh
+                <svg class="admin-section__chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </h3>
+            <form action="/admin/categories/import" method="POST" enctype="multipart/form-data" class="admin-form admin-section__content">
+                <div class="admin-form__row admin-form__row--categories">
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">File Excel danh mục</label>
+                        <input type="file" name="import_file" accept=".xlsx,.xls" required class="admin-form__input">
+                        <p class="admin-form__hint">Nếu slug đã tồn tại, hệ thống sẽ cập nhật danh mục đó. Nếu chưa có, hệ thống sẽ tạo mới.</p>
+                    </div>
+                </div>
+                <div class="admin-form__actions">
+                    <button type="submit" class="admin-btn admin-btn--primary">Import danh mục</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="admin-section admin-section--collapsible admin-section--category-create">
             <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/>
@@ -66,7 +111,7 @@
                     <polyline points="6 9 12 15 18 9"/>
                 </svg>
             </h3>
-            <form id="createCategoryForm" action="/admin/categories" method="POST" class="admin-form admin-section__content">
+            <form id="createCategoryForm" action="/admin/categories" method="POST" enctype="multipart/form-data" class="admin-form admin-section__content">
                 <div class="admin-form__row admin-form__row--categories">
                     <div class="admin-form__group">
                         <label class="admin-form__label">Tên danh mục <span>*</span></label>
@@ -74,7 +119,7 @@
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">Slug</label>
-                        <input type="text" name="slug" id="createCategorySlug" class="admin-form__input" placeholder="Tu dong tao neu de trong">
+                        <input type="text" name="slug" id="createCategorySlug" class="admin-form__input" placeholder="Tự động tạo nếu để trống">
                     </div>
                 </div>
                 <div class="admin-form__row admin-form__row--categories">
@@ -95,18 +140,18 @@
                         <label class="admin-form__label">Ảnh đại diện (URL)</label>
                         <input type="url" name="image_url" class="admin-form__input" placeholder="https://...">
                     </div>
+                    <div class="admin-form__group">
+                        <label class="admin-form__label">Tải ảnh từ máy</label>
+                        <input type="file" name="image" accept="image/*" class="admin-form__input">
+                        <p class="admin-form__hint">Nếu chọn file, ảnh upload sẽ ưu tiên hơn URL.</p>
+                    </div>
                 </div>
                 <div class="admin-form__group">
                     <label class="admin-form__label">Mô tả</label>
                     <textarea name="description" rows="4" class="admin-form__textarea" placeholder="Mô tả ngắn cho danh mục..."></textarea>
                 </div>
                 <div class="admin-form__actions">
-                    <button type="submit" class="admin-btn admin-btn--primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        Thêm Danh Mục
-                    </button>
+                    <button type="submit" class="admin-btn admin-btn--primary">Thêm Danh Mục</button>
                 </div>
             </form>
         </div>
@@ -219,7 +264,7 @@
                 </svg>
             </button>
         </div>
-        <form id="editCategoryForm" class="admin-form">
+        <form id="editCategoryForm" class="admin-form" enctype="multipart/form-data">
             <input type="hidden" id="editCategoryId">
             <div class="admin-form__row admin-form__row--categories">
                 <div class="admin-form__group">
@@ -228,7 +273,7 @@
                 </div>
                 <div class="admin-form__group">
                     <label class="admin-form__label">Slug</label>
-                    <input type="text" id="editCategorySlug" class="admin-form__input" placeholder="Tu dong tao neu de trong">
+                    <input type="text" id="editCategorySlug" class="admin-form__input" placeholder="Tự động tạo nếu để trống">
                 </div>
             </div>
             <div class="admin-form__row admin-form__row--categories">
@@ -243,6 +288,11 @@
                 <div class="admin-form__group">
                     <label class="admin-form__label">Ảnh đại diện (URL)</label>
                     <input type="url" id="editCategoryImageUrl" class="admin-form__input" placeholder="https://...">
+                </div>
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Tải ảnh mới</label>
+                    <input type="file" id="editCategoryImage" accept="image/*" class="admin-form__input">
+                    <p class="admin-form__hint">Bỏ trống nếu muốn giữ ảnh hiện tại.</p>
                 </div>
             </div>
             <div class="admin-form__group">
@@ -277,8 +327,9 @@
     </div>
 </div>
 
+<%# Bootstrap du lieu JSON cho script phia client. %>
 <script type="application/json" id="adminCategoriesBootstrap"><%- JSON.stringify({
-    categories: (parentCategories || []).map((category) => ({
+    categories: (categories || []).map((category) => ({
         id: category.id,
         name: category.name || '',
         slug: category.slug || '',
@@ -289,7 +340,7 @@
         product_count: category.product_count || 0,
         child_count: category.child_count || 0
     }))
-}).replace(/</g, '\u003c') %></script>
-<script src="/js/admin/categories.js"></script>
+}).replace(/</g, '\\u003c') %></script>
+<script src="/js/admin/categories.js?v=otp-20260426"></script>
 
 <%- include('../partials/admin-footer') %>

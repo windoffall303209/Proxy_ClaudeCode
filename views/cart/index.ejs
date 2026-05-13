@@ -1,7 +1,19 @@
+<%# Template EJS render giỏ hàng index cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/cart.css">
 
+<%
+    const cartSettings = typeof storefrontSettings !== 'undefined' && storefrontSettings ? storefrontSettings : {};
+    const cartFreeShippingMinAmount = Number.isInteger(Number.parseInt(cartSettings.free_shipping_min_amount, 10))
+        ? Math.max(0, Number.parseInt(cartSettings.free_shipping_min_amount, 10))
+        : 500000;
+    const cartShippingFeeAmount = Number.isInteger(Number.parseInt(cartSettings.shipping_fee_amount, 10))
+        ? Math.max(0, Number.parseInt(cartSettings.shipping_fee_amount, 10))
+        : 30000;
+%>
+
+<!-- ===== Trang giỏ hàng ===== -->
 <div class="cart-page page-shell">
     <div class="container">
         <section class="page-intro page-intro--compact">
@@ -96,7 +108,7 @@
                             </div>
                             <div class="cart-summary__row">
                                 <span class="cart-summary__label">Phí vận chuyển</span>
-                                <span id="shippingFee" class="cart-summary__value">30.000đ</span>
+                                <span id="shippingFee" class="cart-summary__value"><%= cartShippingFeeAmount === 0 ? 'Miễn phí' : cartShippingFeeAmount.toLocaleString('vi-VN') + 'đ' %></span>
                             </div>
                         </div>
 
@@ -117,6 +129,10 @@
     </div>
 </div>
 
+<script type="application/json" id="cartPricingConfig"><%- JSON.stringify({
+    freeShippingMinAmount: cartFreeShippingMinAmount,
+    shippingFeeAmount: cartShippingFeeAmount
+}) %></script>
 <script src="/js/cart.js"></script>
 
 <%- include('../partials/footer') %>

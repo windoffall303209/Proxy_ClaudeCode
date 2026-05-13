@@ -1,16 +1,50 @@
+<%# Partial EJS dùng lại cho header để các view giữ cấu trúc thống nhất. %>
 <!DOCTYPE html>
 <html lang="vi">
-<% const extraPageStyles = Array.isArray(typeof pageStyles !== 'undefined' ? pageStyles : null) ? pageStyles : []; %>
+<%
+    const extraPageStyles = Array.isArray(typeof pageStyles !== 'undefined' ? pageStyles : null) ? pageStyles : [];
+    const websiteSettings = typeof storefrontSettings !== 'undefined' && storefrontSettings ? storefrontSettings : {};
+    const siteName = websiteSettings.site_name || 'WIND OF FALL';
+    const siteTagline = websiteSettings.site_tagline || 'Thời trang mặc đẹp mỗi ngày';
+    const brandAltText = websiteSettings.brand_alt_text || siteName;
+    const logoUrl = websiteSettings.logo_url || '/favicon.png';
+    const faviconUrl = websiteSettings.favicon_url || '/favicon.png';
+    const seoTitle = websiteSettings.seo_title || `${siteName} | Thời trang mỗi ngày`;
+    const metaDescription = websiteSettings.meta_description || `${siteName} - mua sắm thời trang everyday.`;
+    const robotsContent = websiteSettings.robots_index === false ? 'noindex,nofollow' : 'index,follow';
+    const cardRadius = Number.isFinite(Number(websiteSettings.card_radius)) ? Number(websiteSettings.card_radius) : 20;
+    const buttonRadius = Number.isFinite(Number(websiteSettings.button_radius)) ? Number(websiteSettings.button_radius) : 999;
+    const brandNameFontSize = Number.isFinite(Number(websiteSettings.brand_name_font_size)) ? Number(websiteSettings.brand_name_font_size) : 18;
+%>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WIND OF FALL | Thời trang mỗi ngày</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="shortcut icon" href="/favicon.png">
+    <title><%= seoTitle %></title>
+    <meta name="description" content="<%= metaDescription %>">
+    <meta name="keywords" content="<%= websiteSettings.meta_keywords || '' %>">
+    <meta name="robots" content="<%= robotsContent %>">
+    <meta property="og:title" content="<%= websiteSettings.og_title || siteName %>">
+    <meta property="og:description" content="<%= websiteSettings.og_description || metaDescription %>">
+    <meta property="og:image" content="<%= websiteSettings.og_image_url || faviconUrl %>">
+    <link rel="icon" type="image/png" href="<%= faviconUrl %>">
+    <link rel="shortcut icon" href="<%= faviconUrl %>">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-family: <%- websiteSettings.site_font_family || "'Be Vietnam Pro', sans-serif" %>;
+            --accent: <%= websiteSettings.primary_color || '#f2c94c' %>;
+            --accent-strong: <%= websiteSettings.secondary_color || '#d8a617' %>;
+            --paper: <%= websiteSettings.background_color || '#fcfaf4' %>;
+            --ink: <%= websiteSettings.text_color || '#18140d' %>;
+            --radius-md: <%= cardRadius %>px;
+            --radius-full: <%= buttonRadius %>px;
+            --brand-font-family: <%- websiteSettings.brand_font_family || "'Be Vietnam Pro', sans-serif" %>;
+            --brand-name-font-size: <%= brandNameFontSize %>px;
+        }
+    </style>
     <% extraPageStyles.forEach((href) => { %>
         <link rel="stylesheet" href="<%= href %>">
     <% }) %>
@@ -26,22 +60,35 @@
     const isProfilePage = currentPath === '/auth/profile';
     const isOrdersPage = currentPath === '/orders/history';
     const isCartPage = currentPath === '/cart';
+    const isForYouPage = currentPath === '/products/for-you';
+
+    function isCategoryBranchActive(branch) {
+        if (!branch || !categorySlug) {
+            return false;
+        }
+
+        if (branch.slug === categorySlug) {
+            return true;
+        }
+
+        return Array.isArray(branch.children) && branch.children.some((child) => child.slug === categorySlug);
+    }
 %>
 
 <header class="header">
     <div class="header-main">
         <div class="container header-main__inner">
-            <a href="/" class="header-brand" aria-label="WIND OF FALL">
-                <img src="/favicon.png" alt="WIND OF FALL" class="header-brand__mark">
+            <a href="/" class="header-brand" aria-label="<%= brandAltText %>">
+                <img src="<%= logoUrl %>" alt="<%= brandAltText %>" class="header-brand__mark">
                 <span class="header-brand__text">
-                    <strong>WIND OF FALL</strong>
-                    <small>Thời trang mặc đẹp mỗi ngày</small>
+                    <strong><%= siteName %></strong>
+                    <small><%= siteTagline %></small>
                 </span>
             </a>
 
             <div class="header-search">
                 <form action="/products/search" method="GET" autocomplete="off">
-                    <input type="text" name="q" id="searchInput" placeholder="Tìm áo polo, váy midi, quần jean..." required>
+                    <input type="text" name="q" id="searchInput" placeholder="<%= websiteSettings.search_placeholder || 'Tìm áo polo, váy midi, quần jean...' %>" required>
                     <button type="submit" aria-label="Tìm kiếm">
                         <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                             <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -114,22 +161,40 @@
     <div class="header-nav">
         <div class="container header-nav__inner">
             <nav class="main-nav">
-                <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Trang chủ</a>
+                <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>"><%= websiteSettings.home_link_label || 'Trang chủ' %></a>
                 <% navigationCategories.forEach((headerCategory) => { %>
-                    <a href="/products/category/<%= headerCategory.slug %>" class="<%= categorySlug === headerCategory.slug ? 'active' : '' %>"><%= headerCategory.name %></a>
+                    <% const branchActive = isCategoryBranchActive(headerCategory); %>
+                    <div class="main-nav__item <%= Array.isArray(headerCategory.children) && headerCategory.children.length > 0 ? 'main-nav__item--has-dropdown' : '' %>">
+                        <a
+                            href="/products/category/<%= headerCategory.slug %>"
+                            class="main-nav__trigger <%= branchActive ? 'active' : '' %>"
+                            <%= Array.isArray(headerCategory.children) && headerCategory.children.length > 0 ? 'aria-haspopup="true" aria-expanded="false"' : '' %>
+                        ><%= headerCategory.name %></a>
+                        <% if (Array.isArray(headerCategory.children) && headerCategory.children.length > 0) { %>
+                            <div class="main-nav__dropdown">
+                                <% headerCategory.children.forEach((childCategory) => { %>
+                                    <a href="/products/category/<%= childCategory.slug %>" class="<%= categorySlug === childCategory.slug ? 'active' : '' %>"><%= childCategory.name %></a>
+                                <% }) %>
+                            </div>
+                        <% } %>
+                    </div>
                 <% }) %>
-                <a href="/products" class="<%= currentPath === '/products' ? 'active' : '' %>">Tất cả</a>
-                <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>">Sale tới 50%</a>
+                <% if (websiteSettings.show_all_products_link !== false) { %>
+                    <a href="/products" class="<%= currentPath === '/products' ? 'active' : '' %>"><%= websiteSettings.all_products_label || 'Tất cả' %></a>
+                <% } %>
+                <% if (websiteSettings.show_sale_link !== false) { %>
+                    <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>"><%= websiteSettings.sale_link_label || 'Sale tới 50%' %></a>
+                <% } %>
+                <% if (websiteSettings.show_for_you_link !== false) { %>
+                    <a href="/products/for-you" class="<%= isForYouPage ? 'active' : '' %>"><%= websiteSettings.for_you_link_label || 'For You' %></a>
+                <% } %>
             </nav>
-            <div class="header-nav__promo">
-                <span>Hàng mới lên kệ mỗi Thứ 3 và Thứ 6</span>
-            </div>
         </div>
     </div>
 
     <div class="container mobile-header-search">
         <form action="/products/search" method="GET">
-            <input type="text" name="q" placeholder="Tìm sản phẩm yêu thích..." required>
+            <input type="text" name="q" placeholder="<%= websiteSettings.mobile_search_placeholder || 'Tìm sản phẩm yêu thích...' %>" required>
             <button type="submit" aria-label="Tìm kiếm">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                     <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -144,15 +209,15 @@
 <nav class="mobile-nav" id="mobileNav">
     <div class="mobile-nav__header">
         <div>
-            <span class="mobile-nav__eyebrow">WIND OF FALL</span>
-            <strong class="mobile-nav__logo">Tìm outfit cho cả gia đình</strong>
+            <span class="mobile-nav__eyebrow"><%= websiteSettings.mobile_menu_eyebrow || siteName %></span>
+            <strong class="mobile-nav__logo"><%= websiteSettings.mobile_menu_slogan || siteTagline %></strong>
         </div>
         <button class="mobile-nav__close" id="mobileNavClose" aria-label="Đóng menu">&times;</button>
     </div>
 
     <div class="mobile-nav__search">
         <form action="/products/search" method="GET">
-            <input type="text" name="q" placeholder="Tìm áo, váy, quần..." required>
+            <input type="text" name="q" placeholder="<%= websiteSettings.mobile_search_placeholder || 'Tìm áo, váy, quần...' %>" required>
             <button type="submit" aria-label="Tìm kiếm">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                     <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -162,12 +227,28 @@
     </div>
 
     <div class="mobile-nav__links">
-        <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Trang chủ</a>
+        <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>"><%= websiteSettings.home_link_label || 'Trang chủ' %></a>
         <% navigationCategories.forEach((headerCategory) => { %>
-            <a href="/products/category/<%= headerCategory.slug %>" class="<%= categorySlug === headerCategory.slug ? 'active' : '' %>"><%= headerCategory.name %></a>
+            <div class="mobile-nav__group">
+                <a href="/products/category/<%= headerCategory.slug %>" class="<%= isCategoryBranchActive(headerCategory) ? 'active' : '' %>"><%= headerCategory.name %></a>
+                <% if (Array.isArray(headerCategory.children) && headerCategory.children.length > 0) { %>
+                    <div class="mobile-nav__children">
+                        <% headerCategory.children.forEach((childCategory) => { %>
+                            <a href="/products/category/<%= childCategory.slug %>" class="<%= categorySlug === childCategory.slug ? 'active' : '' %>"><%= childCategory.name %></a>
+                        <% }) %>
+                    </div>
+                <% } %>
+            </div>
         <% }) %>
-        <a href="/products">Tất cả sản phẩm</a>
-        <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>">Khu sale</a>
+        <% if (websiteSettings.show_all_products_link !== false) { %>
+            <a href="/products"><%= websiteSettings.all_products_label || 'Tất cả sản phẩm' %></a>
+        <% } %>
+        <% if (websiteSettings.show_sale_link !== false) { %>
+            <a href="/products?sale=true" class="sale-link <%= isSalePageActive ? 'active' : '' %>"><%= websiteSettings.sale_link_label || 'Khu sale' %></a>
+        <% } %>
+        <% if (websiteSettings.show_for_you_link !== false) { %>
+            <a href="/products/for-you" class="<%= isForYouPage ? 'active' : '' %>"><%= websiteSettings.for_you_link_label || 'For You' %></a>
+        <% } %>
     </div>
 
     <div class="mobile-nav__actions">
@@ -189,7 +270,7 @@
     </div>
 
     <div class="mobile-nav__footer">
-        <p>Hỗ trợ tư vấn set đồ 1:1 qua hotline 1900 123 456</p>
+        <p><%= websiteSettings.mobile_support_text || 'Hỗ trợ tư vấn set đồ 1:1 qua hotline 1900 123 456' %></p>
     </div>
 </nav>
 

@@ -1,3 +1,4 @@
+-- File migrations/006_snapshot_order_shipping_address.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 ALTER TABLE orders
     ADD COLUMN shipping_name VARCHAR(255) NULL AFTER address_id,
     ADD COLUMN shipping_phone VARCHAR(20) NULL AFTER shipping_name,

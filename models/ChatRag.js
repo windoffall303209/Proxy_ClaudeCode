@@ -1,6 +1,8 @@
+// Model truy vấn và chuẩn hóa dữ liệu chatrag trong MySQL.
 const pool = require('../config/database');
 
 class ChatRag {
+    // Phân tích json.
     static parseJson(rawValue, fallback = null) {
         if (!rawValue) {
             return fallback;
@@ -17,6 +19,7 @@ class ChatRag {
         }
     }
 
+    // Thao tác với hydrate chunk.
     static hydrateChunk(row) {
         if (!row) {
             return row;
@@ -29,10 +32,12 @@ class ChatRag {
         };
     }
 
+    // Thao tác với hydrate chunks.
     static hydrateChunks(rows = []) {
         return rows.map((row) => this.hydrateChunk(row));
     }
 
+    // Thao tác với danh sách chunks theo types.
     static async listChunksByTypes(sourceTypes = []) {
         const normalizedTypes = Array.isArray(sourceTypes) ? sourceTypes.filter(Boolean) : [];
         let query = 'SELECT * FROM chat_rag_chunks';
@@ -48,6 +53,7 @@ class ChatRag {
         return this.hydrateChunks(rows);
     }
 
+    // Đếm chunks.
     static async countChunks(sourceType) {
         const [rows] = await pool.execute(
             'SELECT COUNT(*) AS total FROM chat_rag_chunks WHERE source_type = ?',
@@ -57,6 +63,7 @@ class ChatRag {
         return Number(rows[0]?.total || 0);
     }
 
+    // Thao tác với replace source chunks.
     static async replaceSourceChunks(sourceType, chunks = []) {
         const connection = await pool.getConnection();
 
@@ -108,6 +115,7 @@ class ChatRag {
         }
     }
 
+    // Lấy sync state.
     static async getSyncState(sourceType) {
         const [rows] = await pool.execute(
             'SELECT * FROM chat_rag_sync_state WHERE source_type = ? LIMIT 1',
@@ -117,6 +125,7 @@ class ChatRag {
         return rows[0] || null;
     }
 
+    // Cập nhật sync state.
     static async updateSyncState(sourceType, payload = {}) {
         await pool.execute(
             `INSERT INTO chat_rag_sync_state (source_type, source_count, status, last_synced_at, detail)

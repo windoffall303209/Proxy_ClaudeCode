@@ -1,6 +1,8 @@
+// Model truy vấn và chuẩn hóa dữ liệu productimageembedding trong MySQL.
 const pool = require('../config/database');
 
 class ProductImageEmbedding {
+    // Phân tích vector.
     static parseVector(raw) {
         if (!raw) {
             return [];
@@ -16,6 +18,7 @@ class ProductImageEmbedding {
         }
     }
 
+    // Thao tác với hydrate row.
     static hydrateRow(row) {
         if (!row) {
             return row;
@@ -26,6 +29,7 @@ class ProductImageEmbedding {
         };
     }
 
+    // Thao tác với upsert for sản phẩm.
     static async upsertForProduct({
         productId,
         productImageId,
@@ -60,10 +64,12 @@ class ProductImageEmbedding {
         );
     }
 
+    // Xóa theo sản phẩm ID.
     static async deleteByProductId(productId) {
         await pool.execute('DELETE FROM product_image_embeddings WHERE product_id = ?', [productId]);
     }
 
+    // Thao tác với danh sách tất cả for search.
     static async listAllForSearch() {
         const [rows] = await pool.execute(
             `SELECT product_id, product_image_id, image_url, embedding_model, embedding_dim, embedding_vector
@@ -72,11 +78,13 @@ class ProductImageEmbedding {
         return rows.map((row) => this.hydrateRow(row));
     }
 
+    // Đếm tổng số bản ghi.
     static async count() {
         const [rows] = await pool.execute('SELECT COUNT(*) AS total FROM product_image_embeddings');
         return Number(rows[0]?.total || 0);
     }
 
+    // Lấy theo sản phẩm ID.
     static async getByProductId(productId) {
         const [rows] = await pool.execute(
             'SELECT * FROM product_image_embeddings WHERE product_id = ? LIMIT 1',

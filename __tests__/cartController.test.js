@@ -1,3 +1,4 @@
+// Kiểm thử tự động cho tests cartcontroller.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
 jest.mock('../models/Cart', () => ({
@@ -19,6 +20,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const cartController = require('../controllers/cartController');
 
+// Tạo response giả lập cho test.
 function createRes() {
     const res = {};
     res.status = jest.fn().mockReturnValue(res);
@@ -33,10 +35,29 @@ describe('cartController', () => {
         jest.clearAllMocks();
     });
 
+    it('requires login before adding to cart', async () => {
+        const req = {
+            body: { product_id: 1, quantity: 1, redirect: '/products/demo' },
+            sessionID: 'guest-session'
+        };
+        const res = createRes();
+
+        await cartController.addToCart(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            requiresLogin: true,
+            loginUrl: '/auth/login?redirect=%2Fproducts%2Fdemo'
+        }));
+        expect(Cart.getOrCreate).not.toHaveBeenCalled();
+    });
+
     it('rejects non-positive quantity when adding to cart', async () => {
         const req = {
             body: { product_id: 1, quantity: -1 },
-            sessionID: 'guest-session'
+            sessionID: 'guest-session',
+            user: { id: 1, email_verified: true }
         };
         const res = createRes();
 
@@ -60,7 +81,8 @@ describe('cartController', () => {
 
         const req = {
             body: { product_id: 1, quantity: 1, variant_id: 99 },
-            sessionID: 'guest-session'
+            sessionID: 'guest-session',
+            user: { id: 1, email_verified: true }
         };
         const res = createRes();
 

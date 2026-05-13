@@ -1,3 +1,4 @@
+-- File migrations/003_create_voucher_products.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 CREATE TABLE voucher_products (
     voucher_id INT NOT NULL,
     product_id INT NOT NULL,

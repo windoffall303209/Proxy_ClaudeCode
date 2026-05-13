@@ -1,3 +1,4 @@
+// Service gom logic chatvisionservice để controller không phải lặp xử lý nghiệp vụ.
 function extractJsonObject(rawValue) {
     const value = typeof rawValue === 'string' ? rawValue.trim() : '';
     if (!value) {
@@ -21,6 +22,70 @@ function extractJsonObject(rawValue) {
     }
 }
 
+// Lấy vision timeout ms.
+function getVisionTimeoutMs() {
+    return Math.max(3000, Number.parseInt(process.env.VISION_FETCH_TIMEOUT_MS, 10) || 8000);
+}
+
+// Tải với timeout.
+async function fetchWithTimeout(url, options = {}, timeoutMs = getVisionTimeoutMs()) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeoutMs);
+
+    timeoutId.unref?.();
+
+    try {
+        return await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw new Error(`Vision request timed out after ${timeoutMs}ms`);
+        }
+
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+// Xử lý read json response safely.
+async function readJsonResponseSafely(response, label) {
+    if (typeof response?.text !== 'function') {
+        const data = typeof response?.json === 'function' ? await response.json() : null;
+        return {
+            data,
+            rawText: data ? JSON.stringify(data) : ''
+        };
+    }
+
+    const rawText = await response.text();
+
+    if (!rawText) {
+        return {
+            data: null,
+            rawText: ''
+        };
+    }
+
+    try {
+        return {
+            data: JSON.parse(rawText),
+            rawText
+        };
+    } catch (error) {
+        console.error(`${label} invalid JSON response:`, response.status, rawText.slice(0, 300));
+        return {
+            data: null,
+            rawText
+        };
+    }
+}
+
+// Chuẩn hóa vision kết quả.
 function normalizeVisionResult(result) {
     if (!result || typeof result !== 'object') {
         return null;
@@ -41,6 +106,7 @@ function normalizeVisionResult(result) {
     };
 }
 
+// Tạo dữ liệu vision prompt.
 function buildVisionPrompt(userMessage = '') {
     const userHint = String(userMessage || '').trim();
     const extraHint = userHint
@@ -56,12 +122,15 @@ function buildVisionPrompt(userMessage = '') {
         '{"description":"mô tả ngắn bằng tiếng Việt","searchQuery":"cụm từ tìm kiếm tiếng Việt ngắn 4-10 từ","matchSummary":"1 câu ngắn để chatbot phản hồi với khách"}',
         'Quy tắc:',
         '- Tập trung vào loại trang phục, màu sắc, form dáng, phong cách, đối tượng nếu đủ rõ.',
+        '- Đối tượng nam/nữ là đối tượng của món đồ trong ảnh, không phải giới tính của người đang mua.',
         '- Không suy diễn quá mức về thương hiệu hay chất liệu nếu ảnh không chắc chắn.',
         '- searchQuery phải đủ ngắn để dùng làm từ khóa tìm kiếm sản phẩm.',
+        '- matchSummary chỉ mô tả nhận định từ ảnh, không nói rằng đã lọc/tìm được sản phẩm trong catalog.',
         '- matchSummary phải là 1 câu ngắn, ví dụ: "Dựa trên ảnh bạn gửi, mình thấy đây khá giống một mẫu áo thun basic sáng màu."'
     ].join('\n');
 }
 
+// Kiểm tra likely vision model.
 function isLikelyVisionModel(modelName = '') {
     const normalized = String(modelName || '').trim().toLowerCase();
     if (!normalized) {
@@ -80,13 +149,15 @@ function isLikelyVisionModel(modelName = '') {
     ].some((token) => normalized.includes(token));
 }
 
+// Xác định open ai vision model.
 function resolveOpenAIVisionModel() {
     const explicitVisionModel = String(process.env.OPENAI_VISION_MODEL || '').trim();
-    if (explicitVisionModel) {
+    const textModel = String(process.env.OPENAI_MODEL || '').trim();
+
+    if (explicitVisionModel && (isLikelyVisionModel(explicitVisionModel) || explicitVisionModel !== textModel)) {
         return explicitVisionModel;
     }
 
-    const textModel = String(process.env.OPENAI_MODEL || '').trim();
     if (isLikelyVisionModel(textModel)) {
         return textModel;
     }
@@ -99,6 +170,7 @@ function resolveOpenAIVisionModel() {
     return 'gpt-4o-mini';
 }
 
+// Xử lý analyze ảnh với open ai.
 async function analyzeImageWithOpenAI(media, userMessage = '') {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey || !media?.mediaUrl) {
@@ -107,7 +179,7 @@ async function analyzeImageWithOpenAI(media, userMessage = '') {
 
     const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     const model = resolveOpenAIVisionModel();
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetchWithTimeout(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -135,17 +207,23 @@ async function analyzeImageWithOpenAI(media, userMessage = '') {
         })
     });
 
-    const data = await response.json();
+    const { data, rawText } = await readJsonResponseSafely(response, `OpenAI chat vision (${model})`);
     if (!response.ok) {
-        console.error(`OpenAI chat vision error (${model}):`, response.status, JSON.stringify(data));
+        console.error(`OpenAI chat vision error (${model}):`, response.status, rawText || JSON.stringify(data));
+        return null;
+    }
+
+    if (!data) {
+        console.error(`OpenAI chat vision returned empty response body (${model}).`);
         return null;
     }
 
     return normalizeVisionResult(extractJsonObject(data.choices?.[0]?.message?.content || ''));
 }
 
+// Tải ảnh as base64.
 async function fetchImageAsBase64(mediaUrl) {
-    const response = await fetch(mediaUrl);
+    const response = await fetchWithTimeout(mediaUrl);
     if (!response.ok) {
         throw new Error(`Cannot fetch media: ${response.status}`);
     }
@@ -159,6 +237,7 @@ async function fetchImageAsBase64(mediaUrl) {
     };
 }
 
+// Xử lý analyze ảnh với gemini.
 async function analyzeImageWithGemini(media, userMessage = '') {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || !media?.mediaUrl) {
@@ -167,7 +246,7 @@ async function analyzeImageWithGemini(media, userMessage = '') {
 
     const model = process.env.GEMINI_VISION_MODEL || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
     const imagePayload = await fetchImageAsBase64(media.mediaUrl);
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
             method: 'POST',
@@ -195,16 +274,22 @@ async function analyzeImageWithGemini(media, userMessage = '') {
         }
     );
 
-    const data = await response.json();
+    const { data, rawText } = await readJsonResponseSafely(response, `Gemini chat vision (${model})`);
     if (!response.ok) {
-        console.error('Gemini chat vision error:', response.status, JSON.stringify(data));
+        console.error('Gemini chat vision error:', response.status, rawText || JSON.stringify(data));
         return null;
     }
 
-    const rawText = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n') || '';
-    return normalizeVisionResult(extractJsonObject(rawText));
+    if (!data) {
+        console.error(`Gemini chat vision returned empty response body (${model}).`);
+        return null;
+    }
+
+    const rawReplyText = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n') || '';
+    return normalizeVisionResult(extractJsonObject(rawReplyText));
 }
 
+// Xử lý describe sản phẩm từ ảnh.
 async function describeProductFromImage(media, userMessage = '') {
     if (!media || media.mediaType !== 'image') {
         return null;

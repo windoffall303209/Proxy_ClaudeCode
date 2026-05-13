@@ -13,6 +13,11 @@
     --chat-widget-default-gap: 94px;
 }
 
+.chat-widget--left {
+    right: auto;
+    left: 24px;
+}
+
 /* Toggle Button */
 .chat-widget__toggle {
     width: 56px;
@@ -73,6 +78,11 @@
     animation: chatSlideUp 0.3s ease;
 }
 
+.chat-widget--left .chat-widget__box {
+    right: auto;
+    left: 0;
+}
+
 .chat-widget__box--expanded {
     width: min(50vw, 760px);
     height: min(
@@ -88,7 +98,7 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Header */
+/* Header widget giữ trạng thái phòng chat và nút thu gọn. */
 .chat-widget__header {
     background: linear-gradient(135deg, #0f172a, #1e293b);
     color: white;
@@ -421,7 +431,7 @@
     font-weight: 600;
 }
 
-/* Mobile responsive */
+/* Widget chat chiếm chiều rộng phù hợp trên mobile. */
 @media (max-width: 480px) {
     .chat-widget {
         bottom: 16px;
@@ -431,12 +441,22 @@
         --chat-widget-default-gap: 86px;
     }
 
+    .chat-widget--left {
+        right: auto;
+        left: 16px;
+    }
+
     .chat-widget__box {
         width: calc(100vw - 32px);
         bottom: calc(-1 * (16px - var(--chat-widget-edge-offset)));
         height: calc(100vh - 42px);
         max-height: calc(100vh - var(--chat-widget-edge-offset));
         right: -16px;
+    }
+
+    .chat-widget--left .chat-widget__box {
+        right: auto;
+        left: -16px;
     }
 
     .chat-widget__box--expanded {

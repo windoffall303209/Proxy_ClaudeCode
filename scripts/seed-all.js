@@ -4,6 +4,7 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Xử lý seed dữ liệu.
 async function seedData() {
     console.log('🔧 Seed banners và verify data...\n');
 

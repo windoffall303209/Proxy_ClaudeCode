@@ -69,6 +69,7 @@ const imagesTreEm = [
   'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600',
 ];
 
+// Chạy luồng chính của script.
 async function main() {
   console.log('🚀 Bổ sung sản phẩm cho đủ 90 mỗi loại...\n');
 

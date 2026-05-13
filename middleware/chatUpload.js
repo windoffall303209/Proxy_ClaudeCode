@@ -1,3 +1,4 @@
+// Middleware xử lý chatupload trước khi request đi vào controller.
 const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
@@ -34,6 +35,7 @@ class ChatUploadError extends Error {
     }
 }
 
+// Dọn dẹp temp tệp.
 function cleanupTempFile(filePath) {
     try {
         if (filePath && fs.existsSync(filePath)) {
@@ -44,10 +46,12 @@ function cleanupTempFile(filePath) {
     }
 }
 
+// Dọn dẹp temp tệp.
 function cleanupTempFiles(files = []) {
     files.forEach((file) => cleanupTempFile(file?.path));
 }
 
+// Xử lý detect chat media type.
 function detectChatMediaType(file) {
     if (!file) {
         return null;
@@ -64,6 +68,7 @@ function detectChatMediaType(file) {
     return null;
 }
 
+// Xử lý map l?i upload tin nhắn.
 function mapUploadErrorMessage(error) {
     if (!error) {
         return 'Không thể tải media lên lúc này.';
@@ -111,6 +116,7 @@ const chatUpload = multer({
     }
 });
 
+// Dọn dẹp uploaded chat media.
 async function cleanupUploadedChatMedia(mediaItems = []) {
     for (const media of mediaItems) {
         const publicId = media?.publicId || media?.public_id;
@@ -125,6 +131,7 @@ async function cleanupUploadedChatMedia(mediaItems = []) {
     }
 }
 
+// Tải lên chat media tệp.
 async function uploadChatMediaFiles(files = []) {
     const uploadedMedia = [];
 
@@ -163,6 +170,7 @@ async function uploadChatMediaFiles(files = []) {
     }
 }
 
+// Xử lý chat media t?i l?n.
 function handleChatMediaUpload(req, res, next) {
     chatUpload.array('messageMedia', MAX_CHAT_FILES)(req, res, async (error) => {
         if (error) {
@@ -179,7 +187,7 @@ function handleChatMediaUpload(req, res, next) {
                 : [];
             return next();
         } catch (uploadError) {
-            console.error('Chat media upload error:', uploadError);
+            console.error('Chat media l?i upload:', uploadError);
             return res.status(500).json({
                 success: false,
                 message: 'Không thể tải media lên lúc này. Vui lòng thử lại.'

@@ -1,3 +1,4 @@
+-- File migrations/005_create_order_tracking_tables.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 CREATE TABLE IF NOT EXISTS shipments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,

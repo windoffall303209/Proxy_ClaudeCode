@@ -1,3 +1,4 @@
+-- File migrations/004_create_review_media.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 CREATE TABLE review_media (
     id INT AUTO_INCREMENT PRIMARY KEY,
     review_id INT NOT NULL,

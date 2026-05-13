@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Cập nhật quản trị mật khẩu.
 async function updateAdminPassword() {
     try {
         // Create database connection

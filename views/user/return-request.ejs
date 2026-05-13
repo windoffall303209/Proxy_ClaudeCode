@@ -1,0 +1,157 @@
+<%# Template EJS render người dùng đổi trả yêu cầu cho storefront hoặc tài khoản người dùng. %>
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/orders.css">
+<link rel="stylesheet" href="/css/tracking.css">
+
+<%
+    const currentReturnRequest = typeof returnRequest !== 'undefined' ? returnRequest : null;
+    const currentReturnFeedback = typeof returnFeedback !== 'undefined' ? returnFeedback : null;
+    const limits = typeof returnMediaLimits !== 'undefined' ? returnMediaLimits : { images: 6, videos: 1 };
+    const statusMap = {
+        pending: 'Chờ xử lý',
+        approved: 'Đã duyệt',
+        rejected: 'Từ chối',
+        resolved: 'Đã xử lý'
+    };
+%>
+
+<div class="tracking-page return-request-page page-shell">
+    <div class="container tracking-page__container">
+        <section class="tracking-hero">
+            <div class="tracking-hero__content">
+                <p class="tracking-hero__eyebrow">Yêu cầu hoàn hàng</p>
+                <h1 class="tracking-hero__title"><%= order.order_code %></h1>
+                <p class="tracking-hero__copy">Gửi lý do và minh chứng để quản trị viên kiểm tra yêu cầu của bạn.</p>
+            </div>
+            <div class="tracking-hero__meta">
+                <span>Đơn hàng</span>
+                <strong>Đã giao</strong>
+            </div>
+        </section>
+
+        <% if (currentReturnFeedback) { %>
+            <section class="tracking-card tracking-action-card <%= currentReturnFeedback === 'requested' ? 'tracking-action-card--success' : 'tracking-action-card--warning' %>">
+                <p>
+                    <% if (currentReturnFeedback === 'requested') { %>
+                        Đã gửi yêu cầu hoàn hàng. Bộ phận quản trị sẽ kiểm tra minh chứng và phản hồi.
+                    <% } else if (currentReturnFeedback === 'missing-reason') { %>
+                        Vui lòng nhập lý do hoàn hàng tối thiểu 10 ký tự.
+                    <% } else if (currentReturnFeedback === 'missing-media') { %>
+                        Vui lòng chọn ít nhất một ảnh hoặc video minh chứng.
+                    <% } else if (currentReturnFeedback === 'already-requested') { %>
+                        Đơn hàng này đã có yêu cầu hoàn hàng.
+                    <% } else if (currentReturnFeedback === 'file-too-large') { %>
+                        Tệp minh chứng quá lớn. Vui lòng chọn tệp nhỏ hơn.
+                    <% } else if (currentReturnFeedback === 'invalid-media') { %>
+                        Chỉ hỗ trợ ảnh và video MP4/WebM/MOV theo số lượng cho phép.
+                    <% } else { %>
+                        Không thể gửi yêu cầu hoàn hàng. Vui lòng kiểm tra lại tệp minh chứng.
+                    <% } %>
+                </p>
+            </section>
+        <% } %>
+
+        <div class="tracking-layout return-request-layout">
+            <section class="tracking-card">
+                <div class="tracking-card__header">
+                    <h2>Thông tin yêu cầu</h2>
+                </div>
+
+                <% if (currentReturnRequest) { %>
+                    <div class="return-request-status">
+                        <span>Trạng thái</span>
+                        <strong><%= statusMap[currentReturnRequest.status] || currentReturnRequest.status %></strong>
+                    </div>
+                    <div class="return-request-readonly">
+                        <span>Lý do hoàn hàng</span>
+                        <p><%= currentReturnRequest.reason %></p>
+                    </div>
+                    <% if (currentReturnRequest.admin_note) { %>
+                        <div class="return-request-readonly return-request-readonly--note">
+                            <span>Ghi chú xử lý</span>
+                            <p><%= currentReturnRequest.admin_note %></p>
+                        </div>
+                    <% } %>
+                <% } else { %>
+                    <form action="/orders/<%= order.order_code %>/return-request" method="POST" enctype="multipart/form-data" class="tracking-return-form return-request-form" data-return-form>
+                        <label for="returnReason">Lý do hoàn hàng</label>
+                        <textarea id="returnReason" name="reason" rows="5" required minlength="10" placeholder="Mô tả vấn đề sản phẩm, tình trạng nhận hàng, mong muốn xử lý..."></textarea>
+
+                        <div class="return-media-uploader">
+                            <label for="returnMedia">Hình ảnh/video minh chứng</label>
+                            <input
+                                id="returnMedia"
+                                type="file"
+                                name="returnMedia"
+                                accept="image/*,video/mp4,video/webm,video/quicktime"
+                                multiple
+                                required
+                                data-return-media-input
+                                data-max-images="<%= limits.images %>"
+                                data-max-videos="<%= limits.videos %>"
+                            >
+                            <p class="return-media-uploader__hint">
+                                Tối đa <%= limits.images %> ảnh và <%= limits.videos %> video. Có thể chọn thêm hoặc xóa tệp trước khi gửi.
+                            </p>
+                            <p class="return-media-uploader__notice" data-return-media-notice hidden></p>
+                            <div class="return-media-preview" data-return-media-preview></div>
+                        </div>
+
+                        <div class="tracking-post-delivery-actions tracking-post-delivery-actions--inline">
+                            <button type="submit" class="btn btn-primary">Gửi yêu cầu hoàn hàng</button>
+                            <a href="/orders/<%= order.order_code %>/tracking" class="btn btn-secondary">Quay lại theo dõi đơn</a>
+                        </div>
+                    </form>
+                <% } %>
+            </section>
+
+            <aside class="tracking-side">
+                <section class="tracking-card">
+                    <div class="tracking-card__header">
+                        <h2>Đơn hàng</h2>
+                    </div>
+                    <div class="tracking-info-grid tracking-info-grid--single">
+                        <div class="tracking-info">
+                            <span>Mã đơn</span>
+                            <strong><%= order.order_code %></strong>
+                        </div>
+                        <div class="tracking-info">
+                            <span>Tổng thanh toán</span>
+                            <strong><%= Number(order.final_amount || order.total_amount || 0).toLocaleString('vi-VN') %>đ</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <% if (currentReturnRequest && currentReturnRequest.media && currentReturnRequest.media.length > 0) { %>
+                    <section class="tracking-card">
+                        <div class="tracking-card__header">
+                            <h2>Minh chứng đã gửi</h2>
+                        </div>
+                        <div class="return-request-media-grid">
+                            <% currentReturnRequest.media.forEach((mediaItem, index) => { %>
+                                <a href="<%= mediaItem.media_url %>" target="_blank" rel="noopener noreferrer" class="return-request-media">
+                                    <% if (mediaItem.media_type === 'video') { %>
+                                        <video src="<%= mediaItem.media_url %>" controls muted></video>
+                                    <% } else { %>
+                                        <img src="<%= mediaItem.media_url %>" alt="Minh chứng hoàn hàng <%= index + 1 %>">
+                                    <% } %>
+                                    <span><%= mediaItem.media_type === 'video' ? 'Video' : 'Ảnh' %> <%= index + 1 %></span>
+                                </a>
+                            <% }) %>
+                        </div>
+                    </section>
+                <% } %>
+            </aside>
+        </div>
+
+        <div class="confirmation-actions">
+            <a href="/orders/history" class="btn btn-secondary">Quay lại đơn hàng</a>
+            <a href="/orders/<%= order.order_code %>/tracking" class="btn btn-primary">Theo dõi đơn</a>
+        </div>
+    </div>
+</div>
+
+<script src="/js/return-request.js"></script>
+
+<%- include('../partials/footer') %>

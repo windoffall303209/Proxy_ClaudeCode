@@ -245,9 +245,10 @@ CREATE TABLE orders (
     discount_amount DECIMAL(10, 2) DEFAULT 0,
     shipping_fee DECIMAL(10, 2) DEFAULT 0,
     final_amount DECIMAL(10, 2) NOT NULL,
-    status ENUM('pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled') DEFAULT 'pending',
+    status ENUM('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled') DEFAULT 'pending',
     payment_method ENUM('cod', 'vnpay', 'momo') NOT NULL,
     payment_status ENUM('unpaid', 'paid', 'refunded') DEFAULT 'unpaid',
+    payment_expires_at DATETIME NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -256,7 +257,8 @@ CREATE TABLE orders (
     FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE SET NULL,
     INDEX idx_user (user_id),
     INDEX idx_order_code (order_code),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_payment_expires_at (payment_expires_at)
 ) ENGINE=InnoDB;
 
 -- =============================================================================
@@ -324,7 +326,7 @@ CREATE TABLE shipments (
     carrier VARCHAR(100) NULL,
     tracking_code VARCHAR(100) NULL,
     tracking_url VARCHAR(500) NULL,
-    current_status ENUM('pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled') DEFAULT 'pending',
+    current_status ENUM('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled') DEFAULT 'pending',
     current_location_text VARCHAR(255) NULL,
     current_lat DECIMAL(10, 7) NULL,
     current_lng DECIMAL(10, 7) NULL,
@@ -345,14 +347,14 @@ CREATE TABLE order_tracking_events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     shipment_id INT NULL,
-    status ENUM('pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled') NOT NULL,
+    status ENUM('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled') NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NULL,
     location_text VARCHAR(255) NULL,
     lat DECIMAL(10, 7) NULL,
     lng DECIMAL(10, 7) NULL,
     event_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    source ENUM('system', 'admin', 'carrier') DEFAULT 'system',
+    source ENUM('system', 'admin', 'carrier', 'user') DEFAULT 'system',
     created_by INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
@@ -361,6 +363,40 @@ CREATE TABLE order_tracking_events (
     INDEX idx_tracking_order (order_id),
     INDEX idx_tracking_shipment (shipment_id),
     INDEX idx_tracking_event_time (event_time)
+) ENGINE=InnoDB;
+
+-- =============================================================================
+-- ORDER RETURN REQUESTS TABLE
+-- =============================================================================
+CREATE TABLE order_return_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    user_id INT NOT NULL,
+    reason TEXT NOT NULL,
+    status ENUM('pending', 'approved', 'rejected', 'resolved') DEFAULT 'pending',
+    admin_note TEXT NULL,
+    reviewed_by INT NULL,
+    reviewed_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_return_order (order_id),
+    INDEX idx_return_user (user_id),
+    INDEX idx_return_status (status)
+) ENGINE=InnoDB;
+
+CREATE TABLE order_return_media (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    return_request_id INT NOT NULL,
+    media_type ENUM('image', 'video') NOT NULL,
+    media_url VARCHAR(500) NOT NULL,
+    public_id VARCHAR(255) NULL,
+    display_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (return_request_id) REFERENCES order_return_requests(id) ON DELETE CASCADE,
+    INDEX idx_return_media_request (return_request_id)
 ) ENGINE=InnoDB;
 
 -- =============================================================================
@@ -382,6 +418,31 @@ CREATE TABLE banners (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_active (is_active, display_order)
 ) ENGINE=InnoDB;
+
+-- =============================================================================
+-- STOREFRONT SETTINGS TABLE
+-- =============================================================================
+CREATE TABLE storefront_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value TEXT NOT NULL,
+    draft_value TEXT NULL,
+    value_type ENUM('int', 'string', 'boolean', 'json', 'color', 'url', 'image', 'select') NOT NULL DEFAULT 'string',
+    updated_by INT NULL,
+    published_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_storefront_settings_key (setting_key)
+) ENGINE=InnoDB;
+
+INSERT INTO storefront_settings (setting_key, setting_value, value_type)
+VALUES
+    ('product_grid_columns', '5', 'int'),
+    ('home_category_showcase_count', '3', 'int'),
+    ('jwt_expire_minutes', '60', 'int'),
+    ('payment_window_hours', '24', 'int'),
+    ('shipping_fee_amount', '30000', 'int'),
+    ('default_web_email', 'nvuthanh4@gmail.com', 'string');
 
 -- =============================================================================
 -- REVIEWS TABLE

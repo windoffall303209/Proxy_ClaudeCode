@@ -1,4 +1,4 @@
-/* Page Header */
+/* Tiêu đề và thanh thao tác của màn quản lý sản phẩm. */
 .admin-page-header {
     display: flex;
     justify-content: space-between;
@@ -19,7 +19,7 @@
     margin: 0;
 }
 
-/* Admin Form Row */
+/* Hàng form dùng cho bộ lọc và các thao tác nhanh của sản phẩm. */
 .admin-form__row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -30,6 +30,44 @@
 .admin-form__group {
     display: flex;
     flex-direction: column;
+}
+
+.admin-toolbar--import {
+    margin-bottom: 20px;
+}
+
+.admin-form__hint--import-rules {
+    margin-top: 16px;
+    line-height: 1.7;
+}
+
+.admin-section--import-result {
+    margin-top: 24px;
+}
+
+.stats-grid--import-summary,
+.admin-table-wrapper--spaced {
+    margin-bottom: 16px;
+}
+
+.product-sku-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.product-sku-row__input {
+    flex: 1;
+}
+
+.product-sku-row__auto {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 .admin-modal__content--product-edit {
@@ -271,6 +309,7 @@
 
 .variant-row .variant-size,
 .variant-row .variant-color,
+.variant-row .variant-color-select,
 .variant-row .variant-price,
 .variant-row .variant-stock,
 .variant-row .variant-sku,
@@ -289,11 +328,25 @@
 
 .variant-row .variant-size,
 .variant-row .variant-color,
+.variant-row .variant-color-select,
 .variant-row .variant-price,
 .variant-row .variant-stock,
 .variant-row .variant-sku,
 .variant-row .variant-image-select {
     min-height: 42px;
+}
+
+.variant-color-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.variant-color-control .variant-color-select {
+    padding: 0;
+    text-indent: -999px;
+    cursor: pointer;
 }
 
 .variant-row .variant-image-file {
@@ -615,7 +668,7 @@
     opacity: 1;
 }
 
-/* Image Upload */
+/* Khu tải ảnh sản phẩm trong form quản trị. */
 .image-upload {
     display: flex;
     gap: 12px;
@@ -775,7 +828,7 @@
     box-shadow: none;
 }
 
-/* Responsive */
+/* Điều chỉnh bảng và form sản phẩm cho màn nhỏ. */
 @media (max-width: 1200px) {
     .admin-modal__content--product-edit {
         width: min(1180px, calc(100vw - 24px));
@@ -916,7 +969,7 @@
 .admin-section--collapsible.is-open .admin-section__content {
     max-height: 5000px;
     opacity: 1;
-    padding-top: 20px;
+    padding-top: 16px;
 }
 
 .admin-section__title--toggle {

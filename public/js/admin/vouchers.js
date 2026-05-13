@@ -1,9 +1,11 @@
+// Điều phối tương tác trình duyệt cho màn quản trị mã giảm giá trong khu vực admin.
 const adminVouchersBootstrap = JSON.parse(document.getElementById('adminVouchersBootstrap').textContent);
 const adminVoucherProducts = adminVouchersBootstrap.products || [];
 const adminSubscriberCount = Number(adminVouchersBootstrap.subscriberCount || 0);
 const adminVouchers = adminVouchersBootstrap.vouchers || [];
 const adminVouchersMap = new Map(adminVouchers.map((voucher) => [Number(voucher.id), voucher]));
 
+// Xử lý escape html.
 function escapeHtml(value) {
     return String(value || '')
         .replace(/&/g, '&amp;')
@@ -13,6 +15,7 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+// Hiển thị sản phẩm checklist.
 function renderProductChecklist(containerId, selectedIds = [], options = {}) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -47,6 +50,7 @@ function renderProductChecklist(containerId, selectedIds = [], options = {}) {
     }).join('');
 }
 
+// Lọc sản phẩm checklist.
 function filterProductChecklist(input, containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -60,6 +64,7 @@ function filterProductChecklist(input, containerId) {
     });
 }
 
+// Xử lý set checklist state.
 function setChecklistState(containerId, checked) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -71,6 +76,7 @@ function setChecklistState(containerId, checked) {
     });
 }
 
+// Lấy checked sản phẩm ids.
 function getCheckedProductIds(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -82,6 +88,7 @@ function getCheckedProductIds(containerId) {
         .filter((value) => Number.isInteger(value) && value > 0);
 }
 
+// Xử lý vào datetime local.
 function toDatetimeLocal(value) {
     if (!value) {
         return '';
@@ -96,6 +103,7 @@ function toDatetimeLocal(value) {
     return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
 }
 
+// Đóng modal.
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -103,6 +111,7 @@ function closeModal(modalId) {
     }
 }
 
+// Mở modal.
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -110,6 +119,7 @@ function openModal(modalId) {
     }
 }
 
+// Xử lý confirm action.
 async function confirmAction(options) {
     if (typeof showGlobalConfirm === 'function') {
         return showGlobalConfirm(options);
@@ -118,6 +128,7 @@ async function confirmAction(options) {
     return window.confirm(options?.message || 'Bạn có chắc muốn tiếp tục?');
 }
 
+// Bật/tắt max discount.
 function toggleMaxDiscount(selectId = 'voucherType', groupId = 'maxDiscountGroup') {
     const typeElement = document.getElementById(selectId);
     const maxDiscountGroup = document.getElementById(groupId);
@@ -139,6 +150,47 @@ function toggleMaxDiscount(selectId = 'voucherType', groupId = 'maxDiscountGroup
     }
 }
 
+// Đồng bộ mã giảm giá percentage warning.
+function syncVoucherPercentageWarning(selectId = 'voucherType', inputId = 'voucherValue', warningId = 'voucherValueWarning') {
+    const typeElement = document.getElementById(selectId);
+    const valueInput = document.getElementById(inputId);
+    const warningElement = document.getElementById(warningId);
+
+    if (!typeElement || !valueInput) {
+        return;
+    }
+
+    const isPercentage = typeElement.value === 'percentage';
+    const valueNumber = Number(valueInput.value);
+    const isInvalid = isPercentage && Number.isFinite(valueNumber) && valueInput.value !== '' && valueNumber >= 100;
+
+    valueInput.setCustomValidity(isInvalid ? 'Giá trị phần trăm phải nhỏ hơn 100%.' : '');
+    if (warningElement) {
+        warningElement.hidden = !isInvalid;
+    }
+}
+
+// Bật/tắt mã giảm giá value constraints.
+function toggleVoucherValueConstraints(selectId = 'voucherType', inputId = 'voucherValue', warningId = 'voucherValueWarning') {
+    const typeElement = document.getElementById(selectId);
+    const valueInput = document.getElementById(inputId);
+
+    if (!typeElement || !valueInput) {
+        return;
+    }
+
+    valueInput.min = '0.01';
+
+    if (typeElement.value === 'percentage') {
+        valueInput.max = '99.99';
+    } else {
+        valueInput.removeAttribute('max');
+    }
+
+    syncVoucherPercentageWarning(selectId, inputId, warningId);
+}
+
+// Xử lý edit mã giảm giá.
 function editVoucher(voucherId) {
     const voucher = adminVouchersMap.get(Number(voucherId));
     const form = document.getElementById('editVoucherForm');
@@ -167,9 +219,11 @@ function editVoucher(voucherId) {
     });
 
     toggleMaxDiscount('editVoucherType', 'editMaxDiscountGroup');
+    toggleVoucherValueConstraints('editVoucherType', 'editVoucherValue', 'editVoucherValueWarning');
     openModal('editVoucherModal');
 }
 
+// Xử lý submit edit mã giảm giá.
 async function submitEditVoucher(event) {
     event.preventDefault();
 
@@ -220,6 +274,7 @@ async function submitEditVoucher(event) {
     }
 }
 
+// Xóa mã giảm giá.
 async function deleteVoucher(voucherId) {
     const voucher = adminVouchersMap.get(Number(voucherId));
     const confirmed = await confirmAction({
@@ -251,6 +306,7 @@ async function deleteVoucher(voucherId) {
     }
 }
 
+// Bật/tắt mã giảm giá trạng thái.
 async function toggleVoucherStatus(voucherId, newStatus) {
     try {
         const response = await fetch('/admin/vouchers/' + voucherId + '/status', {
@@ -271,12 +327,14 @@ async function toggleVoucherStatus(voucherId, newStatus) {
     }
 }
 
+// Xử lý show toast.
 function showToast(message, type = 'success') {
     if (typeof showGlobalToast === 'function') {
         showGlobalToast(message, type);
     }
 }
 
+// Mở add mã giảm giá modal.
 function openAddVoucherModal() {
     const section = document.querySelector('.admin-section--collapsible');
     if (section) {
@@ -285,6 +343,7 @@ function openAddVoucherModal() {
     }
 }
 
+// Mở mã giảm giá email modal.
 function openVoucherEmailModal(voucherId = null) {
     const select = document.getElementById('voucherEmailSelect');
 
@@ -300,6 +359,7 @@ function openVoucherEmailModal(voucherId = null) {
     openModal('voucherEmailModal');
 }
 
+// Gửi mã giảm giá announcement email.
 async function sendVoucherAnnouncementEmail(voucherId) {
     const response = await fetch('/admin/vouchers/' + voucherId + '/email', {
         method: 'POST',
@@ -315,6 +375,7 @@ async function sendVoucherAnnouncementEmail(voucherId) {
     closeModal('voucherEmailModal');
 }
 
+// Xử lý confirm and send mã giảm giá email.
 async function confirmAndSendVoucherEmail(voucherId) {
     if (adminSubscriberCount <= 0) {
         showToast('Hiện chưa có người dùng đăng ký nhận bản tin.', 'warning');
@@ -345,6 +406,7 @@ async function confirmAndSendVoucherEmail(voucherId) {
     }
 }
 
+// Xử lý submit mã giảm giá email form.
 async function submitVoucherEmailForm(event) {
     event.preventDefault();
 
@@ -359,16 +421,18 @@ async function submitVoucherEmailForm(event) {
     await confirmAndSendVoucherEmail(voucherId);
 }
 
+// Bật/tắt section.
 function toggleSection(titleElement) {
     const section = titleElement.closest('.admin-section--collapsible');
     section.classList.toggle('is-open');
 }
-
 document.addEventListener('DOMContentLoaded', function() {
     renderProductChecklist('createVoucherProducts', [], {
         prefix: 'create-voucher'
     });
     toggleMaxDiscount();
+    toggleVoucherValueConstraints();
+    toggleVoucherValueConstraints('editVoucherType', 'editVoucherValue', 'editVoucherValueWarning');
 
     document.querySelectorAll('[data-admin-toggle="section"]').forEach((button) => {
         button.addEventListener('click', () => toggleSection(button));
@@ -414,8 +478,16 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', () => closeModal(button.dataset.voucherModalClose));
     });
 
-    document.getElementById('voucherType')?.addEventListener('change', () => toggleMaxDiscount());
-    document.getElementById('editVoucherType')?.addEventListener('change', () => toggleMaxDiscount('editVoucherType', 'editMaxDiscountGroup'));
+    document.getElementById('voucherType')?.addEventListener('change', () => {
+        toggleMaxDiscount();
+        toggleVoucherValueConstraints('voucherType', 'voucherValue', 'voucherValueWarning');
+    });
+    document.getElementById('editVoucherType')?.addEventListener('change', () => {
+        toggleMaxDiscount('editVoucherType', 'editMaxDiscountGroup');
+        toggleVoucherValueConstraints('editVoucherType', 'editVoucherValue', 'editVoucherValueWarning');
+    });
+    document.getElementById('voucherValue')?.addEventListener('input', () => syncVoucherPercentageWarning('voucherType', 'voucherValue', 'voucherValueWarning'));
+    document.getElementById('editVoucherValue')?.addEventListener('input', () => syncVoucherPercentageWarning('editVoucherType', 'editVoucherValue', 'editVoucherValueWarning'));
     document.getElementById('editVoucherForm')?.addEventListener('submit', submitEditVoucher);
     document.getElementById('voucherEmailForm')?.addEventListener('submit', submitVoucherEmailForm);
 
@@ -424,7 +496,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!modal) {
             return;
         }
-
         modal.addEventListener('click', function(event) {
             if (event.target === modal) {
                 modal.style.display = 'none';

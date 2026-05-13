@@ -1,8 +1,9 @@
+<%# Template admin render màn quản trị dashboard quản trị với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'dashboard', pageStyles: ['/css/admin/dashboard.css'] }) %>
 
 <div class="admin-page">
     <div class="container">
-        <!-- Page Header -->
+        <!-- Tiêu đề trang + nút làm mới dữ liệu -->
         <div class="admin-page-header">
             <div class="admin-page-header__left">
                 <h1>Bảng Điều Khiển</h1>
@@ -21,7 +22,7 @@
         </div>
 
         <% if (stats) { %>
-            <!-- Stats Cards -->
+            <!-- Cụm thẻ thống kê nhanh (KPI chính) -->
             <div class="stats-grid">
                 <div class="stat-card stat-card--purple">
                     <div class="stat-card__icon">
@@ -71,12 +72,12 @@
                     </div>
                     <div class="stat-card__content">
                         <h3 class="stat-card__label">Đơn Chờ Xử Lý</h3>
-                        <p class="stat-card__value"><%= stats.pending_orders || 0 %></p>
+                        <p class="stat-card__value"><%= (stats.pending_orders || 0) + (stats.pending_payment_orders || 0) %></p>
                     </div>
                 </div>
             </div>
 
-            <!-- Additional Stats Row -->
+            <!-- Hàng thống kê bổ sung -->
             <div class="stats-grid stats-grid--spaced">
                 <div class="stat-card">
                     <div class="stat-card__icon stat-card__icon--users">
@@ -149,7 +150,7 @@
                         <div class="dashboard-chart-legend__item">
                             <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--pending"></span>
                             <span>Chờ xử lý</span>
-                            <strong><%= dashboardCharts.orderStatus.pending || 0 %></strong>
+                            <strong><%= (dashboardCharts.orderStatus.pending || 0) + (dashboardCharts.orderStatus.pending_payment || 0) %></strong>
                         </div>
                         <div class="dashboard-chart-legend__item">
                             <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--processing"></span>
@@ -158,8 +159,8 @@
                         </div>
                         <div class="dashboard-chart-legend__item">
                             <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--delivered"></span>
-                            <span>Đã giao</span>
-                            <strong><%= dashboardCharts.orderStatus.delivered || 0 %></strong>
+                            <span>Đã hoàn thành</span>
+                            <strong><%= dashboardCharts.orderStatus.completed || 0 %></strong>
                         </div>
                         <div class="dashboard-chart-legend__item">
                             <span class="dashboard-chart-legend__dot dashboard-chart-legend__dot--cancelled"></span>
@@ -200,7 +201,7 @@
             </div>
         <% } %>
 
-        <!-- Recent Orders -->
+        <!-- Bảng đơn hàng gần đây -->
         <% if (recentOrders && recentOrders.length > 0) { %>
             <div class="admin-section admin-section--spaced">
                 <div class="admin-section__header">
@@ -265,6 +266,10 @@
                                             let statusClass = '';
                                             let statusText = '';
                                             switch(order.status) {
+                                                case 'pending_payment':
+                                                    statusClass = 'admin-table__badge--pending';
+                                                    statusText = 'Chờ thanh toán';
+                                                    break;
                                                 case 'pending':
                                                     statusClass = 'admin-table__badge--pending';
                                                     statusText = 'Chờ xử lý';
@@ -280,6 +285,10 @@
                                                 case 'delivered':
                                                     statusClass = 'admin-table__badge--delivered';
                                                     statusText = 'Đã giao';
+                                                    break;
+                                                case 'completed':
+                                                    statusClass = 'admin-table__badge--delivered';
+                                                    statusText = 'Đã hoàn thành';
                                                     break;
                                                 case 'cancelled':
                                                     statusClass = 'admin-table__badge--cancelled';
@@ -323,7 +332,7 @@
             </div>
         <% } %>
 
-        <!-- Quick Actions -->
+        <!-- Các thao tác nhanh tới module quản trị chính -->
         <div class="admin-section admin-section--spaced">
             <h3 class="admin-section__title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -373,6 +382,7 @@
     </div>
 </div>
 
+<%# Bootstrap du lieu JSON cho script phia client. %>
 <script type="application/json" id="adminDashboardBootstrap"><%- JSON.stringify({
     recentLimit: Number(recentLimit || 10),
     orderStatus: dashboardCharts?.orderStatus || {},

@@ -6,6 +6,7 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../config/database');
 
+// Xử lý reset quản trị.
 async function resetAdmin() {
     try {
         const email = 'admin@fashionstore.vn';

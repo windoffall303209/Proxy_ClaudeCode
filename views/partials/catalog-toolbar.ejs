@@ -1,3 +1,4 @@
+<%# Partial EJS dùng lại cho catalog thanh công cụ để các view giữ cấu trúc thống nhất. %>
 <%
     const toolbarQuery = typeof paginationQuery !== 'undefined' ? (paginationQuery || {}) : {};
     const toolbarPath = typeof paginationPath !== 'undefined' ? (paginationPath || '/products') : '/products';
@@ -21,13 +22,11 @@
         value !== ''
     ));
 %>
-
 <section class="catalog-toolbar">
     <div class="catalog-toolbar__summary">
         <span class="catalog-toolbar__count"><%= toolbarTotalItems.toLocaleString('vi-VN') %></span>
         <span class="catalog-toolbar__summary-label"><%= toolbarSummaryLabel %></span>
     </div>
-
     <form class="catalog-toolbar__form" method="get" action="<%= toolbarPath %>">
         <% preservedEntries.forEach(([key, value]) => { %>
             <% if (Array.isArray(value)) { %>
@@ -46,6 +45,7 @@
                 <span>Sắp xếp</span>
                 <select name="sort" data-catalog-control="sort">
                     <option value="newest" <%= toolbarSort === 'newest' ? 'selected' : '' %>>Mới nhất</option>
+                    <option value="best-selling" <%= toolbarSort === 'best-selling' ? 'selected' : '' %>>Bán chạy</option>
                     <option value="price-asc" <%= toolbarSort === 'price-asc' ? 'selected' : '' %>>Giá tăng dần</option>
                     <option value="price-desc" <%= toolbarSort === 'price-desc' ? 'selected' : '' %>>Giá giảm dần</option>
                     <option value="name-asc" <%= toolbarSort === 'name-asc' ? 'selected' : '' %>>Tên A-Z</option>

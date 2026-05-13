@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const codeInputs = document.querySelectorAll('.code-input');
     const fullCodeInput = document.getElementById('full-code');
     const timerText = document.getElementById('timer-text');
+    const verifyPage = document.querySelector('.verify-email-page');
+    const initialCodeSent = verifyPage?.dataset.codeSent === 'true';
+    const postVerifyRedirect = verifyPage?.dataset.redirect || '/';
 
     let resendTimer = 0;
 
@@ -95,7 +98,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update full code
             updateFullCode();
         });
-
         input.addEventListener('keydown', (e) => {
             // Handle backspace
             if (e.key === 'Backspace' && !e.target.value && index > 0) {
@@ -123,6 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Cập nhật full code.
     function updateFullCode() {
         const code = Array.from(codeInputs).map(input => input.value).join('');
         fullCodeInput.value = code;
@@ -155,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showAlert(data.message, 'success');
                 // Redirect after 2 seconds
                 setTimeout(() => {
-                    window.location.href = '/auth/profile';
+                    window.location.href = postVerifyRedirect;
                 }, 2000);
             } else {
                 showAlert(data.message, 'error');
@@ -173,6 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Send code button
     btnSendCode.addEventListener('click', sendCode);
+
+    if (initialCodeSent) {
+        stepSend.hidden = true;
+        stepVerify.hidden = false;
+        codeInputs[0].focus();
+        startResendTimer();
+    }
 
     // Resend button
     btnResend.addEventListener('click', async () => {

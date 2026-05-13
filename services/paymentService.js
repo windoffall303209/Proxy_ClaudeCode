@@ -1,3 +1,4 @@
+// Service gom logic paymentservice để controller không phải lặp xử lý nghiệp vụ.
 const crypto = require('crypto');
 const axios = require('axios');
 const QRCode = require('qrcode');
@@ -118,6 +119,10 @@ class PaymentService {
         const returnUrl = process.env.MOMO_RETURN_URL;
         const notifyUrl = process.env.MOMO_NOTIFY_URL;
 
+        if (!partnerCode || !accessKey || !secretKey || !endpoint || !returnUrl || !notifyUrl) {
+            throw new Error('MoMo sandbox chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh Ä‘áº§y Ä‘á»§');
+        }
+
         const orderId = order.order_code;
         const requestId = orderId;
         const amount = order.final_amount.toString();
@@ -149,6 +154,13 @@ class PaymentService {
         };
 
         try {
+            await Payment.createPending(order.id, 'momo', Number(amount), {
+                gateway: 'momo',
+                requestId,
+                orderId,
+                requestType
+            });
+
             const response = await axios.post(endpoint, requestBody);
 
             if (response.data.resultCode === 0) {
@@ -198,16 +210,20 @@ class PaymentService {
             .update(rawSignature)
             .digest('hex');
 
-        if (signature === generatedSignature) {
-            return {
-                success: String(resultCode) === '0',
-                orderId,
-                transactionId: transId,
-                amount: parseInt(amount)
-            };
-        } else {
-            return { success: false, message: 'Invalid signature' };
-        }
+        const isValidSignature = signature === generatedSignature;
+
+        return {
+            isValidSignature,
+            success: isValidSignature && String(resultCode) === '0',
+            orderId,
+            transactionId: transId,
+            amount: parseInt(amount, 10),
+            resultCode,
+            message,
+            payType,
+            responseTime,
+            raw: momoParams
+        };
     }
 
     // Helper functions

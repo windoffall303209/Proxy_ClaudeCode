@@ -1,13 +1,32 @@
+<%# Template EJS render thanh toán buy now cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/checkout.css">
-<link rel="stylesheet" href="/css/leaflet.css">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 
 <%
-    const productPrice = product.final_price || product.price;
-    const shippingFee = productPrice >= 500000 ? 0 : 30000;
+    const selectedQuantity = cart && Array.isArray(cart.items) && cart.items[0]
+        ? Number(cart.items[0].quantity || 1)
+        : 1;
+    const checkoutSettings = typeof storefrontSettings !== 'undefined' && storefrontSettings ? storefrontSettings : {};
+    const freeShippingMinAmount = Number.isInteger(Number.parseInt(checkoutSettings.free_shipping_min_amount, 10))
+        ? Math.max(0, Number.parseInt(checkoutSettings.free_shipping_min_amount, 10))
+        : 500000;
+    const shippingFeeAmount = Number.isInteger(Number.parseInt(checkoutSettings.shipping_fee_amount, 10))
+        ? Math.max(0, Number.parseInt(checkoutSettings.shipping_fee_amount, 10))
+        : 30000;
+    const unitPrice = product.final_price || product.price;
+    const subtotal = Number(cart?.subtotal || (unitPrice * selectedQuantity));
+    const shippingFee = subtotal >= freeShippingMinAmount ? 0 : shippingFeeAmount;
+    const originalSubtotal = Number(product.price || 0) * selectedQuantity;
+    const paymentOptions = [
+        { key: 'cod', icon: 'COD', name: 'Thanh toán khi nhận hàng', desc: 'Thanh toán bằng tiền mặt khi nhận hàng.', enabled: checkoutSettings.payment_cod_enabled !== false },
+        { key: 'vnpay', icon: 'VNP', name: 'VNPay', desc: 'Thanh toán qua ngân hàng và thẻ.', enabled: checkoutSettings.payment_vnpay_enabled !== false },
+        { key: 'momo', icon: 'MM', name: 'Ví MoMo', desc: 'Quét QR để thanh toán trên điện thoại.', enabled: checkoutSettings.payment_momo_enabled !== false }
+    ].filter((option) => option.enabled);
 %>
 
+<!-- ===== Trang mua ngay (checkout 1 sản phẩm) ===== -->
 <div class="checkout-page page-shell">
     <div class="container">
         <section class="page-intro page-intro--compact checkout-intro">
@@ -24,10 +43,9 @@
                 <span class="checkout-step">Hoàn tất</span>
             </div>
         </section>
-
         <form action="/orders/buy-now/create" method="POST" id="buyNowForm">
             <input type="hidden" name="product_id" value="<%= product.id %>">
-            <input type="hidden" name="quantity" value="<%= cart.items[0].quantity %>">
+            <input type="hidden" name="quantity" value="<%= selectedQuantity %>">
             <input type="hidden" name="variant_id" value="<%= typeof variantId !== 'undefined' && variantId ? variantId : '' %>">
 
             <div class="checkout-grid">
@@ -48,7 +66,7 @@
                                 <% } %>
                             </div>
                             <div class="order-summary__item-info">
-                                <div class="order-summary__item-name order-summary__item-name--large"><%= product.name %></div>
+                                <a class="order-summary__item-name order-summary__item-name--large order-summary__item-link" href="/products/<%= product.slug %>"><%= product.name %></a>
                                 <% if (typeof selectedVariant !== 'undefined' && selectedVariant) { %>
                                     <div class="order-summary__item-meta">
                                         <% if (selectedVariant.color) { %>Màu: <%= selectedVariant.color %><% } %>
@@ -56,13 +74,13 @@
                                         <% if (selectedVariant.size) { %>Size: <%= selectedVariant.size %><% } %>
                                     </div>
                                 <% } %>
-                                <div class="order-summary__item-qty">Số lượng: <%= cart.items[0].quantity %></div>
+                                <div class="order-summary__item-qty">Số lượng: <%= selectedQuantity %></div>
                             </div>
                             <div class="order-summary__item-price">
+                                <div class="order-summary__item-amount"><%= subtotal.toLocaleString('vi-VN') %>đ</div>
                                 <% if (product.price !== product.final_price && product.final_price) { %>
-                                    <div class="order-summary__item-old-price"><%= product.price.toLocaleString('vi-VN') %>đ</div>
+                                    <div class="order-summary__item-old-price"><%= originalSubtotal.toLocaleString('vi-VN') %>đ</div>
                                 <% } %>
-                                <div class="order-summary__item-amount"><%= productPrice.toLocaleString('vi-VN') %>đ</div>
                             </div>
                         </div>
                     </div>
@@ -185,38 +203,22 @@
                         </div>
 
                         <div class="payment-list">
-                            <label class="payment-option payment-option--selected">
-                                <input type="radio" name="payment_method" value="cod" checked required>
-                                <div class="payment-option__content">
-                                    <span class="payment-option__icon">COD</span>
-                                    <div>
-                                        <div class="payment-option__name">Thanh toán khi nhận hàng</div>
-                                        <div class="payment-option__desc">Thanh toán bằng tiền mặt khi nhận hàng.</div>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="payment-option">
-                                <input type="radio" name="payment_method" value="vnpay">
-                                <div class="payment-option__content">
-                                    <span class="payment-option__icon">VNP</span>
-                                    <div>
-                                        <div class="payment-option__name">VNPay</div>
-                                        <div class="payment-option__desc">Thanh toán qua ngân hàng và thẻ.</div>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="payment-option">
-                                <input type="radio" name="payment_method" value="momo">
-                                <div class="payment-option__content">
-                                    <span class="payment-option__icon">MM</span>
-                                    <div>
-                                        <div class="payment-option__name">Ví MoMo</div>
-                                        <div class="payment-option__desc">Quét QR để thanh toán trên điện thoại.</div>
-                                    </div>
-                                </div>
-                            </label>
+                            <% if (paymentOptions.length > 0) { %>
+                                <% paymentOptions.forEach((option, index) => { %>
+                                    <label class="payment-option <%= index === 0 ? 'payment-option--selected' : '' %>">
+                                        <input type="radio" name="payment_method" value="<%= option.key %>" <%= index === 0 ? 'checked' : '' %> required>
+                                        <div class="payment-option__content">
+                                            <span class="payment-option__icon"><%= option.icon %></span>
+                                            <div>
+                                                <div class="payment-option__name"><%= option.name %></div>
+                                                <div class="payment-option__desc"><%= option.desc %></div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="checkout-section__text">Hiện chưa bật phương thức thanh toán. Vui lòng liên hệ cửa hàng.</p>
+                            <% } %>
                         </div>
                     </div>
 
@@ -237,22 +239,60 @@
                         <div class="order-summary__prices">
                             <div class="order-summary__row">
                                 <span class="order-summary__label">Giá sản phẩm</span>
-                                <span class="order-summary__value"><%= productPrice.toLocaleString('vi-VN') %>đ</span>
+                                <span class="order-summary__value"><%= subtotal.toLocaleString('vi-VN') %>đ</span>
                             </div>
                             <div class="order-summary__row">
                                 <span class="order-summary__label">Phí vận chuyển</span>
                                 <span id="shippingDisplay" class="order-summary__value <%= shippingFee === 0 ? 'order-summary__value--free' : '' %>"><%= shippingFee === 0 ? 'Miễn phí' : shippingFee.toLocaleString('vi-VN') + 'đ' %></span>
                             </div>
 
-                            <% if (productPrice < 500000) { %>
+                            <% if (shippingFeeAmount > 0 && subtotal < freeShippingMinAmount) { %>
                                 <div class="order-summary__shipping-tip">
-                                    <p>Mua thêm <%= (500000 - productPrice).toLocaleString('vi-VN') %>đ để được freeship.</p>
+                                    <p>Mua thêm <%= (freeShippingMinAmount - subtotal).toLocaleString('vi-VN') %>đ để được freeship.</p>
                                 </div>
                             <% } %>
 
                             <div class="voucher-section">
+                                <% if (typeof vouchers !== 'undefined' && vouchers && vouchers.length > 0) { %>
+                                    <div class="voucher-section__available">
+                                        <h4 class="voucher-section__title">Voucher khả dụng</h4>
+                                        <div class="voucher-section__list">
+                                            <% vouchers.forEach((voucher) => { %>
+                                                <div
+                                                    class="voucher-card"
+                                                    data-code="<%= voucher.code %>"
+                                                    data-type="<%= voucher.type %>"
+                                                    data-value="<%= voucher.value %>"
+                                                    data-min-order="<%= voucher.min_order_amount || 0 %>"
+                                                    data-max-discount="<%= voucher.max_discount_amount || 0 %>"
+                                                >
+                                                    <div class="voucher-card__icon"><%= voucher.type === 'percentage' ? '%' : 'đ' %></div>
+                                                    <div class="voucher-card__content">
+                                                        <div class="voucher-card__name"><%= voucher.name %></div>
+                                                        <div class="voucher-card__desc">
+                                                            <% if (voucher.type === 'percentage') { %>
+                                                                Giảm <%= voucher.value %>%<% if (voucher.max_discount_amount) { %> tối đa <%= voucher.max_discount_amount.toLocaleString('vi-VN') %>đ<% } %>
+                                                            <% } else { %>
+                                                                Giảm <%= voucher.value.toLocaleString('vi-VN') %>đ
+                                                            <% } %>
+                                                        </div>
+                                                        <% if (voucher.min_order_amount > 0) { %>
+                                                            <div class="voucher-card__condition">Đơn tối thiểu <%= voucher.min_order_amount.toLocaleString('vi-VN') %>đ</div>
+                                                        <% } %>
+                                                    </div>
+                                                    <div class="voucher-card__code"><%= voucher.code %></div>
+                                                </div>
+                                            <% }) %>
+                                        </div>
+                                    </div>
+                                <% } %>
+
                                 <div class="voucher-section__input-group">
-                                    <input type="text" id="voucherCode" name="voucher_code" placeholder="Nhập mã giảm giá" class="voucher-section__input">
+                                    <div class="voucher-section__input-wrap">
+                                        <input type="text" id="voucherCode" placeholder="Nhập mã giảm giá" class="voucher-section__input" autocomplete="off">
+                                        <button type="button" data-checkout-action="clear-voucher" class="voucher-section__clear" hidden aria-label="Xóa voucher">×</button>
+                                    </div>
+                                    <input type="hidden" id="appliedVoucherCode" name="voucher_code" value="">
                                     <button type="button" data-checkout-action="apply-voucher" class="voucher-section__btn">Áp dụng</button>
                                 </div>
                                 <div id="voucherMessage" class="voucher-section__message"></div>
@@ -265,15 +305,15 @@
 
                             <input type="hidden" name="shipping_fee" id="shippingFeeInput" value="<%= shippingFee %>">
                             <input type="hidden" name="discount_amount" id="discountInput" value="0">
-                            <input type="hidden" name="subtotal" value="<%= productPrice %>">
+                            <input type="hidden" name="subtotal" value="<%= subtotal %>">
 
                             <div class="order-summary__total">
                                 <span class="order-summary__total-label">Tổng cộng</span>
-                                <span id="totalAmount" class="order-summary__total-value"><%= (productPrice + shippingFee).toLocaleString('vi-VN') %>đ</span>
+                                <span id="totalAmount" class="order-summary__total-value"><%= (subtotal + shippingFee).toLocaleString('vi-VN') %>đ</span>
                             </div>
                         </div>
 
-                        <button type="submit" id="submitBtn" class="order-summary__submit">Đặt hàng ngay</button>
+                        <button type="submit" id="submitBtn" class="order-summary__submit" <%= paymentOptions.length === 0 ? 'disabled' : '' %>>Đặt hàng ngay</button>
                         <a href="/products/<%= product.slug %>" class="order-summary__back-link">Quay lại trang sản phẩm</a>
                     </div>
                 </div>
@@ -282,13 +322,14 @@
     </div>
 </div>
 
-<script src="/js/leaflet.js"></script>
+<script src="/vendor/leaflet/leaflet.js"></script>
+<%# Bootstrap du lieu JSON cho script phia client. %>
 <script type="application/json" id="checkoutBootstrapData"><%- JSON.stringify({
     mode: 'buy-now',
     productId: product.id,
-    quantity: 1,
+    quantity: selectedQuantity,
     variantId: typeof variantId !== 'undefined' && variantId ? variantId : null,
-    subtotal: productPrice,
+    subtotal,
     shippingFee,
     addresses: Array.isArray(addresses) ? addresses.map((addr) => ({
         id: addr.id,

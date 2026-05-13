@@ -1,3 +1,5 @@
+<%# Partial EJS dùng lại cho quản trị phân trang để các view giữ cấu trúc thống nhất. %>
+<!-- ===== Phân trang cho trang admin ===== -->
 <% if (pagination && pagination.totalPages > 0) { %>
 <%
     const buildPaginationUrl = (page, limit) => {
@@ -16,7 +18,7 @@
     </div>
 
     <div class="admin-pagination__controls">
-        <!-- Per-page selector -->
+        <!-- Bộ chọn số dòng hiển thị mỗi trang -->
         <div class="admin-pagination__perpage">
             <label>Hiển thị</label>
             <select id="perpageSelect" data-admin-pagination="per-page">
@@ -26,7 +28,7 @@
             </select>
         </div>
 
-        <!-- Page navigation -->
+        <!-- Điều hướng chuyển trang -->
         <% if (pagination.totalPages > 1) { %>
         <div class="admin-pagination__nav">
             <% if (pagination.currentPage > 1) { %>

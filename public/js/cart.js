@@ -1,5 +1,30 @@
+// Điều phối tương tác trình duyệt cho giỏ hàng, tách khỏi template EJS.
 const quantityRequestState = new Map();
 
+function readCartPricingConfig() {
+    const fallback = {
+        freeShippingMinAmount: 500000,
+        shippingFeeAmount: 30000
+    };
+    const element = document.getElementById('cartPricingConfig');
+    if (!element) return fallback;
+
+    try {
+        const parsed = JSON.parse(element.textContent || '{}');
+        return {
+            freeShippingMinAmount: Number.isFinite(Number(parsed.freeShippingMinAmount))
+                ? Math.max(0, Number(parsed.freeShippingMinAmount))
+                : fallback.freeShippingMinAmount,
+            shippingFeeAmount: Number.isFinite(Number(parsed.shippingFeeAmount))
+                ? Math.max(0, Number(parsed.shippingFeeAmount))
+                : fallback.shippingFeeAmount
+        };
+    } catch (error) {
+        return fallback;
+    }
+}
+
+// Bật/tắt select tất cả.
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.item-checkbox');
@@ -9,6 +34,7 @@ function toggleSelectAll() {
     updateSelectedTotal();
 }
 
+// Cập nhật selected tổng tiền.
 function updateSelectedTotal() {
     const checkboxes = document.querySelectorAll('.item-checkbox:checked');
     let total = 0;
@@ -19,12 +45,13 @@ function updateSelectedTotal() {
         count++;
     });
 
-    const shippingFee = total >= 500000 ? 0 : 30000;
+    const pricingConfig = readCartPricingConfig();
+    const shippingFee = total >= pricingConfig.freeShippingMinAmount ? 0 : pricingConfig.shippingFeeAmount;
     const grandTotal = total + shippingFee;
 
     document.getElementById('selectedCount').textContent = count;
     document.getElementById('selectedSubtotal').textContent = total.toLocaleString('vi-VN') + 'đ';
-    document.getElementById('shippingFee').textContent = shippingFee === 0 ? 'Miễn phí' : '30.000đ';
+    document.getElementById('shippingFee').textContent = shippingFee === 0 ? 'Miễn phí' : shippingFee.toLocaleString('vi-VN') + 'đ';
     document.getElementById('selectedTotal').textContent = grandTotal.toLocaleString('vi-VN') + 'đ';
     document.getElementById('checkoutCount').textContent = count;
 
@@ -36,6 +63,7 @@ function updateSelectedTotal() {
     document.getElementById('selectAll').checked = checkboxes.length === allCheckboxes.length && allCheckboxes.length > 0;
 }
 
+// Xử lý checkout selected.
 function checkoutSelected() {
     const checkboxes = document.querySelectorAll('.item-checkbox:checked');
     if (checkboxes.length === 0) {
@@ -48,12 +76,14 @@ function checkoutSelected() {
     window.location.href = '/orders/checkout?items=' + selectedIds.join(',');
 }
 
+// Xử lý show notification.
 function showNotification(message, type = 'success') {
     if (typeof showGlobalToast === 'function') {
         showGlobalToast(message, type);
     }
 }
 
+// Chuẩn hóa quantity input value.
 function normalizeQuantityInputValue(value) {
     const digitsOnly = String(value ?? '').replace(/[^\d]/g, '');
 
@@ -64,20 +94,24 @@ function normalizeQuantityInputValue(value) {
     return String(Number.parseInt(digitsOnly, 10) || 0);
 }
 
+// Lấy quantity input.
 function getQuantityInput(cartItem) {
     return cartItem?.querySelector('.cart-item__qty-input') || null;
 }
 
+// Lấy stored quantity.
 function getStoredQuantity(input) {
     const quantity = Number.parseInt(input?.dataset.currentQuantity || input?.value, 10);
     return Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
 }
 
+// Xử lý reset quantity input.
 function resetQuantityInput(input) {
     if (!input) return;
     input.value = String(getStoredQuantity(input));
 }
 
+// Xử lý set quantity controls disabled.
 function setQuantityControlsDisabled(cartItem, disabled) {
     if (!cartItem) return;
 
@@ -91,6 +125,7 @@ function setQuantityControlsDisabled(cartItem, disabled) {
     }
 }
 
+// Xử lý commit quantity input.
 function commitQuantityInput(input) {
     if (!input) return;
 
@@ -122,6 +157,7 @@ function commitQuantityInput(input) {
     });
 }
 
+// Cập nhật quantity.
 function updateQuantity(itemId, newQuantity, options = {}) {
     const { allowRemoval = true, sourceInput = null, previousQuantity = null } = options;
     const normalizedQuantity = Number.parseInt(newQuantity, 10);
@@ -182,6 +218,7 @@ function updateQuantity(itemId, newQuantity, options = {}) {
         });
 }
 
+// Cập nhật giỏ hàng item ui.
 function updateCartItemUI(itemId, newQuantity, itemData) {
     const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
     if (!cartItem) return;
@@ -217,6 +254,7 @@ function updateCartItemUI(itemId, newQuantity, itemData) {
     updateSelectedTotal();
 }
 
+// Xóa item.
 async function removeItem(itemId) {
     const confirmed = await window.showGlobalConfirm({
         title: 'Xóa sản phẩm',
@@ -277,6 +315,7 @@ async function removeItem(itemId) {
         });
 }
 
+// Cập nhật giỏ hàng count.
 function updateCartCount() {
     fetch('/cart/count', {
         method: 'GET',
@@ -292,6 +331,7 @@ function updateCartCount() {
         .catch((err) => console.error(err));
 }
 
+// Cập nhật select tất cả text.
 function updateSelectAllText() {
     const items = document.querySelectorAll('.cart-item');
     const selectAllText = document.querySelector('.cart-select-all__text');
@@ -300,6 +340,7 @@ function updateSelectAllText() {
     }
 }
 
+// Xử lý check empty giỏ hàng.
 function checkEmptyCart() {
     const items = document.querySelectorAll('.cart-item');
     if (items.length === 0) {
@@ -315,14 +356,12 @@ function checkEmptyCart() {
         }
     }
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('selectAll')?.addEventListener('change', toggleSelectAll);
 
     document.querySelectorAll('.item-checkbox').forEach((checkbox) => {
         checkbox.addEventListener('change', updateSelectedTotal);
     });
-
     document.addEventListener('click', (event) => {
         const quantityButton = event.target.closest('[data-cart-action="update-quantity"]');
         if (quantityButton) {
@@ -348,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
             checkoutSelected();
         }
     });
-
     document.addEventListener('focusin', (event) => {
         const quantityInput = event.target.closest('.cart-item__qty-input');
         if (!quantityInput) {
@@ -357,7 +395,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         requestAnimationFrame(() => quantityInput.select());
     });
-
     document.addEventListener('input', (event) => {
         const quantityInput = event.target.closest('.cart-item__qty-input');
         if (!quantityInput) {
@@ -367,7 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalizedValue = normalizeQuantityInputValue(quantityInput.value);
         quantityInput.value = normalizedValue === '0' ? '' : normalizedValue;
     });
-
     document.addEventListener('keydown', (event) => {
         const quantityInput = event.target.closest('.cart-item__qty-input');
         if (!quantityInput || event.key !== 'Enter') {
@@ -378,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
         commitQuantityInput(quantityInput);
         quantityInput.blur();
     });
-
     document.addEventListener('blur', (event) => {
         const quantityInput = event.target.closest('.cart-item__qty-input');
         if (!quantityInput) {

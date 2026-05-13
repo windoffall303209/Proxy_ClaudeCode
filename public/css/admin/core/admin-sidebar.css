@@ -268,3 +268,23 @@
 .admin-main-content {
     width: 100%;
 }
+.admin-sidebar__submenu {
+  display: grid;
+  gap: 4px;
+  margin: -6px 0 10px 38px;
+}
+
+.admin-sidebar__submenu a {
+  padding: 7px 10px;
+  border-radius: 7px;
+  color: var(--admin-text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-sidebar__submenu a:hover,
+.admin-sidebar__submenu a.active {
+  color: var(--admin-accent);
+  background: rgba(245, 158, 11, 0.1);
+}

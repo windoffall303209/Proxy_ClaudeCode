@@ -1,6 +1,8 @@
+// Model truy vấn và chuẩn hóa dữ liệu address trong MySQL.
 const pool = require('../config/database');
 
 class Address {
+    // Tạo bản ghi mới.
     static async create(userId, addressData) {
         const { full_name, phone, address_line, ward, district, city, is_default } = addressData;
         const connection = await pool.getConnection();
@@ -41,6 +43,7 @@ class Address {
         }
     }
 
+    // Tìm theo người dùng.
     static async findByUser(userId) {
         const [rows] = await pool.execute(
             'SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC',
@@ -49,6 +52,7 @@ class Address {
         return rows;
     }
 
+    // Tìm theo ID.
     static async findById(id) {
         const [rows] = await pool.execute(
             'SELECT * FROM addresses WHERE id = ?',
@@ -57,6 +61,7 @@ class Address {
         return rows[0] || null;
     }
 
+    // Lấy bản ghi mặc định.
     static async getDefault(userId) {
         const [rows] = await pool.execute(
             'SELECT * FROM addresses WHERE user_id = ? AND is_default = TRUE LIMIT 1',
@@ -65,6 +70,7 @@ class Address {
         return rows[0] || null;
     }
 
+    // Cập nhật bản ghi hiện có.
     static async update(id, userId, addressData) {
         const { full_name, phone, address_line, ward, district, city, is_default } = addressData;
         const connection = await pool.getConnection();
@@ -110,6 +116,7 @@ class Address {
         }
     }
 
+    // Xóa bản ghi theo điều kiện truyền vào.
     static async delete(id, userId) {
         const connection = await pool.getConnection();
 

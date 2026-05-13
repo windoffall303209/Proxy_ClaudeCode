@@ -1,7 +1,9 @@
+<%# Template EJS render người dùng hồ sơ người dùng cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/user-profile.css">
 
+<!-- ===== Trang hồ sơ người dùng ===== -->
 <div class="user-profile-page page-shell">
     <div class="container">
         <% if (user) { %>
@@ -30,7 +32,7 @@
                     </div>
 
                     <h2 class="profile-sidebar__name"><%= user.full_name %></h2>
-                    <p class="profile-sidebar__email"><%= user.email %></p>
+                    <p class="profile-sidebar__email"><%= privacy.maskEmail(user.email) %></p>
                     <p class="profile-sidebar__joined">Thành viên từ <%= new Date(user.created_at).toLocaleDateString('vi-VN') %></p>
 
                     <div class="profile-sidebar__badges">
@@ -45,7 +47,6 @@
                             <h3 class="profile-section__title">Thông tin cá nhân</h3>
                             <p class="profile-section__copy">Cập nhật tên, số điện thoại và ngày sinh.</p>
                         </div>
-
                         <form id="profileForm">
                             <div class="profile-form__grid">
                                 <div class="profile-form__field">
@@ -59,16 +60,15 @@
                             </div>
                             <div class="profile-form__field">
                                 <label class="profile-form__label">Ngày sinh</label>
-                                <input type="date" name="birthday" value="<%= user.birthday ? new Date(user.birthday).toISOString().split('T')[0] : '' %>" class="profile-form__input">
+                                <input type="date" name="birthday" value="<%= privacy.normalizeDateInput(user.birthday) %>" class="profile-form__input">
                             </div>
                             <button type="submit" class="profile-form__submit">Lưu thay đổi</button>
                         </form>
                     </section>
-
                     <section class="profile-section">
                         <div class="profile-section__header">
                             <h3 class="profile-section__title">Thông tin liên hệ</h3>
-                            <p class="profile-section__copy">Kiểm tra trạng thái xác thực email và số điện thoại.</p>
+                            <p class="profile-section__copy">Kiểm tra trạng thái liên hệ của tài khoản.</p>
                         </div>
 
                         <div class="contact-info">
@@ -76,7 +76,7 @@
                                 <div class="contact-info__left">
                                     <div>
                                         <div class="contact-info__label">Email</div>
-                                        <div class="contact-info__value"><%= user.email %></div>
+                                        <div class="contact-info__value private-value" data-private-type="email"><%= privacy.maskEmail(user.email) %></div>
                                     </div>
                                 </div>
                                 <div class="contact-info__right">
@@ -84,7 +84,6 @@
                                         <span class="verification-badge verification-badge--verified">Đã xác thực</span>
                                     <% } else { %>
                                         <span class="verification-badge verification-badge--unverified">Chưa xác thực</span>
-                                        <a href="/auth/verify-email" class="verify-btn">Xác thực ngay</a>
                                     <% } %>
                                 </div>
                             </div>
@@ -93,7 +92,7 @@
                                 <div class="contact-info__left">
                                     <div>
                                         <div class="contact-info__label">Số điện thoại</div>
-                                        <div class="contact-info__value"><%= user.phone || 'Chưa cập nhật' %></div>
+                                        <div class="contact-info__value private-value" data-private-type="phone"><%= privacy.maskPhone(user.phone) %></div>
                                     </div>
                                 </div>
                                 <div class="contact-info__right">
@@ -105,9 +104,17 @@
                                     <% } %>
                                 </div>
                             </div>
+
+                            <div class="contact-info__item">
+                                <div class="contact-info__left">
+                                    <div>
+                                        <div class="contact-info__label">Ngày sinh</div>
+                                        <div class="contact-info__value private-value" data-private-type="birthday"><%= privacy.maskBirthday(user.birthday) %></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </section>
-
                     <section class="profile-section">
                         <div class="profile-section__header">
                             <h3 class="profile-section__title">Đổi mật khẩu</h3>
@@ -115,14 +122,14 @@
                         </div>
 
                         <div class="password-section__info">Mật khẩu mới cần có ít nhất 6 ký tự.</div>
-
                         <form id="passwordForm">
                             <div class="profile-form__field">
                                 <label class="profile-form__label">Mật khẩu hiện tại</label>
                                 <div class="password-input-wrapper">
                                     <input type="password" name="current_password" class="profile-form__input" required>
-                                    <button type="button" class="password-toggle">
-                                        <span class="eye-icon">show</span>
+                                    <button type="button" class="password-toggle" aria-label="Hien thi mat khau" aria-pressed="false">
+                                        <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
+                                        <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
                                     </button>
                                 </div>
                             </div>
@@ -132,8 +139,9 @@
                                     <label class="profile-form__label">Mật khẩu mới</label>
                                     <div class="password-input-wrapper">
                                         <input type="password" name="new_password" class="profile-form__input" required minlength="6">
-                                        <button type="button" class="password-toggle">
-                                            <span class="eye-icon">show</span>
+                                        <button type="button" class="password-toggle" aria-label="Hien thi mat khau" aria-pressed="false">
+                                            <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
+                                            <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
                                         </button>
                                     </div>
                                 </div>
@@ -141,8 +149,9 @@
                                     <label class="profile-form__label">Xác nhận mật khẩu mới</label>
                                     <div class="password-input-wrapper">
                                         <input type="password" name="confirm_password" class="profile-form__input" required>
-                                        <button type="button" class="password-toggle">
-                                            <span class="eye-icon">show</span>
+                                        <button type="button" class="password-toggle" aria-label="Hien thi mat khau" aria-pressed="false">
+                                            <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
+                                            <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
                                         </button>
                                     </div>
                                 </div>

@@ -1,7 +1,18 @@
+<%# Template EJS render người dùng đơn hàng cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/orders.css">
 
+<%
+    const currentCancelFeedback = typeof cancelFeedback !== 'undefined' ? cancelFeedback : null;
+    const currentActiveGroup = typeof activeGroup !== 'undefined' ? activeGroup : 'all';
+    const currentOrderGroups = Array.isArray(typeof orderGroups !== 'undefined' ? orderGroups : null) ? orderGroups : [];
+    const currentOrderGroupCounts = typeof orderGroupCounts !== 'undefined' && orderGroupCounts ? orderGroupCounts : {};
+    const currentReviews = Array.isArray(typeof reviews !== 'undefined' ? reviews : null) ? reviews : [];
+    const isReviewsView = currentActiveGroup === 'reviews';
+%>
+
+<!-- ===== Trang danh sách đơn hàng của người dùng ===== -->
 <div class="orders-page page-shell">
     <div class="container">
         <section class="page-intro page-intro--compact">
@@ -12,16 +23,65 @@
             </h1>
         </section>
 
-        <% if (orders && orders.length > 0) { %>
+        <% if (currentCancelFeedback === 'success') { %>
+            <div class="tracking-action-card tracking-action-card--success order-feedback">
+                <p>Đã hủy đơn hàng và hoàn lại tồn kho.</p>
+            </div>
+        <% } else if (currentCancelFeedback === 'invalid-status') { %>
+            <div class="tracking-action-card tracking-action-card--warning order-feedback">
+                <p>Chỉ có thể hủy đơn ở trạng thái Chờ xác nhận hoặc Đã xác nhận.</p>
+            </div>
+        <% } %>
+
+        <nav class="user-order-menu" aria-label="Trạng thái đơn hàng">
+            <% currentOrderGroups.forEach((group) => { %>
+                <a class="user-order-menu__link <%= currentActiveGroup === group.key ? 'active' : '' %>" href="<%= group.href %>">
+                    <span><%= group.label %></span>
+                    <span class="user-order-menu__count"><%= currentOrderGroupCounts[group.key] || 0 %></span>
+                </a>
+            <% }) %>
+        </nav>
+
+        <% if (isReviewsView) { %>
+            <% if (currentReviews.length > 0) { %>
+                <div class="orders-list">
+                    <% currentReviews.forEach((review) => { %>
+                        <article class="order-review-card">
+                            <header class="order-review-card__header">
+                                <div>
+                                    <% if (review.product_slug) { %>
+                                        <a class="order-review-card__product" href="/products/<%= review.product_slug %>"><%= review.product_name %></a>
+                                    <% } else { %>
+                                        <strong class="order-review-card__product"><%= review.product_name || 'Sản phẩm' %></strong>
+                                    <% } %>
+                                    <p>Đơn hàng <a href="/orders/<%= review.order_code %>/confirmation"><%= review.order_code %></a></p>
+                                </div>
+                                <span class="order-review-card__stars"><%= '★'.repeat(review.rating || 0) %></span>
+                            </header>
+                            <p class="order-review-card__comment"><%= review.comment || 'Bạn đã đánh giá sản phẩm này.' %></p>
+                            <span class="order-review-card__date"><%= new Date(review.created_at).toLocaleDateString('vi-VN') %></span>
+                        </article>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <div class="empty-panel">
+                    <h3>Bạn chưa có đánh giá nào</h3>
+                    <p>Các đánh giá sản phẩm bạn đã gửi sẽ hiển thị tại đây.</p>
+                    <a href="/products" class="btn btn-primary">Tiếp tục mua sắm</a>
+                </div>
+            <% } %>
+        <% } else if (orders && orders.length > 0) { %>
             <div class="orders-list">
                 <% orders.forEach((order) => { %>
                     <%
                         const statusMap = {
+                            pending_payment: { label: 'Chờ thanh toán', className: 'is-pending-payment' },
                             pending: { label: 'Chờ xác nhận', className: 'is-pending' },
                             confirmed: { label: 'Đã xác nhận', className: 'is-confirmed' },
                             processing: { label: 'Đang xử lý', className: 'is-processing' },
                             shipping: { label: 'Đang giao', className: 'is-shipping' },
                             delivered: { label: 'Đã giao', className: 'is-delivered' },
+                            completed: { label: 'Đã hoàn thành', className: 'is-completed' },
                             cancelled: { label: 'Đã hủy', className: 'is-cancelled' }
                         };
                         const paymentLabels = {
@@ -30,6 +90,11 @@
                             momo: 'MoMo'
                         };
                         const orderStatus = statusMap[order.status] || { label: order.status, className: '' };
+                        const hasActiveReturnRequest = ['pending', 'approved'].includes(order.return_request_status || '');
+                        const isPaymentSettled = order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status);
+                        const paymentStatusLabel = isPaymentSettled ? 'Đã thanh toán' : (order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
+                        const canCancelOrder = ['pending', 'confirmed'].includes(order.status);
+                        const showPaymentCountdown = order.status === 'pending_payment' && order.payment_status !== 'paid' && ['vnpay', 'momo'].includes(String(order.payment_method || '').toLowerCase()) && order.payment_expires_at;
                     %>
                     <article class="order-card">
                         <header class="order-card__header">
@@ -45,7 +110,12 @@
                                     }) %>
                                 </p>
                             </div>
-                            <span class="order-status <%= orderStatus.className %>"><%= orderStatus.label %></span>
+                            <span class="order-status-wrap">
+                                <span class="order-status <%= orderStatus.className %>"><%= orderStatus.label %></span>
+                                <% if (showPaymentCountdown) { %>
+                                    <span class="order-payment-countdown" data-payment-countdown data-expires-at="<%= new Date(order.payment_expires_at).toISOString() %>"></span>
+                                <% } %>
+                            </span>
                         </header>
 
                         <div class="order-card__items">
@@ -60,7 +130,11 @@
                                             <% } %>
                                         </div>
                                         <div class="order-item__info">
-                                            <div class="order-item__name"><%= item.product_name %></div>
+                                            <% if (item.product_slug) { %>
+                                                <a class="order-item__name order-item__name-link" href="/products/<%= item.product_slug %>"><%= item.product_name %></a>
+                                            <% } else { %>
+                                                <div class="order-item__name"><%= item.product_name %></div>
+                                            <% } %>
                                             <% if (item.variant_color || item.variant_size) { %>
                                                 <div class="order-item__meta">
                                                     <% if (item.variant_color) { %>Màu: <%= item.variant_color %><% } %>
@@ -107,6 +181,7 @@
                             <div class="order-card__payment">
                                 <span>Thanh toán</span>
                                 <strong><%= paymentLabels[order.payment_method] || order.payment_method %></strong>
+                                <small class="order-card__payment-status"><%= paymentStatusLabel %></small>
                             </div>
                             <div class="order-card__total">
                                 <span>Tổng cộng</span>
@@ -115,6 +190,22 @@
                         </footer>
 
                         <div class="order-card__actions">
+                            <% if (order.status === 'pending_payment' && order.payment_status !== 'paid' && (order.payment_method === 'vnpay' || order.payment_method === 'momo')) { %>
+                                <a href="/orders/<%= order.order_code %>/pay" class="btn btn-primary">Thanh toán ngay</a>
+                            <% } %>
+                            <% if (canCancelOrder) { %>
+                                <form action="/orders/<%= order.order_code %>/cancel" method="POST" class="order-card__action-form" data-confirm-submit data-confirm-message="Ban chac chan muon huy don hang nay?">
+                                    <button type="submit" class="btn btn-danger">Hủy đơn hàng</button>
+                                </form>
+                            <% } %>
+                            <% if (order.status === 'delivered' && !hasActiveReturnRequest) { %>
+                                <form action="/orders/<%= order.order_code %>/confirm-received" method="POST" class="order-card__action-form">
+                                    <button type="submit" class="btn btn-primary">Xác nhận nhận hàng</button>
+                                </form>
+                                <a href="/orders/<%= order.order_code %>/return-request" class="btn btn-secondary">Yêu cầu hoàn hàng</a>
+                            <% } else if (order.status === 'delivered' && hasActiveReturnRequest) { %>
+                                <a href="/orders/<%= order.order_code %>/return-request" class="btn btn-secondary">Xem yêu cầu hoàn hàng</a>
+                            <% } %>
                             <a href="/orders/<%= order.order_code %>/tracking" class="btn btn-primary">Theo dõi đơn</a>
                             <a href="/orders/<%= order.order_code %>/confirmation" class="btn btn-secondary">Xem chi tiết</a>
                         </div>
@@ -123,12 +214,14 @@
             </div>
         <% } else { %>
             <div class="empty-panel">
-                <h3>Bạn chưa có đơn hàng nào</h3>
-                <p>Hãy bắt đầu mua sắm để danh sách đơn hàng xuất hiện tại đây.</p>
+                <h3><%= currentActiveGroup === 'all' ? 'Bạn chưa có đơn hàng nào' : 'Không có đơn hàng trong mục này' %></h3>
+                <p><%= currentActiveGroup === 'all' ? 'Hãy bắt đầu mua sắm để danh sách đơn hàng xuất hiện tại đây.' : 'Khi đơn hàng chuyển sang trạng thái phù hợp, danh sách sẽ hiển thị ở đây.' %></p>
                 <a href="/products" class="btn btn-primary">Bắt đầu mua sắm</a>
             </div>
         <% } %>
     </div>
 </div>
+
+<script src="/js/order-actions.js"></script>
 
 <%- include('../partials/footer') %>

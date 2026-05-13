@@ -1,44 +1,57 @@
+<%# Template admin render màn quản trị sản phẩm với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'products', pageStyles: ['/css/admin/products.css'] }) %>
 
 <div class="admin-page">
     <div class="container">
-        <!-- Page Header -->
+        <!-- Tiêu đề trang + tổng quan số lượng sản phẩm -->
         <div class="admin-page-header">
             <div class="admin-page-header__left">
                 <h1>Quản Lý Sản Phẩm</h1>
-                <p><%= pagination ? pagination.totalItems : (products ? products.length : 0) %> sản phẩm</p>
+            </div>
+            <div class="admin-page-header__actions admin-page-header__actions--compact">
+                <a
+                    href="/admin/products/export<%= searchQuery ? ('?search=' + encodeURIComponent(searchQuery)) : '' %>"
+                    class="admin-btn admin-btn--ghost"
+                    data-product-action="export-products"
+                >Xuất sản phẩm</a>
+                <a href="/admin/products/import-template" class="admin-btn admin-btn--ghost">Tải mẫu</a>
+                <button
+                    type="button"
+                    class="admin-btn admin-btn--danger admin-btn--compact-danger"
+                    data-product-action="delete-all-products"
+                    data-total-product-count="<%= totalProductCount || 0 %>"
+                >
+                    Xóa tất cả
+                </button>
             </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- Các thẻ thống kê nhanh -->
         <div class="stats-grid">
             <div class="stat-card stat-card--blue">
                 <h3 class="stat-card__label">Tổng sản phẩm</h3>
-                <p class="stat-card__value"><%= products ? products.length : 0 %></p>
+                <p class="stat-card__value"><%= productStats ? productStats.total : 0 %></p>
             </div>
             <div class="stat-card stat-card--green">
                 <h3 class="stat-card__label">Còn hàng</h3>
-                <p class="stat-card__value"><%= products ? products.filter(p => p.stock_quantity > 0).length : 0 %></p>
+                <p class="stat-card__value"><%= productStats ? productStats.inStock : 0 %></p>
             </div>
             <div class="stat-card stat-card--pink">
                 <h3 class="stat-card__label">Hết hàng</h3>
-                <p class="stat-card__value"><%= products ? products.filter(p => p.stock_quantity <= 0).length : 0 %></p>
+                <p class="stat-card__value"><%= productStats ? productStats.outOfStock : 0 %></p>
             </div>
             <div class="stat-card stat-card--purple">
                 <h3 class="stat-card__label">Danh mục</h3>
-                <p class="stat-card__value"><%= categories ? categories.length : 0 %></p>
+                <p class="stat-card__value"><%= productStats ? productStats.categories : 0 %></p>
             </div>
         </div>
 
         <div class="admin-toolbar">
             <div class="admin-toolbar__info">
                 <p class="admin-toolbar__title">Tìm sản phẩm cần chỉnh sửa</p>
-                <p class="admin-toolbar__text">
-                    Tìm theo tên, SKU hoặc mô tả sản phẩm.
-                    <% if (searchQuery) { %>
-                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
-                    <% } %>
-                </p>
+                <% if (searchQuery) { %>
+                    <p class="admin-toolbar__text">Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"</p>
+                <% } %>
             </div>
             <form action="/admin/products" method="GET" class="admin-search-form">
                 <input type="hidden" name="limit" value="<%= pagination ? pagination.limit : 10 %>">
@@ -71,7 +84,7 @@
                 </svg>
             </h3>
             <div class="admin-section__content">
-                <div class="admin-toolbar" style="margin-bottom: 20px;">
+                <div class="admin-toolbar admin-toolbar--import">
                     <div class="admin-toolbar__info">
                         <p class="admin-toolbar__title">Workbook + ZIP &#7843;nh</p>
                         <p class="admin-toolbar__text">
@@ -80,11 +93,9 @@
                         </p>
                     </div>
                     <div class="admin-search-form__actions">
-                        <a href="/admin/products/export<%= searchQuery ? ('?search=' + encodeURIComponent(searchQuery)) : '' %>" class="admin-btn admin-btn--ghost">Xu&#7845;t d&#7919; li&#7879;u</a>
                         <a href="/admin/products/import-template" class="admin-btn admin-btn--ghost">T&#7843;i file m&#7851;u</a>
                     </div>
                 </div>
-
                 <form action="/admin/products/import" method="POST" enctype="multipart/form-data" class="admin-form">
                     <div class="admin-form__row">
                         <div class="admin-form__group">
@@ -110,7 +121,7 @@
                     </div>
                 </form>
 
-                <div class="admin-form__hint" style="margin-top: 16px; line-height: 1.7;">
+                <div class="admin-form__hint admin-form__hint--import-rules">
                     <strong>Quy &#432;&#7899;c nhanh:</strong><br>
                     `Products`: `product_key`, `name`, `category_name` ho&#7863;c `category_id`, `price`.<br>
                     `Images`: m&#7895;i d&ograve;ng l&agrave; 1 &#7843;nh, g&#7855;n theo `product_key`.<br>
@@ -119,9 +130,9 @@
                 </div>
 
                 <% if (bulkImportResult) { %>
-                    <div class="admin-section" style="margin-top: 24px;">
+                    <div class="admin-section admin-section--import-result">
                         <h4 class="admin-section__title">K&#7871;t qu&#7843; import g&#7847;n nh&#7845;t</h4>
-                        <div class="stats-grid" style="margin-bottom: 16px;">
+                        <div class="stats-grid stats-grid--import-summary">
                             <div class="stat-card stat-card--blue">
                                 <h3 class="stat-card__label">T&#7893;ng d&ograve;ng s&#7843;n ph&#7849;m</h3>
                                 <p class="stat-card__value"><%= bulkImportResult.totalProducts || 0 %></p>
@@ -137,7 +148,7 @@
                         </div>
 
                         <% if (bulkImportResult.createdProducts && bulkImportResult.createdProducts.length > 0) { %>
-                            <div class="admin-table-wrapper" style="margin-bottom: 16px;">
+                            <div class="admin-table-wrapper admin-table-wrapper--spaced">
                                 <table class="admin-table">
                                     <thead>
                                         <tr>
@@ -188,16 +199,6 @@
                     </div>
                 <% } %>
             </div>
-            <div class="admin-page-header__right">
-                <button
-                    type="button"
-                    class="admin-btn admin-btn--danger"
-                    data-product-action="delete-all-products"
-                    data-total-product-count="<%= totalProductCount || 0 %>"
-                >
-                    Xóa vĩnh viễn tất cả sản phẩm
-                </button>
-            </div>
         </div>
 
         <!-- Add Product Form -->
@@ -245,9 +246,9 @@
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">SKU</label>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="text" name="sku" id="createSkuInput" class="admin-form__input" placeholder="VD: ATN-001" style="flex:1;">
-                            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-size:13px; font-weight:600; cursor:pointer;">
+                        <div class="product-sku-row">
+                            <input type="text" name="sku" id="createSkuInput" class="admin-form__input product-sku-row__input" placeholder="VD: ATN-001">
+                            <label class="product-sku-row__auto">
                                 <input type="checkbox" id="autoSkuCheckbox"> Tự động tạo mã
                             </label>
                         </div>
@@ -529,7 +530,7 @@
     </div>
 </div>
 
-<!-- Toast Container -->
+<!-- Vùng hiển thị toast phản hồi thao tác sản phẩm. -->
 <div id="toastContainer"></div>
 
 <!-- Confirm Modal -->
@@ -567,6 +568,6 @@
 
 
 
-<script src="/js/admin/products.js"></script>
+<script src="/js/admin/products.js?v=otp-20260426"></script>
 
 <%- include('../partials/admin-footer') %>

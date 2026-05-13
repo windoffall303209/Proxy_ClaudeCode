@@ -1,3 +1,4 @@
+// Middleware xử lý productimportupload trước khi request đi vào controller.
 const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
@@ -20,6 +21,7 @@ const storage = multer.diskStorage({
 
 const allowedExtensions = new Set(['.xlsx', '.xls', '.zip']);
 
+// Xử lý tệp filter.
 function fileFilter(req, file, cb) {
     const extension = path.extname(file.originalname || '').toLowerCase();
     if (allowedExtensions.has(extension)) {

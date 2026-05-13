@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho toast, tách khỏi template EJS.
 (function() {
     const TOAST_ROOT_ID = 'globalToastContainer';
     const DIALOG_ROOT_ID = 'globalDialogRoot';
@@ -36,6 +37,7 @@
     let activeConfirm = null;
     let activeKeyHandler = null;
 
+    // Đảm bảo styles.
     function ensureStyles() {
         if (document.getElementById(STYLE_ID)) {
             return;
@@ -338,6 +340,7 @@
         document.head.appendChild(style);
     }
 
+    // Tạo vùng chứa toast một lần để các thông báo dùng chung cùng một vị trí.
     function ensureToastContainer() {
         let container = document.getElementById(TOAST_ROOT_ID);
         if (!container) {
@@ -350,6 +353,7 @@
         return container;
     }
 
+    // Đảm bảo dialog root.
     function ensureDialogRoot() {
         let root = document.getElementById(DIALOG_ROOT_ID);
         if (!root) {
@@ -378,10 +382,12 @@
         return root;
     }
 
+    // Lấy icon markup.
     function getIconMarkup(type) {
         return ICONS[type] || ICONS.info;
     }
 
+    // Xử lý dismiss toast.
     function dismissToast(toast) {
         if (!toast || !toast.parentElement || toast.classList.contains('is-leaving')) {
             return;
@@ -393,6 +399,7 @@
         }, 180);
     }
 
+    // Tạo toast.
     function createToast(message, type = 'info', options = {}) {
         ensureStyles();
         const container = ensureToastContainer();
@@ -425,6 +432,7 @@
         return toast;
     }
 
+    // Đóng confirm dialog.
     function closeConfirmDialog(result) {
         if (!activeConfirm) {
             return;
@@ -447,6 +455,7 @@
         resolve(Boolean(result));
     }
 
+    // Xử lý show global confirm.
     function showGlobalConfirm(options = {}) {
         ensureStyles();
 
@@ -501,7 +510,6 @@
                     closeConfirmDialog(true);
                 }
             };
-
             document.addEventListener('keydown', activeKeyHandler);
 
             requestAnimationFrame(() => {

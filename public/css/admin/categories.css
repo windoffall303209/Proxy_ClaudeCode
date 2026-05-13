@@ -1,4 +1,4 @@
-/* Page Header */
+/* Tiêu đề và thanh thao tác của màn quản lý danh mục. */
 .admin-page-header {
     display: flex;
     justify-content: space-between;
@@ -239,7 +239,7 @@
 .admin-section--collapsible.is-open .admin-section__content {
     max-height: 1600px;
     opacity: 1;
-    padding-top: 20px;
+    padding-top: 16px;
 }
 
 .admin-section__title--toggle {

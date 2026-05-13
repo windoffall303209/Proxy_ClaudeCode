@@ -1,7 +1,9 @@
+<%# Template admin render màn quản trị chat với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'chat', pageStyles: ['/css/chat-rich-message.css', '/css/admin/chat.css'] }) %>
 
 
 
+<!-- ===== Trang quản trị hội thoại chat khách hàng ===== -->
 <div class="admin-page admin-page--chat">
     <h1 class="admin-page__title">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -34,7 +36,6 @@
             </div>
             <div class="admin-chat-list__items" id="chatListItems"></div>
         </section>
-
         <section class="admin-chat-detail">
             <div class="admin-chat-detail__empty" id="chatDetailEmpty">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
@@ -95,6 +96,7 @@
     </div>
 </div>
 
+<%# Bootstrap du lieu JSON cho script phia client. %>
 <script type="application/json" id="adminChatBootstrap"><%- JSON.stringify({
     conversations,
     unreadCount,

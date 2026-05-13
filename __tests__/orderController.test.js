@@ -1,3 +1,4 @@
+// Kiểm thử tự động cho tests ordercontroller.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
 jest.mock('../models/Order', () => ({
@@ -5,7 +6,9 @@ jest.mock('../models/Order', () => ({
     createFromProduct: jest.fn(),
     findById: jest.fn(),
     findByOrderCode: jest.fn(),
-    updatePaymentStatus: jest.fn()
+    updatePaymentStatus: jest.fn(),
+    updateStatus: jest.fn(),
+    calculateShippingFee: jest.fn((subtotal) => (Number(subtotal) >= 500000 ? 0 : 30000))
 }));
 
 jest.mock('../models/Address', () => ({
@@ -53,6 +56,7 @@ const Payment = require('../models/Payment');
 const paymentService = require('../services/paymentService');
 const orderController = require('../controllers/orderController');
 
+// Tạo response giả lập cho test.
 function createRes() {
     const res = {};
     res.status = jest.fn().mockReturnValue(res);
@@ -203,7 +207,7 @@ describe('orderController', () => {
         expect(Voucher.validate).toHaveBeenCalledWith(
             'SAVE10',
             1,
-            100000,
+            130000,
             [expect.objectContaining({ id: 11 })]
         );
         expect(Order.create).toHaveBeenCalledWith(
@@ -251,13 +255,104 @@ describe('orderController', () => {
         expect(Voucher.validate).toHaveBeenCalledWith(
             'SAVE10',
             1,
-            100000,
+            130000,
             [expect.objectContaining({ id: 11 })]
         );
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
             discount_amount: 10000
         }));
+    });
+
+    it('clamps cart voucher discounts so the payable total never becomes negative', async () => {
+        Address.findById.mockResolvedValue({ id: 4, user_id: 1 });
+        Cart.getOrCreate.mockResolvedValue({ id: 2 });
+        Cart.calculateTotal.mockResolvedValue({
+            subtotal: 10000,
+            items: [{ id: 11, product_id: 1, quantity: 1, subtotal: 10000 }]
+        });
+        Voucher.validate.mockResolvedValue({
+            valid: true,
+            discountAmount: 999999,
+            voucher: { id: 9 }
+        });
+        Order.create.mockResolvedValue({ id: 21 });
+        Order.findById.mockResolvedValue({ id: 21, order_code: 'ORD999' });
+
+        const req = {
+            user: { id: 1 },
+            body: {
+                address_id: 4,
+                payment_method: 'cod',
+                voucher_code: 'BIGSALE',
+                selected_cart_item_ids: '11'
+            }
+        };
+        const res = createRes();
+
+        await orderController.createOrder(req, res);
+
+        expect(Order.create).toHaveBeenCalledWith(
+            1,
+            4,
+            'cod',
+            undefined,
+            null,
+            40000,
+            'BIGSALE',
+            9,
+            [11]
+        );
+    });
+
+    it('auto-confirms zero-payable cart orders and skips online payment gateways', async () => {
+        Address.findById.mockResolvedValue({ id: 4, user_id: 1 });
+        Cart.getOrCreate.mockResolvedValue({ id: 2 });
+        Cart.calculateTotal.mockResolvedValue({
+            subtotal: 10000,
+            items: [{ id: 11, product_id: 1, quantity: 1, subtotal: 10000 }]
+        });
+        Voucher.validate.mockResolvedValue({
+            valid: true,
+            discountAmount: 40000,
+            voucher: { id: 9 }
+        });
+        Order.create.mockResolvedValue({ id: 21 });
+        Order.findById.mockResolvedValue({
+            id: 21,
+            order_code: 'ORDZERO',
+            final_amount: 0,
+            status: 'pending',
+            payment_status: 'unpaid'
+        });
+        Order.updateStatus.mockResolvedValue({
+            id: 21,
+            order_code: 'ORDZERO',
+            final_amount: 0,
+            status: 'confirmed',
+            payment_status: 'paid'
+        });
+
+        const req = {
+            user: { id: 1 },
+            body: {
+                address_id: 4,
+                payment_method: 'vnpay',
+                voucher_code: 'BIGSALE',
+                selected_cart_item_ids: '11'
+            },
+            ip: '127.0.0.1'
+        };
+        const res = createRes();
+
+        await orderController.createOrder(req, res);
+
+        expect(Order.updatePaymentStatus).toHaveBeenCalledWith(21, 'paid');
+        expect(Order.updateStatus).toHaveBeenCalledWith(21, 'confirmed', expect.objectContaining({
+            source: 'system'
+        }));
+        expect(paymentService.createVNPayPayment).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledWith('/orders/ORDZERO/confirmation');
     });
 
     it('rejects buy-now orders when the variant does not belong to the product', async () => {
@@ -376,6 +471,51 @@ describe('orderController', () => {
             null
         );
         expect(res.redirect).toHaveBeenCalledWith('/orders/ORD123/confirmation');
+    });
+
+    it('clamps buy-now voucher discounts so the payable total never becomes negative', async () => {
+        Address.findById.mockResolvedValue({ id: 8, user_id: 1 });
+        Product.findById.mockResolvedValue({
+            id: 3,
+            name: 'Ao Cardigan Nu',
+            price: 10000,
+            final_price: 10000,
+            stock_quantity: 10,
+            variants: []
+        });
+        Voucher.validate.mockResolvedValue({
+            valid: true,
+            discountAmount: 999999,
+            voucher: { id: 12 }
+        });
+        Order.createFromProduct.mockResolvedValue({ id: 30 });
+        Order.findById.mockResolvedValue({ id: 30, order_code: 'ORD300' });
+
+        const req = {
+            user: { id: 1 },
+            body: {
+                product_id: 3,
+                quantity: 1,
+                address_id: 8,
+                payment_method: 'cod',
+                voucher_code: 'BIGSALE'
+            }
+        };
+        const res = createRes();
+
+        await orderController.createBuyNowOrder(req, res);
+
+        expect(Order.createFromProduct).toHaveBeenCalledWith(
+            1,
+            8,
+            expect.objectContaining({ final_price: 10000 }),
+            1,
+            'cod',
+            undefined,
+            null,
+            40000,
+            12
+        );
     });
 
     it('records successful VNPay IPN callbacks and marks the order as paid', async () => {

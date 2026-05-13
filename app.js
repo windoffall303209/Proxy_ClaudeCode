@@ -1,3 +1,4 @@
+// Khởi tạo Express app, middleware dùng chung, static assets và các router chính.
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
@@ -8,7 +9,13 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const { optionalAuth } = require("./middleware/auth");
 const headerCategories = require("./middleware/headerCategories");
+const { storefrontSettings } = require("./middleware/storefrontSettings");
+const privacy = require("./utils/privacy");
 
+const FORM_PARAMETER_LIMIT = 20000;
+const FORM_BODY_LIMIT = "5mb";
+
+// Tạo ứng dụng Express và gắn middleware/route.
 function createApp() {
   const app = express();
   app.set("trust proxy", true);
@@ -33,6 +40,7 @@ function createApp() {
           scriptSrcAttr: ["'none'"],
           fontSrc: ["'self'", "https://fonts.gstatic.com"],
           imgSrc: ["'self'", "data:", "blob:", "https:"],
+          mediaSrc: ["'self'", "blob:", "https:"],
           connectSrc: ["'self'"],
           formAction: paymentFormActionSources,
         },
@@ -44,8 +52,14 @@ function createApp() {
   app.use(cors());
 
   // Body parser
-  app.use(bodyParser.urlencoded({ extended: true }));
-  app.use(bodyParser.json());
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
+      parameterLimit: FORM_PARAMETER_LIMIT,
+      limit: FORM_BODY_LIMIT,
+    }),
+  );
+  app.use(bodyParser.json({ limit: FORM_BODY_LIMIT }));
 
   // Cookie parser
   app.use(cookieParser());
@@ -77,25 +91,27 @@ function createApp() {
     res.sendFile(faviconPath);
   });
 
-  // Static files
+  // Phục vụ static assets từ thư mục public.
   app.use(express.static(path.join(__dirname, "public")));
 
-  // Global auth check - populate req.user from JWT token for all requests
+  // Nạp user từ JWT nếu có để mọi route/view dùng được trạng thái đăng nhập.
   app.use(optionalAuth);
+  app.use(storefrontSettings);
   app.use(headerCategories);
 
-  // Make user available to all views
+  // Đưa dữ liệu dùng chung vào res.locals cho toàn bộ EJS view.
   app.use((req, res, next) => {
     res.locals.user = req.user || null;
     res.locals.path = req.originalUrl || req.path;
+    res.locals.privacy = privacy;
     next();
   });
 
-  // Import routes
+  // Gắn router tổng để các route con giữ cấu trúc riêng trong thư mục routes.
   const routes = require("./routes");
   app.use("/", routes);
 
-  // 404 handler
+  // Render trang lỗi khi không route nào xử lý request.
   app.use((req, res) => {
     res.status(404).render("error", {
       message: "Page not found",
@@ -103,7 +119,7 @@ function createApp() {
     });
   });
 
-  // Error handler
+  // Handler lỗi cuối chuỗi middleware để tránh lộ stack trace ra view.
   app.use((err, req, res, next) => {
     console.error("Error:", err);
 

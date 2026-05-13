@@ -1,3 +1,4 @@
+// Router trang chủ và các endpoint storefront cấp cao.
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');

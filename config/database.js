@@ -1,7 +1,8 @@
+// Tạo pool kết nối MySQL dùng chung cho model, service và controller.
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-// Create connection pool
+// Tạo connection pool để tái sử dụng kết nối MySQL giữa các request.
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -19,7 +20,7 @@ const shouldProbeConnection =
     process.env.NODE_ENV !== 'test' &&
     process.env.SKIP_DB_CONNECTION_PROBE !== 'true';
 
-// Skip eager connection probes in tests so the app can be imported safely.
+// Bỏ probe kết nối trong test để app có thể import mà không cần database thật.
 if (shouldProbeConnection) {
     pool.getConnection()
         .then(connection => {

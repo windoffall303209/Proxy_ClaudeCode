@@ -1,4 +1,4 @@
-/* Page Header */
+/* Tiêu đề và bộ lọc thời gian của dashboard quản trị. */
 .admin-page-header {
     display: flex;
     justify-content: space-between;
@@ -181,7 +181,7 @@
     color: var(--admin-text-primary);
 }
 
-/* Responsive */
+/* Dashboard co lại theo lưới dọc trên màn nhỏ. */
 @media (max-width: 1024px) {
     .dashboard-analytics-grid {
         grid-template-columns: 1fr;

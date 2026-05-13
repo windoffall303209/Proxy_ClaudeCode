@@ -1,3 +1,4 @@
+// Kiểm thử tự động cho tests productcontroller.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
 jest.mock('../models/Product', () => ({
@@ -5,6 +6,7 @@ jest.mock('../models/Product', () => ({
     findAll: jest.fn(),
     count: jest.fn(),
     search: jest.fn(),
+    getForYouRecommendations: jest.fn(),
     getReviewContext: jest.fn(),
     createReview: jest.fn(),
     updateReview: jest.fn()
@@ -20,6 +22,7 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const productController = require('../controllers/productController');
 
+// Tạo response giả lập cho test.
 function createRes() {
     const res = {};
     res.status = jest.fn().mockReturnValue(res);
@@ -288,7 +291,7 @@ describe('productController.updateProductReview', () => {
                 }
             ]
         });
-        expect(res.redirect).toHaveBeenCalledWith('/products/ao-gio');
+        expect(res.redirect).toHaveBeenCalledWith('/products/ao-gio?review=updated');
     });
 
     it('rejects updates that exceed review media limits', async () => {
@@ -377,10 +380,36 @@ describe('productController product listing rules', () => {
         }));
         expect(res.render).toHaveBeenCalledWith('products/list', expect.objectContaining({
             products: [],
-            categories: [],
             totalItems: 28,
             totalPages: 3,
             perPage: 10
+        }));
+    });
+
+    it('maps best-selling sort to sold_count descending', async () => {
+        Product.count.mockResolvedValue(12);
+        Product.findAll.mockResolvedValue([]);
+        Category.findAll.mockResolvedValue([]);
+
+        const req = {
+            query: {
+                sort: 'best-selling'
+            },
+            headers: {
+                accept: 'text/html'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.getProducts(req, res);
+
+        expect(Product.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            sort_by: 'sold_count',
+            sort_order: 'DESC'
+        }));
+        expect(res.render).toHaveBeenCalledWith('products/list', expect.objectContaining({
+            currentSort: 'best-selling'
         }));
     });
 
@@ -477,12 +506,186 @@ describe('productController product listing rules', () => {
         await productController.searchProducts(req, res);
 
         expect(Product.search).toHaveBeenCalledWith('ao khoac', 80);
+        const expectedProducts = [...allResults].sort((left, right) => right.id - left.id).slice(10, 20);
         expect(res.render).toHaveBeenCalledWith('products/search-results', expect.objectContaining({
-            products: allResults.slice(10, 20),
+            products: expectedProducts,
             totalItems: 25,
             totalPages: 3,
             currentPage: 2,
             perPage: 10
+        }));
+    });
+
+    it('maps sale=true to the shared promotion filter on the main listing page', async () => {
+        Product.count.mockResolvedValue(9);
+        Product.findAll.mockResolvedValue([]);
+        Category.findAll.mockResolvedValue([]);
+
+        const req = {
+            query: {
+                sale: 'true',
+                page: '1'
+            },
+            headers: {
+                accept: 'text/html'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.getProducts(req, res);
+
+        expect(Product.count).toHaveBeenCalledWith(expect.objectContaining({
+            promotion: 'active_or_upcoming',
+            use_final_price: true
+        }));
+        expect(Product.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            promotion: 'active_or_upcoming',
+            use_final_price: true
+        }));
+        expect(res.render).toHaveBeenCalledWith('products/list', expect.objectContaining({
+            isSalePage: true,
+            filters: expect.objectContaining({
+                promotion: ['active_or_upcoming']
+            })
+        }));
+    });
+
+    it('filters search results by category, rating and promotion before paginating', async () => {
+        Category.findBySlug.mockResolvedValue({
+            id: 2,
+            name: 'Thời Trang Nữ',
+            slug: 'nu'
+        });
+        Category.findAll.mockResolvedValue([
+            { id: 2, name: 'Thời Trang Nữ', slug: 'nu' }
+        ]);
+        Product.count.mockResolvedValue(20);
+        Product.search.mockResolvedValue([
+            { id: 1, slug: 'active-match', category_id: 2, average_rating: 4.8, promotion_status: 'active', price: 300000, final_price: 250000, display_price: 250000 },
+            { id: 2, slug: 'wrong-category', category_id: 3, average_rating: 5, promotion_status: 'active', price: 250000, final_price: 240000, display_price: 240000 },
+            { id: 3, slug: 'wrong-rating', category_id: 2, average_rating: 3.2, promotion_status: 'active', price: 200000, final_price: 180000, display_price: 180000 },
+            { id: 4, slug: 'wrong-promotion', category_id: 2, average_rating: 4.9, promotion_status: 'upcoming', price: 280000, final_price: 280000, display_price: 280000 }
+        ]);
+
+        const req = {
+            query: {
+                q: 'ao polo',
+                category: 'nu',
+                rating: '4',
+                promotion: 'active'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.searchProducts(req, res);
+
+        expect(res.render).toHaveBeenCalledWith('products/search-results', expect.objectContaining({
+            products: [expect.objectContaining({ slug: 'active-match' })],
+            totalItems: 1,
+            filters: expect.objectContaining({
+                category: ['nu'],
+                rating: ['4'],
+                promotion: ['active']
+            })
+        }));
+    });
+
+    it('supports multi-select filters on category pages', async () => {
+        Category.findBySlug.mockResolvedValue({
+            id: 1,
+            name: 'Nam',
+            slug: 'nam',
+            parent_id: null
+        });
+        Category.findAll.mockResolvedValue([
+            { id: 1, name: 'Nam', slug: 'nam', parent_id: null },
+            { id: 11, name: 'Ao khoac nam', slug: 'ao-khoac-nam', parent_id: 1 },
+            { id: 12, name: 'Quan nam', slug: 'quan-nam', parent_id: 1 }
+        ]);
+        Product.count.mockResolvedValue(12);
+        Product.findAll.mockResolvedValue([]);
+
+        const req = {
+            params: { slug: 'nam' },
+            query: {
+                category: ['ao-khoac-nam', 'quan-nam'],
+                price_range: [':200000', '1000000:'],
+                rating: ['5', '4'],
+                promotion: ['active', 'upcoming']
+            },
+            headers: {
+                accept: 'text/html'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.getProductsByCategory(req, res);
+
+        expect(Product.findAll).toHaveBeenCalledWith(expect.objectContaining({
+            category_ids: [11, 12],
+            ratings: [5, 4],
+            promotions: ['active', 'upcoming'],
+            price_ranges: [
+                expect.objectContaining({ min: null, max: 200000 }),
+                expect.objectContaining({ min: 1000000, max: null })
+            ]
+        }));
+        expect(res.render).toHaveBeenCalledWith('products/category', expect.objectContaining({
+            filters: expect.objectContaining({
+                category: ['ao-khoac-nam', 'quan-nam'],
+                rating: ['5', '4'],
+                promotion: ['active', 'upcoming'],
+                price_ranges: [':200000', '1000000:']
+            })
+        }));
+    });
+});
+
+describe('productController.getForYou', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('renders recommendations for logged in users', async () => {
+        Product.getForYouRecommendations.mockResolvedValue([
+            { id: 1, slug: 'ao-polo' },
+            { id: 2, slug: 'quan-jean' }
+        ]);
+
+        const req = {
+            user: { id: 5 }
+        };
+        const res = createRes();
+
+        await productController.getForYou(req, res);
+
+        expect(Product.getForYouRecommendations).toHaveBeenCalledWith(5, 30);
+        expect(res.render).toHaveBeenCalledWith('products/for-you', expect.objectContaining({
+            products: expect.arrayContaining([
+                expect.objectContaining({ slug: 'ao-polo' }),
+                expect.objectContaining({ slug: 'quan-jean' })
+            ]),
+            hasPurchaseHistory: true,
+            path: '/products/for-you'
+        }));
+    });
+
+    it('renders an empty state when the user has no purchase history', async () => {
+        Product.getForYouRecommendations.mockResolvedValue([]);
+
+        const req = {
+            user: { id: 8 }
+        };
+        const res = createRes();
+
+        await productController.getForYou(req, res);
+
+        expect(res.render).toHaveBeenCalledWith('products/for-you', expect.objectContaining({
+            products: [],
+            hasPurchaseHistory: false
         }));
     });
 });

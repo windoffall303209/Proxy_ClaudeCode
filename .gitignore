@@ -23,6 +23,8 @@ public/uploads/*
 
 # Coverage
 coverage/
+output/
+.playwright-cli/
 
 # Build
 dist/

@@ -1,9 +1,25 @@
+<%# Template EJS render sản phẩm danh mục cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/product-list.css">
 
+<%
+    // Cấu hình hiển thị storefront lấy từ admin (số cột grid)
+    const storefrontConfig = storefrontSettings || {};
+    const productGridColumns = Math.min(6, Math.max(2, Number.parseInt(storefrontConfig.product_grid_columns, 10) || 5));
+    const productGridColumnsLg = Math.min(productGridColumns, 4);
+    const productGridColumnsMd = Math.min(productGridColumns, 3);
+%>
+
+<!-- ===== Trang danh mục sản phẩm ===== -->
 <div class="catalog-page page-shell">
-    <div class="container">
+    <div
+        class="container"
+        data-catalog-container
+        data-catalog-columns="<%= productGridColumns %>"
+        data-catalog-columns-lg="<%= productGridColumnsLg %>"
+        data-catalog-columns-md="<%= productGridColumnsMd %>"
+    >
         <section class="page-intro page-intro--compact catalog-intro catalog-intro--compact">
             <div class="catalog-intro__content">
                 <h1 class="page-intro__title page-intro__title-inline">
@@ -14,44 +30,61 @@
             </div>
         </section>
 
+        <!-- Lối tắt chuyển nhanh giữa các danh mục chính
         <div class="catalog-shortcuts">
             <a href="/products/category/nam" class="<%= category && category.slug === 'nam' ? 'active' : '' %>">Nam</a>
             <a href="/products/category/nu" class="<%= category && category.slug === 'nu' ? 'active' : '' %>">Nữ</a>
             <a href="/products/category/tre-em" class="<%= category && category.slug === 'tre-em' ? 'active' : '' %>">Trẻ em</a>
             <a href="/products?sale=true">Sale</a>
+        </div> -->
+
+        <div class="catalog-layout">
+            <%- include('../partials/catalog-sidebar', {
+                category,
+                categories,
+                currentSort,
+                filters,
+                filterPriceRanges,
+                filterRatingOptions,
+                paginationPath,
+                perPage,
+                totalItems
+            }) %>
+
+            <div class="catalog-results">
+                <%- include('../partials/catalog-toolbar', {
+                    paginationPath,
+                    paginationQuery,
+                    totalItems,
+                    perPage,
+                    perPageOptions,
+                    currentSort,
+                    resultsLabel: 'sản phẩm'
+                }) %>
+
+                <% if (products && products.length > 0) { %>
+                    <div class="products-grid catalog-grid" id="productsGrid">
+                        <% products.forEach((product) => { %>
+                            <%- include('../partials/product-card', { product }) %>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="empty-panel">
+                        <h3>Danh mục này tạm thời chưa có hàng</h3>
+                        <p>Hãy thử danh mục khác hoặc xem khu sale để tiếp tục mua sắm.</p>
+                        <a href="/products" class="btn btn-primary">Quay lại trang sản phẩm</a>
+                    </div>
+                <% } %>
+
+                <%- include('../partials/catalog-pagination', {
+                    paginationPath,
+                    paginationQuery,
+                    currentPage,
+                    totalPages,
+                    perPage
+                }) %>
+            </div>
         </div>
-
-        <%- include('../partials/catalog-toolbar', {
-            paginationPath,
-            paginationQuery,
-            totalItems,
-            perPage,
-            perPageOptions,
-            currentSort,
-            resultsLabel: 'sản phẩm'
-        }) %>
-
-        <% if (products && products.length > 0) { %>
-            <div class="products-grid catalog-grid" id="productsGrid">
-                <% products.forEach((product) => { %>
-                    <%- include('../partials/product-card', { product }) %>
-                <% }) %>
-            </div>
-        <% } else { %>
-            <div class="empty-panel">
-                <h3>Danh mục này tạm thời chưa có hàng</h3>
-                <p>Hãy thử danh mục khác hoặc xem khu sale để tiếp tục mua sắm.</p>
-                <a href="/products" class="btn btn-primary">Quay lại trang sản phẩm</a>
-            </div>
-        <% } %>
-
-        <%- include('../partials/catalog-pagination', {
-            paginationPath,
-            paginationQuery,
-            currentPage,
-            totalPages,
-            perPage
-        }) %>
     </div>
 </div>
 

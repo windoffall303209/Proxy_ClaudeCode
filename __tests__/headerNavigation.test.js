@@ -1,3 +1,4 @@
+// Kiểm thử tự động cho tests headernavigation.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
 const fs = require('fs');
@@ -5,7 +6,8 @@ const path = require('path');
 const ejs = require('ejs');
 
 jest.mock('../models/Category', () => ({
-    findRootCategories: jest.fn()
+    findAll: jest.fn(),
+    buildTree: jest.fn((categories) => categories)
 }));
 
 const Category = require('../models/Category');
@@ -25,11 +27,12 @@ describe('header category navigation', () => {
         const res = { locals: {} };
         const next = jest.fn();
 
-        Category.findRootCategories.mockResolvedValue(categories);
+        Category.findAll.mockResolvedValue(categories);
 
         await headerCategories(req, res, next);
 
-        expect(Category.findRootCategories).toHaveBeenCalledTimes(1);
+        expect(Category.findAll).toHaveBeenCalledTimes(1);
+        expect(Category.buildTree).toHaveBeenCalledWith(categories);
         expect(res.locals.headerCategories).toEqual(categories);
         expect(next).toHaveBeenCalledTimes(1);
     });

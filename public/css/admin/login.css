@@ -1,0 +1,194 @@
+/* Giao diện đăng nhập admin riêng, chỉ mượn lại theme của storefront. */
+.admin-login-body {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 12% 10%, rgba(242, 201, 76, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 18%, rgba(216, 166, 23, 0.16), transparent 32%),
+        linear-gradient(180deg, #fffdf8 0%, #f7efdf 100%);
+}
+
+.admin-login-page {
+    min-height: 100svh;
+    padding: clamp(18px, 3vw, 34px);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: clamp(22px, 4vw, 44px);
+}
+
+.admin-login-topbar {
+    width: min(100%, 1160px);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.admin-login-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    color: var(--ink);
+}
+
+.admin-login-brand__mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    box-shadow: 0 10px 26px rgba(42, 29, 8, 0.12);
+}
+
+.admin-login-brand__text {
+    display: grid;
+    line-height: 1.2;
+}
+
+.admin-login-brand__text strong {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.admin-login-brand__text small {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+}
+
+.admin-login-storefront-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1px solid rgba(215, 197, 154, 0.8);
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.76);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: var(--shadow-soft);
+}
+
+.admin-login-storefront-link:hover {
+    background: var(--white);
+}
+
+.admin-login-shell {
+    width: min(100%, 1160px);
+    margin: 0 auto;
+    align-self: center;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+}
+
+.admin-login-visual {
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    isolation: isolate;
+}
+
+.admin-login-visual::after {
+    content: "";
+    position: absolute;
+    inset: 22px 22px auto auto;
+    width: 150px;
+    height: 150px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(242, 201, 76, 0.28), transparent 64%);
+    z-index: -1;
+}
+
+.admin-login-card {
+    align-self: center;
+}
+
+.admin-login-card__eyebrow {
+    margin-bottom: 8px;
+    color: var(--accent-strong);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.admin-login-card h2 {
+    font-size: clamp(26px, 3vw, 34px);
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.admin-login-card__note {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border: 1px solid rgba(215, 197, 154, 0.7);
+    border-radius: 16px;
+    background: rgba(255, 248, 232, 0.76);
+    color: var(--gray-700);
+    font-size: 13px;
+}
+
+.auth-page--admin .auth-visual__title {
+    max-width: 640px;
+}
+
+.auth-page--admin .auth-visual__copy {
+    max-width: 560px;
+}
+
+.auth-page--admin .auth-footer {
+    text-transform: none;
+}
+
+@media (max-width: 880px) {
+    .admin-login-page {
+        padding: 16px;
+    }
+
+    .admin-login-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-login-visual {
+        min-height: 330px;
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-login-page {
+        gap: 18px;
+    }
+
+    .admin-login-topbar {
+        align-items: flex-start;
+    }
+
+    .admin-login-brand__mark {
+        width: 40px;
+        height: 40px;
+    }
+
+    .admin-login-brand__text strong {
+        font-size: 15px;
+    }
+
+    .admin-login-brand__text small {
+        font-size: 10px;
+    }
+
+    .admin-login-storefront-link {
+        min-height: 38px;
+        padding: 0 13px;
+        font-size: 12px;
+    }
+
+    .admin-login-visual {
+        min-height: auto;
+    }
+}

@@ -1,0 +1,171 @@
+<%# Template admin render màn quản trị đổi trả chi tiết với dữ liệu từ controller quản trị. %>
+<%- include('../partials/admin-header', { currentPage: 'returns', pageStyles: ['/css/admin/orders.css'] }) %>
+
+<%
+    const statusMap = {
+        pending: { label: 'Chờ xử lý', className: 'admin-table__badge--pending' },
+        approved: { label: 'Đã duyệt', className: 'admin-table__badge--processing' },
+        rejected: { label: 'Từ chối', className: 'admin-table__badge--cancelled' },
+        resolved: { label: 'Đã xử lý', className: 'admin-table__badge--delivered' }
+    };
+    const paymentLabels = {
+        cod: 'Thanh toán khi nhận hàng',
+        vnpay: 'VNPay',
+        momo: 'MoMo'
+    };
+    const requestStatus = statusMap[returnRequest.status] || { label: returnRequest.status, className: 'admin-table__badge--pending' };
+    const isOrderPaymentSettled = order && (order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status));
+    const orderPaymentStatusText = isOrderPaymentSettled ? 'Đã thanh toán' : (order && order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
+%>
+
+<div class="admin-page">
+    <div class="container">
+        <div class="admin-page-header">
+            <div class="admin-page-header__left">
+                <h1>Chi tiết hoàn hàng</h1>
+                <p>Yêu cầu #<%= returnRequest.id %> · Đơn <%= returnRequest.order_code %></p>
+            </div>
+            <div class="admin-page-header__actions">
+                <a href="/admin/returns" class="admin-btn admin-btn--ghost">Quay lại danh sách</a>
+                <a href="/admin/orders/<%= returnRequest.order_id %>" class="admin-btn admin-btn--primary">Xem đơn hàng</a>
+            </div>
+        </div>
+
+        <div class="return-detail-grid">
+            <section class="admin-section return-detail-panel return-detail-panel--request">
+                <div class="return-detail-head">
+                    <div>
+                        <h3 class="admin-section__title">Thông tin yêu cầu</h3>
+                        <p class="return-detail-muted">Tạo lúc <%= new Date(returnRequest.created_at).toLocaleString('vi-VN') %></p>
+                    </div>
+                    <span class="admin-table__badge <%= requestStatus.className %>"><%= requestStatus.label %></span>
+                </div>
+
+                <dl class="return-detail-list">
+                    <div>
+                        <dt>Khách hàng</dt>
+                        <dd><%= returnRequest.user_name || 'N/A' %></dd>
+                    </div>
+                    <div>
+                        <dt>Email</dt>
+                        <dd><%= returnRequest.user_email ? privacy.maskEmail(returnRequest.user_email) : 'N/A' %></dd>
+                    </div>
+                    <div>
+                        <dt>Lý do hoàn hàng</dt>
+                        <dd class="return-detail-reason"><%= returnRequest.reason %></dd>
+                    </div>
+                    <% if (returnRequest.reviewed_by_name) { %>
+                        <div>
+                            <dt>Người xử lý</dt>
+                            <dd><%= returnRequest.reviewed_by_name %> · <%= returnRequest.reviewed_at ? new Date(returnRequest.reviewed_at).toLocaleString('vi-VN') : '' %></dd>
+                        </div>
+                    <% } %>
+                </dl>
+                <form class="return-status-form return-detail-form" data-return-id="<%= returnRequest.id %>">
+                    <label class="admin-form__label">Trạng thái xử lý</label>
+                    <select name="status" class="admin-form__select">
+                        <option value="pending" <%= returnRequest.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
+                        <option value="approved" <%= returnRequest.status === 'approved' ? 'selected' : '' %>>Đã duyệt</option>
+                        <option value="rejected" <%= returnRequest.status === 'rejected' ? 'selected' : '' %>>Từ chối</option>
+                        <option value="resolved" <%= returnRequest.status === 'resolved' ? 'selected' : '' %>>Đã xử lý</option>
+                    </select>
+                    <label class="admin-form__label">Ghi chú admin</label>
+                    <textarea name="admin_note" class="admin-form__textarea" rows="4" placeholder="Ghi chú xử lý"><%= returnRequest.admin_note || '' %></textarea>
+                    <button type="submit" class="admin-btn admin-btn--primary">Cập nhật trạng thái</button>
+                </form>
+            </section>
+            <section class="admin-section return-detail-panel return-detail-panel--media">
+                <h3 class="admin-section__title">Minh chứng khách gửi</h3>
+                <% if (returnRequest.media && returnRequest.media.length > 0) { %>
+                    <div class="return-media-grid">
+                        <% returnRequest.media.forEach((mediaItem, index) => { %>
+                            <a href="<%= mediaItem.media_url %>" target="_blank" rel="noopener noreferrer" class="return-media-card">
+                                <% if (mediaItem.media_type === 'video') { %>
+                                    <video src="<%= mediaItem.media_url %>" controls muted></video>
+                                <% } else { %>
+                                    <img src="<%= mediaItem.media_url %>" alt="Minh chứng hoàn hàng <%= index + 1 %>">
+                                <% } %>
+                                <span><%= mediaItem.media_type === 'video' ? 'Video' : 'Ảnh' %> <%= index + 1 %></span>
+                            </a>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <p class="return-detail-muted">Không có tệp minh chứng.</p>
+                <% } %>
+            </section>
+        </div>
+        <section class="admin-section">
+            <h3 class="admin-section__title">Thông tin đơn hàng</h3>
+            <% if (order) { %>
+                <div class="return-order-summary">
+                    <div>
+                        <span>Mã đơn</span>
+                        <strong><%= order.order_code %></strong>
+                    </div>
+                    <div>
+                        <span>Trạng thái đơn</span>
+                        <strong><%= order.status %></strong>
+                    </div>
+                    <div>
+                        <span>Thanh toán</span>
+                        <strong><%= paymentLabels[order.payment_method] || order.payment_method %> · <%= orderPaymentStatusText %></strong>
+                    </div>
+                    <div>
+                        <span>Tổng tiền</span>
+                        <strong><%= Number(order.final_amount || order.total_amount || 0).toLocaleString('vi-VN') %>đ</strong>
+                    </div>
+                    <div>
+                        <span>Người nhận</span>
+                        <strong><%= order.shipping_name || order.user_name || 'N/A' %></strong>
+                    </div>
+                    <div>
+                        <span>Điện thoại</span>
+                        <strong><%= order.shipping_phone ? privacy.maskPhone(order.shipping_phone) : 'N/A' %></strong>
+                    </div>
+                    <div class="return-order-summary__wide">
+                        <span>Địa chỉ giao hàng</span>
+                        <strong><%= order.shipping_address || 'N/A' %></strong>
+                    </div>
+                </div>
+
+                <% if (order.items && order.items.length > 0) { %>
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th class="text-center">Phân loại</th>
+                                    <th class="text-center">SL</th>
+                                    <th class="text-center">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% order.items.forEach((item) => { %>
+                                    <tr>
+                                        <td>
+                                            <% if (item.product_slug) { %>
+                                                <a class="admin-table__link" href="/products/<%= item.product_slug %>" target="_blank" rel="noopener noreferrer"><%= item.product_name %></a>
+                                            <% } else { %>
+                                                <%= item.product_name %>
+                                            <% } %>
+                                        </td>
+                                        <td class="text-center"><%= [item.variant_color, item.variant_size].filter(Boolean).join(' / ') || '-' %></td>
+                                        <td class="text-center"><%= item.quantity %></td>
+                                        <td class="text-center"><%= Number(item.subtotal || item.price * item.quantity || 0).toLocaleString('vi-VN') %>đ</td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } %>
+            <% } else { %>
+                <p class="return-detail-muted">Không tải được dữ liệu đơn hàng.</p>
+            <% } %>
+        </section>
+    </div>
+</div>
+
+<div id="toastContainer"></div>
+<script src="/js/admin/returns.js"></script>
+
+<%- include('../partials/admin-footer') %>

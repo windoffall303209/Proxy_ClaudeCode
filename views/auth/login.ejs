@@ -1,3 +1,4 @@
+<%# Template EJS render xác thực đăng nhập cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <div class="auth-page">
@@ -21,20 +22,38 @@
                 <% if (error) { %>
                     <div class="alert alert-error"><%= error %></div>
                 <% } %>
-
                 <form action="/auth/login" method="POST" class="auth-form">
+                    <% const loginRedirect = typeof redirect !== 'undefined' ? redirect : ''; %>
+                    <% if (loginRedirect) { %>
+                        <input type="hidden" name="redirect" value="<%= loginRedirect %>">
+                    <% } %>
                     <div class="form-group">
                         <label for="email">Email</label>
-                        <input type="email" id="email" name="email" value="<%= email %>" required>
+                        <input type="email" id="email" name="email" value="<%= email %>" required placeholder="Email">
                     </div>
 
                     <div class="form-group">
                         <label for="password">Mật khẩu</label>
-                        <input type="password" id="password" name="password" required>
+                        <div class="password-field">
+                            <input type="password" id="password" name="password" required placeholder="Mật khẩu">
+                            <button type="button" class="password-toggle" data-password-target="password" aria-label="Hien thi mat khau" aria-pressed="false">
+                                <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
+                                <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
+                            </button>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
                 </form>
+
+                    <div class="auth-divider">
+                        <span>hoặc</span>
+                    </div>
+                    <a href="/auth/google<%= loginRedirect ? '?redirect=' + encodeURIComponent(loginRedirect) : '' %>" class="auth-google-btn">
+                        <img src="https://developers.google.com/identity/images/g-logo.png" 
+                             alt="Google" width="18" height="18">
+                        <span>Tiếp tục với Google</span>
+                    </a>
 
                 <div class="auth-footer">
                     <p>Chưa có tài khoản? <a href="/auth/register">Đăng ký ngay</a></p>
@@ -44,5 +63,7 @@
         </div>
     </div>
 </div>
+
+<script src="/js/login.js"></script>
 
 <%- include('../partials/footer') %>

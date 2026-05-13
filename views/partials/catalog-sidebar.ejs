@@ -1,0 +1,401 @@
+<%# Partial EJS dùng lại cho catalog bộ lọc bên để các view giữ cấu trúc thống nhất. %>
+<%
+    const sidebarFilters = filters || {};
+    const sidebarCategories = Array.isArray(categories) ? categories : [];
+    const sidebarCategory = category || null;
+    const sidebarPath = paginationPath || '/products';
+    const sidebarIsCategoryPath = /^\/products\/category\//.test(sidebarPath);
+    const sidebarCurrentSort = currentSort || sidebarFilters.currentSort || 'newest';
+    const sidebarPerPage = Number(sidebarFilters.perPage || perPage || 20);
+    const sidebarSearchKey = typeof query !== 'undefined' && query
+        ? 'q'
+        : (sidebarFilters.search ? 'search' : '');
+    const sidebarSearchValue = typeof query !== 'undefined' && query
+        ? query
+        : (sidebarFilters.search || '');
+    const sidebarPriceRanges = Array.isArray(filterPriceRanges) ? filterPriceRanges : [];
+    const sidebarRatingOptions = Array.isArray(filterRatingOptions) ? filterRatingOptions : [4, 3, 2, 1];
+    const selectedMinPrice = sidebarFilters.min_price || '';
+    const selectedMaxPrice = sidebarFilters.max_price || '';
+    const selectedCategorySlugs = (Array.isArray(sidebarFilters.category) ? sidebarFilters.category : [sidebarFilters.category])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+    const selectedPriceRangeKeys = (Array.isArray(sidebarFilters.price_ranges) ? sidebarFilters.price_ranges : [sidebarFilters.price_ranges])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+    const selectedRatings = (Array.isArray(sidebarFilters.rating) ? sidebarFilters.rating : [sidebarFilters.rating])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+    const selectedPromotions = (Array.isArray(sidebarFilters.promotion) ? sidebarFilters.promotion : [sidebarFilters.promotion])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+    const selectedCategorySet = new Set(selectedCategorySlugs);
+    const selectedPriceRangeSet = new Set(selectedPriceRangeKeys);
+    const selectedRatingSet = new Set(selectedRatings);
+    const selectedPromotionSet = new Set(selectedPromotions);
+    const categoryMap = new Map(sidebarCategories.map((item) => [String(item.id), item]));
+    const childrenMap = new Map();
+
+    sidebarCategories.forEach((item) => {
+        const parentKey = item.parent_id ? String(item.parent_id) : 'root';
+        const siblingItems = childrenMap.get(parentKey) || [];
+        siblingItems.push(item);
+        childrenMap.set(parentKey, siblingItems);
+    });
+
+    function getChildren(parentId) {
+        const key = parentId ? String(parentId) : 'root';
+        return childrenMap.get(key) || [];
+    }
+
+    function getCategoryBySlug(slug) {
+        return sidebarCategories.find((item) => item.slug === slug) || null;
+    }
+
+    function getRootCategory(item) {
+        let current = item || null;
+        let guard = 0;
+
+        while (current && current.parent_id && guard < 20) {
+            const parentItem = categoryMap.get(String(current.parent_id));
+            if (!parentItem) {
+                break;
+            }
+
+            current = parentItem;
+            guard += 1;
+        }
+
+        return current;
+    }
+
+    function isDescendantOf(item, rootId) {
+        let current = item || null;
+        let guard = 0;
+
+        while (current && current.parent_id && guard < 20) {
+            if (String(current.parent_id) === String(rootId)) {
+                return true;
+            }
+
+            current = categoryMap.get(String(current.parent_id)) || null;
+            guard += 1;
+        }
+
+        return false;
+    }
+
+    function appendArrayParams(params, key, values) {
+        (Array.isArray(values) ? values : []).forEach((value) => {
+            if (value === undefined || value === null || value === '') {
+                return;
+            }
+
+            params.append(key, String(value));
+        });
+    }
+
+    function buildSidebarHref({
+        categorySlugs = selectedCategorySlugs,
+        priceRanges = selectedPriceRangeKeys,
+        minPrice = selectedMinPrice,
+        maxPrice = selectedMaxPrice,
+        ratingValues = selectedRatings,
+        promotionValues = selectedPromotions,
+        keepSort = true,
+        keepPerPage = true,
+        keepSearch = true
+    } = {}) {
+        const params = new URLSearchParams();
+
+        appendArrayParams(params, 'category', categorySlugs);
+        appendArrayParams(params, 'price_range', priceRanges);
+        appendArrayParams(params, 'rating', ratingValues);
+        appendArrayParams(params, 'promotion', promotionValues);
+
+        if (minPrice !== undefined && minPrice !== null && minPrice !== '') {
+            params.set('min_price', String(minPrice));
+        }
+
+        if (maxPrice !== undefined && maxPrice !== null && maxPrice !== '') {
+            params.set('max_price', String(maxPrice));
+        }
+
+        if (keepSort && sidebarCurrentSort && sidebarCurrentSort !== 'newest') {
+            params.set('sort', sidebarCurrentSort);
+        }
+
+        if (keepPerPage && sidebarPerPage && sidebarPerPage !== 20) {
+            params.set('per_page', String(sidebarPerPage));
+        }
+
+        if (keepSearch && sidebarSearchKey && sidebarSearchValue) {
+            params.set(sidebarSearchKey, sidebarSearchValue);
+        }
+
+        const queryString = params.toString();
+        return queryString ? `${sidebarPath}?${queryString}` : sidebarPath;
+    }
+
+    function isTreeExpanded(rootCategory) {
+        if (!rootCategory) {
+            return false;
+        }
+
+        if (sidebarCategory && getRootCategory(sidebarCategory)?.id === rootCategory.id) {
+            return true;
+        }
+
+        return selectedCategorySlugs.some((slug) => {
+            const selectedCategory = getCategoryBySlug(slug);
+            return selectedCategory && (
+                selectedCategory.id === rootCategory.id ||
+                isDescendantOf(selectedCategory, rootCategory.id)
+            );
+        });
+    }
+
+    const sidebarCategoryMode = sidebarIsCategoryPath ? 'scoped' : 'full';
+    const visibleRootCategories = sidebarCategoryMode === 'full' ? getChildren(null) : [];
+    const scopedRootCategory = sidebarCategoryMode === 'scoped'
+        ? getRootCategory(sidebarCategory)
+        : null;
+    const scopedChildren = scopedRootCategory ? getChildren(scopedRootCategory.id) : [];
+    const scopedIsExpanded = isTreeExpanded(scopedRootCategory);
+%>
+
+<aside class="catalog-sidebar" id="catalogSidebar">
+    <button type="button" class="catalog-sidebar__toggle" data-catalog-filter-toggle aria-expanded="false" aria-controls="catalogSidebarPanel">
+        <span>Bộ lọc sản phẩm</span>
+        <span class="catalog-sidebar__toggle-icon" aria-hidden="true">▾</span>
+    </button>
+
+    <div class="catalog-sidebar__panel" id="catalogSidebarPanel">
+        <form method="get" action="<%= sidebarPath %>" class="catalog-sidebar__form">
+            <% if (sidebarCurrentSort && sidebarCurrentSort !== 'newest') { %>
+                <input type="hidden" name="sort" value="<%= sidebarCurrentSort %>">
+            <% } %>
+            <% if (sidebarPerPage && sidebarPerPage !== 20) { %>
+                <input type="hidden" name="per_page" value="<%= sidebarPerPage %>">
+            <% } %>
+            <% if (sidebarSearchKey && sidebarSearchValue) { %>
+                <input type="hidden" name="<%= sidebarSearchKey %>" value="<%= sidebarSearchValue %>">
+            <% } %>
+            <input type="hidden" name="page" value="1">
+
+            <div class="catalog-sidebar__panel-header">
+                <div>
+                    <p class="catalog-sidebar__eyebrow">Bộ lọc</p>
+                </div>
+                <a
+                    href="<%= buildSidebarHref({ categorySlugs: [], priceRanges: [], minPrice: '', maxPrice: '', ratingValues: [], promotionValues: [] }) %>"
+                    class="catalog-sidebar__reset"
+                >
+                    Xóa
+                </a>
+            </div>
+            <section class="catalog-sidebar__section">
+                <div class="catalog-sidebar__section-head">
+                    <h3 class="catalog-sidebar__section-title">Danh mục</h3>
+                    <% if (sidebarCategoryMode === 'full') { %>
+                        <a href="<%= buildSidebarHref({ categorySlugs: [] }) %>" class="catalog-sidebar__all-link">Tất cả</a>
+                    <% } else if (scopedRootCategory) { %>
+                        <a href="<%= buildSidebarHref({ categorySlugs: [] }) %>" class="catalog-sidebar__all-link">Tất cả <%= scopedRootCategory.name %></a>
+                    <% } %>
+                </div>
+
+                <% if (sidebarCategoryMode === 'full') { %>
+                    <div class="catalog-sidebar__tree">
+                        <% visibleRootCategories.forEach((rootCategory) => { %>
+                            <% const rootChildren = getChildren(rootCategory.id); %>
+                            <% const isExpanded = isTreeExpanded(rootCategory); %>
+                            <div class="catalog-sidebar__tree-item">
+                                <div class="catalog-sidebar__tree-row">
+                                    <label class="catalog-sidebar__option catalog-sidebar__option--tree">
+                                        <input
+                                            type="checkbox"
+                                            name="category"
+                                            value="<%= rootCategory.slug %>"
+                                            class="catalog-sidebar__option-input"
+                                            data-auto-submit-filter
+                                            aria-label="Lọc theo danh mục <%= rootCategory.name %>"
+                                            <%= selectedCategorySet.has(rootCategory.slug) ? 'checked' : '' %>
+                                        >
+                                    </label>
+
+                                    <% if (rootChildren.length > 0) { %>
+                                        <button
+                                            type="button"
+                                            class="catalog-sidebar__tree-toggle <%= isExpanded ? 'is-open' : '' %>"
+                                            data-catalog-tree-toggle
+                                            aria-expanded="<%= isExpanded ? 'true' : 'false' %>"
+                                            aria-controls="catalogTree-<%= rootCategory.id %>"
+                                            aria-label="<%= isExpanded ? 'Thu gọn danh mục con của ' + rootCategory.name : 'Mở danh mục con của ' + rootCategory.name %>"
+                                        >
+                                            <span class="catalog-sidebar__tree-toggle-label"><%= rootCategory.name %></span>
+                                            <span class="catalog-sidebar__tree-toggle-icon" aria-hidden="true">▾</span>
+                                        </button>
+                                    <% } else { %>
+                                        <span class="catalog-sidebar__tree-toggle-label catalog-sidebar__tree-toggle-label--static"><%= rootCategory.name %></span>
+                                    <% } %>
+                                </div>
+
+                                <% if (rootChildren.length > 0) { %>
+                                    <div id="catalogTree-<%= rootCategory.id %>" class="catalog-sidebar__tree-children <%= isExpanded ? 'is-open' : '' %>">
+                                        <% rootChildren.forEach((childCategory) => { %>
+                                            <label class="catalog-sidebar__option catalog-sidebar__option--child">
+                                                <input
+                                                    type="checkbox"
+                                                    name="category"
+                                                    value="<%= childCategory.slug %>"
+                                                    class="catalog-sidebar__option-input"
+                                                    data-auto-submit-filter
+                                                    <%= selectedCategorySet.has(childCategory.slug) ? 'checked' : '' %>
+                                                >
+                                                <span class="catalog-sidebar__label-text"><%= childCategory.name %></span>
+                                            </label>
+                                        <% }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% }) %>
+
+                        <% if (visibleRootCategories.length === 0) { %>
+                            <p class="catalog-sidebar__note">Hiện chưa có danh mục để lọc.</p>
+                        <% } %>
+                    </div>
+                <% } else { %>
+                    <div class="catalog-sidebar__tree">
+                        <% if (scopedChildren.length > 0) { %>
+                            <div class="catalog-sidebar__tree-item">
+                                <div class="catalog-sidebar__tree-row">
+                                    <button
+                                        type="button"
+                                        class="catalog-sidebar__tree-toggle <%= scopedIsExpanded ? 'is-open' : '' %>"
+                                        data-catalog-tree-toggle
+                                        aria-expanded="<%= scopedIsExpanded ? 'true' : 'false' %>"
+                                        aria-controls="catalogTree-scoped"
+                                        aria-label="<%= scopedIsExpanded ? 'Thu gọn danh mục con' : 'Mở danh mục con' %>"
+                                    >
+                                        <span class="catalog-sidebar__tree-toggle-label"><%= scopedRootCategory ? scopedRootCategory.name : 'Danh mục hiện tại' %></span>
+                                        <span class="catalog-sidebar__tree-toggle-icon" aria-hidden="true">▾</span>
+                                    </button>
+                                </div>
+
+                                <div id="catalogTree-scoped" class="catalog-sidebar__tree-children <%= scopedIsExpanded ? 'is-open' : '' %>">
+                                    <% scopedChildren.forEach((childCategory) => { %>
+                                        <label class="catalog-sidebar__option catalog-sidebar__option--child">
+                                            <input
+                                                type="checkbox"
+                                                name="category"
+                                                value="<%= childCategory.slug %>"
+                                                class="catalog-sidebar__option-input"
+                                                data-auto-submit-filter
+                                                <%= selectedCategorySet.has(childCategory.slug) ? 'checked' : '' %>
+                                            >
+                                            <span class="catalog-sidebar__label-text"><%= childCategory.name %></span>
+                                        </label>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } else if (sidebarCategory) { %>
+                            <p class="catalog-sidebar__note">Danh mục này hiện chưa có danh mục con.</p>
+                        <% } %>
+                    </div>
+                <% } %>
+            </section>
+            <section class="catalog-sidebar__section">
+                <h3 class="catalog-sidebar__section-title">Giá</h3>
+
+                <div class="catalog-sidebar__option-list">
+                    <% sidebarPriceRanges.forEach((range) => { %>
+                        <% const rangeKey = [range.min ?? '', range.max ?? ''].join(':'); %>
+                        <label class="catalog-sidebar__option">
+                            <input
+                                type="checkbox"
+                                name="price_range"
+                                value="<%= rangeKey %>"
+                                class="catalog-sidebar__option-input"
+                                data-auto-submit-filter
+                                <%= selectedPriceRangeSet.has(rangeKey) ? 'checked' : '' %>
+                            >
+                            <span class="catalog-sidebar__label-text"><%= range.label %></span>
+                        </label>
+                    <% }) %>
+                </div>
+
+                <div class="catalog-sidebar__price-inline">
+                    <label class="catalog-sidebar__field">
+                        <span>Từ</span>
+                        <input type="number" name="min_price" min="0" step="any" value="<%= selectedMinPrice %>" placeholder="0">
+                    </label>
+                    <label class="catalog-sidebar__field">
+                        <span>Đến</span>
+                        <input type="number" name="max_price" min="0" step="any" value="<%= selectedMaxPrice %>" placeholder="1000000">
+                    </label>
+                </div>
+
+                <div class="catalog-sidebar__actions catalog-sidebar__actions--price">
+                    <button type="submit" class="catalog-sidebar__submit">Áp dụng giá</button>
+                </div>
+            </section>
+            <section class="catalog-sidebar__section">
+                <h3 class="catalog-sidebar__section-title">Đánh giá</h3>
+                <div class="catalog-sidebar__option-list">
+                    <% sidebarRatingOptions.forEach((ratingValue) => { %>
+                        <% const ratingKey = String(ratingValue); %>
+                        <label class="catalog-sidebar__option">
+                            <input
+                                type="checkbox"
+                                name="rating"
+                                value="<%= ratingKey %>"
+                                class="catalog-sidebar__option-input"
+                                data-auto-submit-filter
+                                <%= selectedRatingSet.has(ratingKey) ? 'checked' : '' %>
+                            >
+                            <span class="catalog-sidebar__label-text">Từ <%= ratingValue %> sao trở lên</span>
+                        </label>
+                    <% }) %>
+                </div>
+            </section>
+            <section class="catalog-sidebar__section">
+                <h3 class="catalog-sidebar__section-title">Khuyến mãi</h3>
+                <div class="catalog-sidebar__option-list">
+                    <label class="catalog-sidebar__option">
+                        <input
+                            type="checkbox"
+                            name="promotion"
+                            value="active"
+                            class="catalog-sidebar__option-input"
+                            data-auto-submit-filter
+                            <%= selectedPromotionSet.has('active') ? 'checked' : '' %>
+                        >
+                        <span class="catalog-sidebar__label-text">Đang giảm</span>
+                    </label>
+                    <label class="catalog-sidebar__option">
+                        <input
+                            type="checkbox"
+                            name="promotion"
+                            value="upcoming"
+                            class="catalog-sidebar__option-input"
+                            data-auto-submit-filter
+                            <%= selectedPromotionSet.has('upcoming') ? 'checked' : '' %>
+                        >
+                        <span class="catalog-sidebar__label-text">Sắp giảm</span>
+                    </label>
+                    <label class="catalog-sidebar__option">
+                        <input
+                            type="checkbox"
+                            name="promotion"
+                            value="active_or_upcoming"
+                            class="catalog-sidebar__option-input"
+                            data-auto-submit-filter
+                            <%= selectedPromotionSet.has('active_or_upcoming') ? 'checked' : '' %>
+                        >
+                        <span class="catalog-sidebar__label-text">Đang + sắp giảm</span>
+                    </label>
+                </div>
+            </section>
+        </form>
+    </div>
+</aside>

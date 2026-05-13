@@ -6,6 +6,7 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Xử lý check and seed.
 async function checkAndSeed() {
     console.log('🔍 Kiểm tra database...\n');
 

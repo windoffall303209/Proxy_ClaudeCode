@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho sản phẩm chi tiết, tách khỏi template EJS.
 const productDetailState = {
     currentImageIndex: 0,
     productImages: [],
@@ -7,11 +8,18 @@ const productDetailState = {
     bootstrap: null
 };
 
+// Xử lý vào numeric giá.
 function toNumericPrice(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+// Định dạng currency.
+function formatCurrency(value) {
+    return `${toNumericPrice(value).toLocaleString('vi-VN')}đ`;
+}
+
+// Xử lý read sản phẩm chi tiết bootstrap.
 function readProductDetailBootstrap() {
     if (productDetailState.bootstrap) {
         return productDetailState.bootstrap;
@@ -25,7 +33,9 @@ function readProductDetailBootstrap() {
 
     try {
         productDetailState.bootstrap = JSON.parse(bootstrapElement.textContent);
-        productDetailState.bootstrap.basePrice = toNumericPrice(productDetailState.bootstrap.basePrice);
+        productDetailState.bootstrap.baseCurrentPrice = toNumericPrice(productDetailState.bootstrap.baseCurrentPrice);
+        productDetailState.bootstrap.baseOriginalPrice = toNumericPrice(productDetailState.bootstrap.baseOriginalPrice);
+        productDetailState.bootstrap.productStock = toNumericPrice(productDetailState.bootstrap.productStock);
         productDetailState.bootstrap.variants = Array.isArray(productDetailState.bootstrap.variants)
             ? productDetailState.bootstrap.variants.map((variant) => ({
                 ...variant,
@@ -41,6 +51,7 @@ function readProductDetailBootstrap() {
     return productDetailState.bootstrap;
 }
 
+// Chuẩn hóa ảnh url.
 function normalizeImageUrl(imageUrl) {
     if (!imageUrl) return '';
 
@@ -51,14 +62,17 @@ function normalizeImageUrl(imageUrl) {
     }
 }
 
+// Lấy main ảnh element.
 function getMainImageElement() {
     return document.getElementById('mainImage');
 }
 
+// Lấy fallback element.
 function getFallbackElement() {
     return document.getElementById('fallbackIcon');
 }
 
+// Xử lý show main ảnh.
 function showMainImage() {
     const mainImage = getMainImageElement();
     const fallback = getFallbackElement();
@@ -67,6 +81,7 @@ function showMainImage() {
     if (fallback) fallback.hidden = true;
 }
 
+// Xử lý show gallery fallback.
 function showGalleryFallback() {
     const mainImage = getMainImageElement();
     const fallback = getFallbackElement();
@@ -75,6 +90,7 @@ function showGalleryFallback() {
     if (fallback) fallback.hidden = false;
 }
 
+// Xử lý scroll đang bật thumb into view.
 function scrollActiveThumbIntoView(index) {
     const activeThumb = document.querySelectorAll('.product-gallery__thumb')[index];
     activeThumb?.scrollIntoView({
@@ -84,6 +100,7 @@ function scrollActiveThumbIntoView(index) {
     });
 }
 
+// Cập nhật gallery thumb state.
 function updateGalleryThumbState(index) {
     document.querySelectorAll('.product-gallery__thumb').forEach((thumb, thumbIndex) => {
         thumb.classList.toggle('product-gallery__thumb--active', thumbIndex === index);
@@ -95,6 +112,7 @@ function updateGalleryThumbState(index) {
     scrollActiveThumbIntoView(index);
 }
 
+// Xử lý select ảnh.
 function selectImage(index, imageUrl) {
     if (productDetailState.productImages.length === 0) return;
 
@@ -118,6 +136,7 @@ function selectImage(index, imageUrl) {
     updateGalleryThumbState(nextIndex);
 }
 
+// Xử lý switch gallery vào ảnh.
 function switchGalleryToImage(imageUrl) {
     if (!imageUrl || !productDetailState.productImages.length) return;
 
@@ -128,6 +147,7 @@ function switchGalleryToImage(imageUrl) {
     }
 }
 
+// Xử lý prev ảnh.
 function prevImage() {
     if (productDetailState.productImages.length === 0) return;
     productDetailState.currentImageIndex =
@@ -136,6 +156,7 @@ function prevImage() {
     selectImage(productDetailState.currentImageIndex, productDetailState.productImages[productDetailState.currentImageIndex]);
 }
 
+// Xử lý next ảnh.
 function nextImage() {
     if (productDetailState.productImages.length === 0) return;
     productDetailState.currentImageIndex =
@@ -143,12 +164,113 @@ function nextImage() {
     selectImage(productDetailState.currentImageIndex, productDetailState.productImages[productDetailState.currentImageIndex]);
 }
 
+// Xử lý set selected class.
 function setSelectedClass(selector, activeButton) {
     document.querySelectorAll(selector).forEach((button) => {
         button.classList.toggle('is-selected', button === activeButton);
     });
 }
 
+// Cập nhật giá display.
+function updatePriceDisplay(currentPrice, originalPrice = null, hasDiscount = false) {
+    const currentPriceElement = document.getElementById('productPrice');
+    const originalPriceElement = document.querySelector('.product-info__price-original');
+    const discountBadgeElement = document.querySelector('.product-info__discount-badge');
+
+    if (currentPriceElement) {
+        currentPriceElement.textContent = formatCurrency(currentPrice);
+    }
+
+    if (originalPriceElement) {
+        if (hasDiscount && originalPrice !== null && originalPrice > currentPrice) {
+            originalPriceElement.textContent = formatCurrency(originalPrice);
+            originalPriceElement.hidden = false;
+        } else {
+            originalPriceElement.hidden = true;
+        }
+    }
+
+    if (discountBadgeElement) {
+        if (hasDiscount && originalPrice !== null && originalPrice > currentPrice) {
+            const discountPercent = Math.max(1, Math.round((1 - (currentPrice / originalPrice)) * 100));
+            discountBadgeElement.textContent = `Giảm ${discountPercent}%`;
+            discountBadgeElement.hidden = false;
+        } else {
+            discountBadgeElement.hidden = true;
+        }
+    }
+}
+
+// Cập nhật biến thể stock tin nhắn.
+function updateVariantStockMessage(stockQuantity = null) {
+    const stockElement = document.getElementById('variantStock');
+    if (!stockElement) {
+        return;
+    }
+
+    if (stockQuantity === null || stockQuantity === undefined) {
+        stockElement.textContent = '';
+        delete stockElement.dataset.state;
+        return;
+    }
+
+    if (stockQuantity > 0) {
+        stockElement.textContent = `Còn ${stockQuantity.toLocaleString('vi-VN')} sản phẩm có sẵn`;
+        stockElement.dataset.state = 'in-stock';
+        return;
+    }
+
+    stockElement.textContent = 'Biến thể này đã hết hàng';
+    stockElement.dataset.state = 'out-of-stock';
+}
+
+// Lấy current stock limit.
+function getCurrentStockLimit() {
+    const bootstrap = readProductDetailBootstrap();
+    const variants = bootstrap.variants || [];
+
+    if (variants.length === 0) {
+        return Math.max(0, bootstrap.productStock || 0);
+    }
+
+    if (!productDetailState.selectedVariantId) {
+        return null;
+    }
+
+    const selectedVariant = variants.find((variant) => variant.id === productDetailState.selectedVariantId);
+    return selectedVariant ? Math.max(0, selectedVariant.stock_quantity) : null;
+}
+
+// Đồng bộ quantity input với stock.
+function syncQuantityInputWithStock(showWarning = false) {
+    const qtyInput = document.getElementById('productQty');
+    const stockLimit = getCurrentStockLimit();
+
+    if (!qtyInput) {
+        return;
+    }
+
+    if (stockLimit === null) {
+        qtyInput.removeAttribute('max');
+        qtyInput.value = String(Math.max(1, parseInt(qtyInput.value, 10) || 1));
+        return;
+    }
+
+    const safeStockLimit = Math.max(0, stockLimit);
+    qtyInput.max = String(Math.max(1, safeStockLimit));
+
+    let nextValue = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+    if (safeStockLimit > 0 && nextValue > safeStockLimit) {
+        nextValue = safeStockLimit;
+        if (showWarning) {
+            showNotification(`Số lượng tồn kho chỉ còn ${safeStockLimit.toLocaleString('vi-VN')} sản phẩm`, 'warning');
+        }
+    }
+
+    qtyInput.value = String(nextValue);
+}
+
+// Xác định biến thể.
 function resolveVariant() {
     const bootstrap = readProductDetailBootstrap();
     const variants = bootstrap.variants || [];
@@ -170,11 +292,11 @@ function resolveVariant() {
     if (match) {
         productDetailState.selectedVariantId = match.id;
 
-        const newPrice = bootstrap.basePrice + match.additional_price;
-        const priceElement = document.getElementById('productPrice');
-        if (priceElement) {
-            priceElement.textContent = `${newPrice.toLocaleString('vi-VN')}đ`;
-        }
+        updatePriceDisplay(
+            bootstrap.baseCurrentPrice + match.additional_price,
+            bootstrap.hasDiscount ? bootstrap.baseOriginalPrice + match.additional_price : null,
+            Boolean(bootstrap.hasDiscount)
+        );
 
         if (stockElement) {
             if (match.stock_quantity > 0) {
@@ -198,6 +320,7 @@ function resolveVariant() {
     }
 }
 
+// Cập nhật biến thể availability.
 function updateVariantAvailability() {
     const bootstrap = readProductDetailBootstrap();
     const variants = bootstrap.variants || [];
@@ -253,6 +376,7 @@ function updateVariantAvailability() {
     });
 }
 
+// Xử lý biến thể button click.
 function handleVariantButtonClick(button) {
     if (button.classList.contains('color-btn')) {
         const clickedColor = button.dataset.color || null;
@@ -318,7 +442,51 @@ function handleVariantButtonClick(button) {
     if (qtyInput) qtyInput.value = 1;
 }
 
-function getSelectedVariantStock() {
+// Lấy current sản phẩm điều hướng.
+function getCurrentProductRedirect() {
+    return `${window.location.pathname}${window.location.search}` || '/products';
+}
+
+// Xử lý show đăng nhập required dialog.
+function showLoginRequiredDialog(payload = {}) {
+    const loginUrl = payload.loginUrl || `/auth/login?redirect=${encodeURIComponent(getCurrentProductRedirect())}`;
+    const message = payload.message || 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.';
+    let dialog = document.querySelector('.login-required-dialog');
+
+    if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.className = 'login-required-dialog';
+        dialog.innerHTML = `
+            <div class="login-required-dialog__backdrop" data-login-dialog-close></div>
+            <div class="login-required-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="loginRequiredTitle">
+                <button type="button" class="login-required-dialog__close" data-login-dialog-close aria-label="Dong thong bao">&times;</button>
+                <h3 id="loginRequiredTitle">Cần đăng nhập</h3>
+                <p class="login-required-dialog__message"></p>
+                <div class="login-required-dialog__actions">
+                    <button type="button" class="login-required-dialog__secondary" data-login-dialog-close>Để sau</button>
+                    <a class="login-required-dialog__primary" href="#">Đăng nhập</a>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(dialog);
+        dialog.querySelectorAll('[data-login-dialog-close]').forEach((button) => {
+            button.addEventListener('click', () => {
+                dialog.classList.remove('is-open');
+                document.body.classList.remove('login-required-dialog-open');
+            });
+        });
+    }
+
+    dialog.querySelector('.login-required-dialog__message').textContent = message;
+    const primaryAction = dialog.querySelector('.login-required-dialog__primary');
+    primaryAction.href = loginUrl;
+    primaryAction.textContent = payload.requiresEmailVerification ? 'Xác thực email' : 'Đăng nhập';
+    dialog.classList.add('is-open');
+    document.body.classList.add('login-required-dialog-open');
+}
+
+// Lấy selected biến thể stock legacy.
+function getSelectedVariantStockLegacy() {
     const bootstrap = readProductDetailBootstrap();
     const variants = bootstrap.variants || [];
     if (variants.length === 0) return Infinity;
@@ -327,6 +495,7 @@ function getSelectedVariantStock() {
     return match ? match.stock_quantity : 0;
 }
 
+// Thêm vào giỏ hàng với biến thể.
 async function addToCartWithVariant() {
     const bootstrap = readProductDetailBootstrap();
     const variants = bootstrap.variants || [];
@@ -351,11 +520,17 @@ async function addToCartWithVariant() {
             body: JSON.stringify({
                 product_id: bootstrap.productId,
                 variant_id: productDetailState.selectedVariantId,
-                quantity: quantity
+                quantity: quantity,
+                redirect: getCurrentProductRedirect()
             })
         });
 
         const data = await response.json();
+        if (response.status === 401 || response.status === 403 || data.requiresLogin || data.requiresEmailVerification) {
+            showLoginRequiredDialog(data);
+            return;
+        }
+
         if (data.success) {
             updateCartCount();
             showNotification(data.message || 'Đã thêm vào giỏ hàng!', 'success');
@@ -368,6 +543,7 @@ async function addToCartWithVariant() {
     }
 }
 
+// Xử lý buy now với biến thể.
 function buyNowWithVariant() {
     const bootstrap = readProductDetailBootstrap();
     const variants = bootstrap.variants || [];
@@ -391,6 +567,7 @@ function buyNowWithVariant() {
     window.location.href = `/orders/buy-now/${bootstrap.productId}${queryString}`;
 }
 
+// Xử lý bind gallery events.
 function bindGalleryEvents() {
     const mainImage = getMainImageElement();
     if (mainImage && mainImage.dataset.galleryBound !== 'true') {
@@ -427,6 +604,7 @@ function bindGalleryEvents() {
     });
 }
 
+// Khởi tạo sản phẩm gallery.
 function initProductGallery() {
     const bootstrap = readProductDetailBootstrap();
     productDetailState.productImages = Array.isArray(bootstrap.images)
@@ -462,12 +640,14 @@ function initProductGallery() {
     }
 }
 
+// Lấy selected quantity.
 function getSelectedQuantity() {
     const qtyInput = document.getElementById('productQty');
     return qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
 }
 
-function initQuantitySelector() {
+// Khởi tạo quantity selector legacy.
+function initQuantitySelectorLegacy() {
     const qtyInput = document.getElementById('productQty');
     const qtyMinus = document.getElementById('qtyMinus');
     const qtyPlus = document.getElementById('qtyPlus');
@@ -489,11 +669,9 @@ function initQuantitySelector() {
             showNotification(`Số lượng tồn kho chỉ còn ${maxStock} sản phẩm`, 'warning');
         }
     });
-
     qtyInput.addEventListener('input', () => {
         qtyInput.value = qtyInput.value.replace(/[^0-9]/g, '');
     });
-
     qtyInput.addEventListener('blur', () => {
         let val = parseInt(qtyInput.value, 10);
         if (!val || val < 1) val = 1;
@@ -507,6 +685,7 @@ function initQuantitySelector() {
     });
 }
 
+// Xử lý refresh collapsible section.
 function refreshCollapsibleSection(body) {
     if (!body || !body.classList.contains('is-open')) return;
     if (body.dataset.toggleMode === 'display') {
@@ -516,6 +695,7 @@ function refreshCollapsibleSection(body) {
     body.style.maxHeight = `${body.scrollHeight}px`;
 }
 
+// Xử lý set collapsible section state.
 function setCollapsibleSectionState(toggle, body, isOpen) {
     if (!toggle || !body) return;
 
@@ -533,6 +713,7 @@ function setCollapsibleSectionState(toggle, body, isOpen) {
     body.style.maxHeight = isOpen ? `${body.scrollHeight}px` : '0px';
 }
 
+// Khởi tạo collapsible section.
 function initCollapsibleSection(toggleId, bodyId) {
     const toggle = document.getElementById(toggleId);
     const body = document.getElementById(bodyId);
@@ -547,12 +728,14 @@ function initCollapsibleSection(toggleId, bodyId) {
     window.addEventListener('resize', () => refreshCollapsibleSection(body));
 }
 
+// Xử lý refresh đánh giá panels.
 function refreshReviewPanels() {
     ['createReviewPanel', 'reviewEditPanel', 'myReviewPanel', 'reviewBody'].forEach((id) => {
         refreshCollapsibleSection(document.getElementById(id));
     });
 }
 
+// Xử lý clear transient đánh giá truy vấn state.
 function clearTransientReviewQueryState() {
     const url = new URL(window.location.href);
     if (!url.searchParams.has('review')) return;
@@ -562,6 +745,7 @@ function clearTransientReviewQueryState() {
     window.history.replaceState({}, document.title, nextUrl);
 }
 
+// Cập nhật toggle label.
 function updateToggleLabel(toggle, isOpen) {
     if (!toggle) return;
     toggle.textContent = isOpen
@@ -569,6 +753,7 @@ function updateToggleLabel(toggle, isOpen) {
         : (toggle.dataset.openLabel || toggle.textContent);
 }
 
+// Xử lý bind toggle label.
 function bindToggleLabel(toggleId, panelId, afterToggle) {
     const toggle = document.getElementById(toggleId);
     const panel = document.getElementById(panelId);
@@ -588,6 +773,7 @@ function bindToggleLabel(toggleId, panelId, afterToggle) {
     });
 }
 
+// Đóng toggle section.
 function closeToggleSection(toggleId, panelId) {
     const toggle = document.getElementById(toggleId);
     const panel = document.getElementById(panelId);
@@ -598,11 +784,13 @@ function closeToggleSection(toggleId, panelId) {
     updateToggleLabel(toggle, false);
 }
 
+// Khởi tạo các điều khiển tạo đánh giá.
 function initCreateReviewControls() {
     initCollapsibleSection('createReviewToggle', 'createReviewPanel');
     bindToggleLabel('createReviewToggle', 'createReviewPanel');
 }
 
+// Khởi tạo own đánh giá controls.
 function initOwnReviewControls() {
     initCollapsibleSection('myReviewToggle', 'myReviewPanel');
     initCollapsibleSection('reviewEditToggle', 'reviewEditPanel');
@@ -615,6 +803,7 @@ function initOwnReviewControls() {
     bindToggleLabel('reviewEditToggle', 'reviewEditPanel');
 }
 
+// Khởi tạo đánh giá media input.
 function initReviewMediaInput() {
     const input = document.getElementById('reviewMediaInput');
     const preview = document.getElementById('reviewMediaPreview');
@@ -625,6 +814,7 @@ function initReviewMediaInput() {
 
     let objectUrls = [];
 
+    // Hiển thị preview.
     const renderPreview = () => {
         objectUrls.forEach((url) => URL.revokeObjectURL(url));
         objectUrls = [];
@@ -699,16 +889,186 @@ function initReviewMediaInput() {
         refreshCollapsibleSection(reviewBody);
         refreshReviewPanels();
     };
-
     input.addEventListener('change', renderPreview);
     renderPreview();
 }
 
+// Khởi tạo description toggle.
 function initDescriptionToggle() {
     initCollapsibleSection('descToggle', 'descBody');
 }
 
+// Xử lý scroll vào đánh giá section.
+function scrollToReviewsSection() {
+    const reviewSection = document.getElementById('productReviewsSection');
+    const reviewToggle = document.getElementById('reviewToggle');
+    const reviewBody = document.getElementById('reviewBody');
+
+    if (!reviewSection || !reviewToggle || !reviewBody) {
+        return;
+    }
+
+    if (!reviewBody.classList.contains('is-open')) {
+        setCollapsibleSectionState(reviewToggle, reviewBody, true);
+    }
+
+    reviewSection.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+}
+
+// Xác định biến thể.
+function resolveVariant() {
+    const bootstrap = readProductDetailBootstrap();
+    const variants = bootstrap.variants || [];
+    if (variants.length === 0) {
+        return;
+    }
+
+    const colors = [...new Set(variants.filter((variant) => variant.color).map((variant) => variant.color))];
+    const sizes = [...new Set(variants.filter((variant) => variant.size).map((variant) => variant.size))];
+    const hasColors = colors.length > 0;
+    const hasSizes = sizes.length > 0;
+
+    const match = variants.find((variant) => {
+        const colorMatch = !hasColors || variant.color === productDetailState.selectedColor;
+        const sizeMatch = !hasSizes || variant.size === productDetailState.selectedSize;
+        return colorMatch && sizeMatch;
+    });
+
+    if (match) {
+        productDetailState.selectedVariantId = match.id;
+        updatePriceDisplay(
+            bootstrap.baseCurrentPrice + match.additional_price,
+            bootstrap.hasDiscount ? bootstrap.baseOriginalPrice + match.additional_price : null,
+            Boolean(bootstrap.hasDiscount)
+        );
+        updateVariantStockMessage(match.stock_quantity);
+
+        if (match.variant_image_url) {
+            switchGalleryToImage(match.variant_image_url);
+        }
+    } else {
+        productDetailState.selectedVariantId = null;
+        updatePriceDisplay(
+            bootstrap.baseCurrentPrice,
+            bootstrap.hasDiscount ? bootstrap.baseOriginalPrice : null,
+            Boolean(bootstrap.hasDiscount)
+        );
+        updateVariantStockMessage(null);
+    }
+
+    syncQuantityInputWithStock(true);
+}
+
+// Lấy selected biến thể stock.
+function getSelectedVariantStock() {
+    const stockLimit = getCurrentStockLimit();
+    return stockLimit === null ? Infinity : stockLimit;
+}
+
+// Khởi tạo quantity selector.
+function initQuantitySelector() {
+    const qtyInput = document.getElementById('productQty');
+    const qtyMinus = document.getElementById('qtyMinus');
+    const qtyPlus = document.getElementById('qtyPlus');
+
+    if (!qtyInput) {
+        return;
+    }
+
+    qtyMinus?.addEventListener('click', () => {
+        const current = parseInt(qtyInput.value, 10) || 1;
+        if (current > 1) {
+            qtyInput.value = current - 1;
+        }
+    });
+
+    qtyPlus?.addEventListener('click', () => {
+        const current = parseInt(qtyInput.value, 10) || 1;
+        const maxStock = getCurrentStockLimit();
+
+        if (maxStock === null) {
+            qtyInput.value = current + 1;
+            return;
+        }
+
+        if (maxStock > 0 && current < maxStock) {
+            qtyInput.value = current + 1;
+            return;
+        }
+
+        showNotification(`Số lượng tồn kho chỉ còn ${Math.max(0, maxStock).toLocaleString('vi-VN')} sản phẩm`, 'warning');
+    });
+    qtyInput.addEventListener('input', () => {
+        qtyInput.value = qtyInput.value.replace(/[^0-9]/g, '');
+    });
+    qtyInput.addEventListener('blur', () => {
+        let value = parseInt(qtyInput.value, 10);
+        if (!value || value < 1) {
+            value = 1;
+        }
+
+        qtyInput.value = value;
+        syncQuantityInputWithStock(true);
+    });
+    qtyInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+        let value = parseInt(qtyInput.value, 10);
+        if (!value || value < 1) {
+            value = 1;
+        }
+
+        qtyInput.value = value;
+        syncQuantityInputWithStock(true);
+        qtyInput.blur();
+    });
+}
+
+// Khởi tạo sản phẩm chi tiết trang.
 function initProductDetailPage() {
+    const bootstrap = readProductDetailBootstrap();
+
+    initProductGallery();
+    initQuantitySelector();
+    initDescriptionToggle();
+    initCollapsibleSection('reviewToggle', 'reviewBody');
+    initCreateReviewControls();
+    initOwnReviewControls();
+    initReviewMediaInput();
+    clearTransientReviewQueryState();
+
+    updatePriceDisplay(
+        bootstrap.baseCurrentPrice,
+        bootstrap.hasDiscount ? bootstrap.baseOriginalPrice : null,
+        Boolean(bootstrap.hasDiscount)
+    );
+    syncQuantityInputWithStock();
+
+    document.querySelectorAll('.variant-btn').forEach((button) => {
+        button.addEventListener('click', () => handleVariantButtonClick(button));
+    });
+
+    document.querySelectorAll('[data-product-action="add-to-cart"]').forEach((button) => {
+        button.addEventListener('click', addToCartWithVariant);
+    });
+
+    document.querySelectorAll('[data-product-action="buy-now"]').forEach((button) => {
+        button.addEventListener('click', buyNowWithVariant);
+    });
+
+    document.querySelectorAll('[data-scroll-to-reviews]').forEach((button) => {
+        button.addEventListener('click', scrollToReviewsSection);
+    });
+}
+
+// Khởi tạo sản phẩm chi tiết trang legacy.
+function initProductDetailPageLegacy() {
     readProductDetailBootstrap();
     initProductGallery();
     initQuantitySelector();
@@ -730,6 +1090,9 @@ function initProductDetailPage() {
     document.querySelectorAll('[data-product-action="buy-now"]').forEach((button) => {
         button.addEventListener('click', buyNowWithVariant);
     });
-}
 
+    document.querySelectorAll('[data-scroll-to-reviews]').forEach((button) => {
+        button.addEventListener('click', scrollToReviewsSection);
+    });
+}
 document.addEventListener('DOMContentLoaded', initProductDetailPage);

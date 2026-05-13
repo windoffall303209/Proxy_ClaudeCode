@@ -1,0 +1,66 @@
+<%
+    const activeSettings = settings || {};
+    const siteName = activeSettings.site_name || 'WIND OF FALL';
+    const logoUrl = activeSettings.logo_url || activeSettings.favicon_url || '/favicon.png';
+    const faviconUrl = activeSettings.favicon_url || '/favicon.png';
+    const message = activeSettings.maintenance_message || 'Website đang bảo trì, vui lòng quay lại sau.';
+%>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title><%= siteName %> | Bảo trì</title>
+    <link rel="icon" type="image/png" href="<%= faviconUrl %>">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            margin: 0;
+            background: <%= activeSettings.background_color || '#fcfaf4' %>;
+            color: <%= activeSettings.text_color || '#18140d' %>;
+            font-family: <%- activeSettings.site_font_family || "'Be Vietnam Pro', sans-serif" %>;
+        }
+
+        .maintenance-page {
+            width: min(560px, calc(100% - 32px));
+            padding: 40px;
+            border: 1px solid rgba(24, 20, 13, 0.12);
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.86);
+            box-shadow: 0 24px 80px rgba(24, 20, 13, 0.12);
+            text-align: center;
+        }
+
+        .maintenance-page img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 18px;
+        }
+
+        .maintenance-page h1 {
+            margin: 0 0 12px;
+            font-size: clamp(28px, 4vw, 44px);
+            line-height: 1.05;
+        }
+
+        .maintenance-page p {
+            margin: 0;
+            color: rgba(24, 20, 13, 0.7);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <main class="maintenance-page">
+        <img src="<%= logoUrl %>" alt="<%= siteName %>">
+        <h1><%= siteName %> đang bảo trì</h1>
+        <p><%= message %></p>
+    </main>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* Page Header */
+/* Tiêu đề và thanh thao tác của màn chương trình khuyến mãi. */
 .admin-page-header {
     display: flex;
     justify-content: space-between;
@@ -61,7 +61,7 @@
     color: var(--admin-text-muted);
 }
 
-/* Admin Form Row */
+/* Hàng form cấu hình điều kiện khuyến mãi. */
 .admin-form__row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -85,6 +85,11 @@
     font-size: 12px;
     color: var(--admin-text-secondary);
     line-height: 1.5;
+}
+
+.admin-form__hint--warning {
+    color: #c04b32;
+    font-weight: 700;
 }
 
 .admin-form__textarea {
@@ -320,7 +325,7 @@
 .admin-section--collapsible.is-open .admin-section__content {
     max-height: 2000px;
     opacity: 1;
-    padding-top: 20px;
+    padding-top: 16px;
 }
 
 .admin-section__title--toggle {

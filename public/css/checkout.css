@@ -1,3 +1,4 @@
+/* Định nghĩa giao diện storefront cho thanh toán. */
 .checkout-intro {
     display: flex;
     align-items: flex-end;
@@ -81,10 +82,10 @@
 }
 
 .address-list--scrollable {
-    max-height: 390px;
-    padding-right: 8px;
+    max-height: min(42vh, 360px);
+    padding-right: 6px;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
 }
 
@@ -468,10 +469,12 @@ body.address-form-open {
 .order-summary__items {
     display: grid;
     gap: 14px;
-    max-height: 360px;
+    max-height: min(38vh, 430px);
     overflow-y: auto;
+    overscroll-behavior-y: contain;
     margin-top: 20px;
-    padding-right: 4px;
+    padding-right: 6px;
+    scrollbar-gutter: stable;
 }
 
 .order-summary__item {
@@ -521,6 +524,11 @@ body.address-form-open {
     font-size: 15px;
     font-weight: 800;
     line-height: 1.25;
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .order-summary__item-name--large {
@@ -534,13 +542,21 @@ body.address-form-open {
     font-size: 13px;
 }
 
+.order-summary__item-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
 .order-summary__item-old-price {
+    order: 2;
     color: var(--gray-500);
     font-size: 13px;
     text-decoration: line-through;
 }
 
 .order-summary__item-amount {
+    order: 1;
     margin-top: 4px;
     font-size: 18px;
     font-weight: 800;
@@ -594,8 +610,11 @@ body.address-form-open {
 .voucher-section__list {
     display: grid;
     gap: 10px;
-    max-height: 220px;
+    max-height: min(30vh, 260px);
     overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-right: 6px;
+    scrollbar-gutter: stable;
 }
 
 .voucher-card {
@@ -656,6 +675,40 @@ body.address-form-open {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 10px;
+}
+
+.voucher-section__input-wrap {
+    position: relative;
+    min-width: 0;
+}
+
+.voucher-section__input-wrap .voucher-section__input {
+    padding-right: 42px;
+}
+
+.voucher-section__clear {
+    position: absolute;
+    right: 9px;
+    top: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(154, 45, 45, 0.1);
+    color: #9a2d2d;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.voucher-section__clear[hidden] {
+    display: none;
 }
 
 .voucher-section__message {
@@ -803,5 +856,258 @@ body.address-form-open {
 
     .payment-option__content {
         align-items: flex-start;
+    }
+}
+
+/* Compact checkout and buy-now surfaces */
+.checkout-grid {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 16px;
+}
+
+.checkout-steps {
+    gap: 8px;
+}
+
+.checkout-step {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 12.5px;
+}
+
+.checkout-section,
+.order-summary,
+.checkout-empty {
+    border-radius: 22px;
+}
+
+.checkout-section,
+.order-summary {
+    padding: 18px;
+}
+
+.checkout-section__heading {
+    margin-bottom: 12px;
+}
+
+.checkout-section__title,
+.order-summary__title {
+    font-size: 21px;
+}
+
+.address-list,
+.payment-list {
+    gap: 10px;
+}
+
+.address-card,
+.payment-option {
+    gap: 10px;
+    padding: 13px;
+    border-radius: 16px;
+}
+
+.address-card__name,
+.payment-option__name {
+    font-size: 14px;
+}
+
+.address-card__detail,
+.payment-option__desc {
+    margin-top: 4px;
+    font-size: 12.5px;
+}
+
+.address-card__badge {
+    min-height: 24px;
+    margin-top: 8px;
+    padding: 0 9px;
+    font-size: 11px;
+}
+
+.address-add-btn,
+.address-card__edit {
+    min-height: 34px;
+    font-size: 12.5px;
+}
+
+.address-form {
+    padding: 22px;
+}
+
+.address-form__grid,
+.address-form__grid-3 {
+    gap: 10px;
+}
+
+.address-form__grid,
+.address-form__grid-3,
+.address-form__field,
+.address-form__actions,
+.address-form__map-section {
+    margin-top: 10px;
+}
+
+.address-form__label {
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.address-form__input,
+.address-form__select,
+.checkout-notes__textarea,
+.voucher-section__input {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 13px;
+    font-size: 13.5px;
+}
+
+.checkout-notes__textarea {
+    padding-top: 10px;
+}
+
+.address-form__submit,
+.address-form__delete,
+.voucher-section__btn,
+.order-summary__submit {
+    min-height: 42px;
+    padding: 0 15px;
+    border-radius: 13px;
+}
+
+.payment-option__content {
+    gap: 10px;
+}
+
+.payment-option__icon {
+    width: 42px;
+    height: 42px;
+    font-size: 12px;
+}
+
+.order-summary__items {
+    gap: 10px;
+    max-height: min(38vh, 430px);
+}
+
+.order-summary__item {
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.order-summary__item--feature {
+    grid-template-columns: 78px minmax(0, 1fr) auto;
+}
+
+.order-summary__item-image img,
+.order-summary__item-placeholder {
+    width: 58px;
+    height: 72px;
+    border-radius: 13px;
+}
+
+.order-summary__item-image--large img,
+.order-summary__item-image--large .order-summary__item-placeholder {
+    width: 78px;
+    height: 96px;
+}
+
+.order-summary__item-name {
+    font-size: 13.5px;
+}
+
+.order-summary__item-name--large {
+    font-size: 15px;
+}
+
+.order-summary__item-link {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.order-summary__item-link:hover {
+    color: var(--accent-strong);
+}
+
+.order-summary__item-meta,
+.order-summary__item-qty {
+    font-size: 12px;
+}
+
+.order-summary__item-amount {
+    font-size: 15px;
+}
+
+.order-summary__prices {
+    gap: 9px;
+    margin-top: 12px;
+    font-size: 13.5px;
+}
+
+.order-summary__shipping-tip,
+.voucher-card {
+    padding: 10px 12px;
+    border-radius: 14px;
+}
+
+.voucher-card {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+}
+
+.voucher-card__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+}
+
+.voucher-card__code {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+}
+
+.order-summary__total {
+    padding-top: 13px;
+}
+
+.order-summary__total-label {
+    font-size: 15px;
+}
+
+.order-summary__total-value {
+    font-size: 23px;
+}
+
+.order-summary__submit {
+    margin-top: 12px;
+}
+
+@media (max-width: 980px) {
+    .checkout-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .order-summary {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .checkout-section,
+    .order-summary,
+    .checkout-empty {
+        padding: 15px;
+        border-radius: 18px;
+    }
+
+    .order-summary__item--feature,
+    .order-summary__item {
+        grid-template-columns: 58px minmax(0, 1fr);
+    }
+
+    .order-summary__item-price {
+        grid-column: 2;
     }
 }

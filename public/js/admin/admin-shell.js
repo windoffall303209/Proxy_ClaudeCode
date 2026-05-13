@@ -1,5 +1,7 @@
+// Điều phối tương tác trình duyệt cho màn quản trị khung giao diện trong khu vực admin.
 let adminSavedScrollY = 0;
 
+// Khởi tạo quản trị mobile menu.
 function initAdminMobileMenu() {
     const button = document.getElementById('adminMobileMenuBtn');
     const sidebar = document.getElementById('adminSidebar');
@@ -11,6 +13,7 @@ function initAdminMobileMenu() {
 
     button.dataset.initialized = 'true';
 
+    // Mở menu.
     function openMenu() {
         adminSavedScrollY = window.scrollY;
         button.classList.add('active');
@@ -20,6 +23,7 @@ function initAdminMobileMenu() {
         document.body.style.top = `-${adminSavedScrollY}px`;
     }
 
+    // Đóng menu.
     function closeMenu() {
         button.classList.remove('active');
         sidebar.classList.remove('active');
@@ -28,7 +32,6 @@ function initAdminMobileMenu() {
         document.body.style.top = '';
         window.scrollTo(0, adminSavedScrollY);
     }
-
     button.addEventListener('click', () => {
         if (sidebar.classList.contains('active')) {
             closeMenu();
@@ -38,13 +41,11 @@ function initAdminMobileMenu() {
     });
 
     overlay?.addEventListener('click', closeMenu);
-
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closeMenu();
         }
     });
-
     window.addEventListener('resize', () => {
         if (window.innerWidth > 1100) {
             closeMenu();
@@ -52,6 +53,7 @@ function initAdminMobileMenu() {
     });
 }
 
+// Khởi tạo quản trị notice toast.
 function initAdminNoticeToast() {
     const params = new URLSearchParams(window.location.search);
     const notice = params.get('notice');
@@ -69,7 +71,6 @@ function initAdminNoticeToast() {
     const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash || ''}`;
     window.history.replaceState({}, '', nextUrl);
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     initAdminMobileMenu();
     initAdminNoticeToast();

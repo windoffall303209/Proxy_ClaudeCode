@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Xử lý run seed.
 async function runSeed() {
     console.log('🌱 Bắt đầu seed database...\n');
 

@@ -1,9 +1,11 @@
+// Điều phối tương tác trình duyệt cho tương tác chung, tách khỏi template EJS.
 const mainState = window.__tmdtMainState || (window.__tmdtMainState = {
     initialized: false,
     cartCountRequest: null,
     productCardActionsBound: false
 });
 
+// Thêm vào giỏ hàng.
 async function addToCart(eventOrProductId, productId = null, variantId = null, quantity = 1) {
     let actualProductId;
     let actualVariantId;
@@ -46,6 +48,21 @@ async function addToCart(eventOrProductId, productId = null, variantId = null, q
         if (data.success) {
             updateCartCount();
             showNotification(data.message || 'Đã thêm vào giỏ hàng!', 'success');
+        } else if (data.requiresLogin && data.loginUrl) {
+            showNotification(data.message || 'Vui lòng đăng nhập để sử dụng chức năng này.', 'warning');
+            window.setTimeout(() => {
+                window.location.href = data.loginUrl;
+            }, 900);
+        } else if (data.requiresEmailVerification && data.loginUrl) {
+            showNotification(data.message || 'Vui lòng xác thực email trước khi tiếp tục.', 'warning');
+            window.setTimeout(() => {
+                window.location.href = data.loginUrl;
+            }, 900);
+        } else if (data.requiresVariant && data.productUrl) {
+            showNotification(data.message || 'Vui lòng chọn phân loại sản phẩm.', 'warning');
+            window.setTimeout(() => {
+                window.location.href = data.productUrl;
+            }, 900);
         } else {
             showNotification(data.message || 'Có lỗi xảy ra', 'error');
         }
@@ -55,6 +72,7 @@ async function addToCart(eventOrProductId, productId = null, variantId = null, q
     }
 }
 
+// Cập nhật giỏ hàng count.
 async function updateCartCount() {
     const cartCountElement = document.getElementById('cart-count');
     if (!cartCountElement) {
@@ -83,12 +101,14 @@ async function updateCartCount() {
     return mainState.cartCountRequest;
 }
 
+// Xử lý show notification.
 function showNotification(message, type = 'info') {
     if (typeof showGlobalToast === 'function') {
         showGlobalToast(message, type);
     }
 }
 
+// Xử lý run when browser idle.
 function runWhenBrowserIdle(callback, fallbackDelay = 250) {
     if (typeof callback !== 'function') {
         return;
@@ -102,17 +122,23 @@ function runWhenBrowserIdle(callback, fallbackDelay = 250) {
     window.setTimeout(callback, fallbackDelay);
 }
 
+// Khởi tạo header scroll state.
 function initHeaderScrollState() {
     const header = document.querySelector('.header');
     if (!header) {
         return;
     }
 
+    const root = document.documentElement;
+
+    // Xử lý apply state.
     const applyState = () => {
         header.classList.toggle('header--scrolled', window.scrollY > 32);
+        root.style.setProperty('--live-header-height', `${Math.round(header.getBoundingClientRect().height)}px`);
     };
 
     let ticking = false;
+    // Xử lý on scroll.
     const onScroll = () => {
         if (ticking) {
             return;
@@ -130,13 +156,145 @@ function initHeaderScrollState() {
     window.addEventListener('resize', applyState);
 }
 
+// Khởi tạo desktop danh mục dropdowns.
+function initDesktopCategoryDropdowns() {
+    const navItems = Array.from(document.querySelectorAll('.main-nav__item--has-dropdown'));
+    if (!navItems.length) {
+        return;
+    }
+
+    const hoverMedia = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const openDelay = 70;
+    const closeDelay = 220;
+
+    // Xử lý clear timers.
+    const clearTimers = (item) => {
+        if (item._dropdownOpenTimer) {
+            window.clearTimeout(item._dropdownOpenTimer);
+            item._dropdownOpenTimer = null;
+        }
+
+        if (item._dropdownCloseTimer) {
+            window.clearTimeout(item._dropdownCloseTimer);
+            item._dropdownCloseTimer = null;
+        }
+    };
+
+    // Đóng item.
+    const closeItem = (item) => {
+        if (!item) {
+            return;
+        }
+
+        item.classList.remove('is-open');
+        const trigger = item.querySelector('.main-nav__trigger[aria-expanded]');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+    };
+
+    // Mở item.
+    const openItem = (item) => {
+        navItems.forEach((navItem) => {
+            if (navItem !== item) {
+                clearTimers(navItem);
+                closeItem(navItem);
+            }
+        });
+
+        item.classList.add('is-open');
+        const trigger = item.querySelector('.main-nav__trigger[aria-expanded]');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'true');
+        }
+    };
+
+    // Lên lịch open.
+    const scheduleOpen = (item) => {
+        if (!hoverMedia.matches) {
+            return;
+        }
+
+        clearTimers(item);
+        item._dropdownOpenTimer = window.setTimeout(() => {
+            openItem(item);
+        }, openDelay);
+    };
+
+    // Lên lịch close.
+    const scheduleClose = (item) => {
+        clearTimers(item);
+        item._dropdownCloseTimer = window.setTimeout(() => {
+            closeItem(item);
+        }, closeDelay);
+    };
+
+    navItems.forEach((item) => {
+        const trigger = item.querySelector('.main-nav__trigger');
+        const dropdown = item.querySelector('.main-nav__dropdown');
+        if (!trigger || !dropdown) {
+            return;
+        }
+        item.addEventListener('pointerenter', () => {
+            scheduleOpen(item);
+        });
+        item.addEventListener('pointerleave', () => {
+            if (!hoverMedia.matches) {
+                closeItem(item);
+                return;
+            }
+
+            scheduleClose(item);
+        });
+        item.addEventListener('focusin', () => {
+            clearTimers(item);
+            openItem(item);
+        });
+        item.addEventListener('focusout', (event) => {
+            if (item.contains(event.relatedTarget)) {
+                return;
+            }
+
+            scheduleClose(item);
+        });
+        item.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            clearTimers(item);
+            closeItem(item);
+            trigger.focus();
+        });
+    });
+
+    // Đồng bộ hover mode.
+    const syncHoverMode = () => {
+        if (hoverMedia.matches) {
+            return;
+        }
+
+        navItems.forEach((item) => {
+            clearTimers(item);
+            closeItem(item);
+        });
+    };
+
+    if (typeof hoverMedia.addEventListener === 'function') {
+        hoverMedia.addEventListener('change', syncHoverMode);
+    } else if (typeof hoverMedia.addListener === 'function') {
+        hoverMedia.addListener(syncHoverMode);
+    }
+    window.addEventListener('resize', syncHoverMode);
+}
+
+// Khởi tạo sản phẩm card actions.
 function initProductCardActions() {
     if (mainState.productCardActionsBound) {
         return;
     }
 
     mainState.productCardActionsBound = true;
-
     document.addEventListener('click', (event) => {
         const quickAddButton = event.target.closest('.product-card__quick-add');
         if (!quickAddButton) {
@@ -151,7 +309,6 @@ function initProductCardActions() {
         addToCart(event, Number(productId));
     });
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     if (mainState.initialized) {
         return;
@@ -161,6 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initMobileMenu();
     initHeaderScrollState();
+    initDesktopCategoryDropdowns();
 
     runWhenBrowserIdle(() => {
         updateCartCount();
@@ -170,6 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initProductCardActions();
 });
 
+// Khởi tạo mobile menu.
 function initMobileMenu() {
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileNav = document.getElementById('mobileNav');
@@ -180,6 +339,7 @@ function initMobileMenu() {
     if (mobileMenuBtn.dataset.initialized) return;
     mobileMenuBtn.dataset.initialized = 'true';
 
+    // Mở mobile menu.
     function openMobileMenu() {
         mobileMenuBtn.classList.add('active');
         mobileNav.classList.add('active');
@@ -187,13 +347,13 @@ function initMobileMenu() {
         document.body.classList.add('mobile-menu-open');
     }
 
+    // Đóng mobile menu.
     function closeMobileMenu() {
         mobileMenuBtn.classList.remove('active');
         mobileNav.classList.remove('active');
         mobileNavOverlay.classList.remove('active');
         document.body.classList.remove('mobile-menu-open');
     }
-
     mobileMenuBtn.addEventListener('click', (e) => {
         e.preventDefault();
         if (mobileNav.classList.contains('active')) {
@@ -206,9 +366,7 @@ function initMobileMenu() {
     if (mobileNavClose) {
         mobileNavClose.addEventListener('click', closeMobileMenu);
     }
-
     mobileNavOverlay.addEventListener('click', closeMobileMenu);
-
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && mobileNav.classList.contains('active')) {
             closeMobileMenu();
@@ -236,6 +394,7 @@ function initMobileMenu() {
     });
 }
 
+// Khởi tạo newsletter form.
 function initNewsletterForm() {
     const form = document.getElementById('newsletter-form');
     const successMsg = document.getElementById('newsletter-success');
@@ -247,7 +406,6 @@ function initNewsletterForm() {
     checkNewsletterStatus();
 
     dismissButton?.addEventListener('click', dismissNewsletterBanner);
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -294,6 +452,7 @@ function initNewsletterForm() {
     });
 }
 
+// Xử lý check newsletter trạng thái.
 async function checkNewsletterStatus() {
     const form = document.getElementById('newsletter-form');
     const successMsg = document.getElementById('newsletter-success');
@@ -349,6 +508,7 @@ async function checkNewsletterStatus() {
     }
 }
 
+// Xử lý dismiss newsletter banner.
 function dismissNewsletterBanner() {
     const newsletterSection = document.getElementById('newsletter-section');
     if (newsletterSection) {

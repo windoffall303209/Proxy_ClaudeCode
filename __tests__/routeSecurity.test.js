@@ -1,8 +1,11 @@
+// Kiểm thử tự động cho tests routesecurity.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
 jest.mock('../controllers/authController', () => ({
     showRegister: jest.fn(),
     showLogin: jest.fn(),
+    startGoogleLogin: jest.fn(),
+    handleGoogleCallback: jest.fn(),
     register: jest.fn(),
     login: jest.fn(),
     logout: jest.fn(),
@@ -30,6 +33,12 @@ jest.mock('../controllers/orderController', () => ({
     createBuyNowOrder: jest.fn(),
     getOrderHistory: jest.fn(),
     showOrderTracking: jest.fn(),
+    retryPayment: jest.fn(),
+    cancelOrder: jest.fn(),
+    confirmReceived: jest.fn(),
+    showReturnRequest: jest.fn(),
+    preValidateReturnRequest: jest.fn(),
+    createReturnRequest: jest.fn(),
     orderConfirmation: jest.fn(),
     vnpayIpn: jest.fn(),
     vnpayReturn: jest.fn(),
@@ -39,6 +48,7 @@ jest.mock('../controllers/orderController', () => ({
 
 jest.mock('../controllers/productController', () => ({
     getProducts: jest.fn(),
+    getForYou: jest.fn(),
     searchProducts: jest.fn(),
     getProductsByCategory: jest.fn(),
     getProductDetail: jest.fn(),
@@ -55,15 +65,22 @@ jest.mock('../middleware/reviewUpload', () => ({
     handleReviewMediaUpload: jest.fn((req, res, next) => next())
 }));
 
+jest.mock('../middleware/returnUpload', () => ({
+    handleReturnMediaUpload: jest.fn((req, res, next) => next()),
+    cleanupUploadedReturnMedia: jest.fn()
+}));
+
 const authController = require('../controllers/authController');
 const orderController = require('../controllers/orderController');
 const productController = require('../controllers/productController');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
 const { handleReviewMediaUpload } = require('../middleware/reviewUpload');
+const { handleReturnMediaUpload } = require('../middleware/returnUpload');
 const authRoutes = require('../routes/authRoutes');
 const orderRoutes = require('../routes/orderRoutes');
 const productRoutes = require('../routes/productRoutes');
 
+// Tìm route.
 function findRoute(router, path, method) {
     return router.stack.find((layer) => layer.route &&
         layer.route.path === path &&
@@ -113,5 +130,27 @@ describe('security-sensitive routes', () => {
             productController.updateProductReview
         ]);
         expect(reviewEditRoute.route.stack.map((layer) => layer.handle)).not.toContain(optionalAuth);
+    });
+
+    it('validates return request ownership before uploading media', () => {
+        const returnRoute = findRoute(orderRoutes, '/:orderCode/return-request', 'post');
+
+        expect(returnRoute).toBeTruthy();
+        expect(returnRoute.route.stack.map((layer) => layer.handle)).toEqual([
+            verifyToken,
+            orderController.preValidateReturnRequest,
+            handleReturnMediaUpload,
+            orderController.createReturnRequest
+        ]);
+    });
+
+    it('protects order cancellation with verifyToken', () => {
+        const cancelRoute = findRoute(orderRoutes, '/:orderCode/cancel', 'post');
+
+        expect(cancelRoute).toBeTruthy();
+        expect(cancelRoute.route.stack.map((layer) => layer.handle)).toEqual([
+            verifyToken,
+            orderController.cancelOrder
+        ]);
     });
 });

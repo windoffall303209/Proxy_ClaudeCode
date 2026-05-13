@@ -1,0 +1,118 @@
+<%# Template admin render màn quản trị đổi trả với dữ liệu từ controller quản trị. %>
+<%- include('../partials/admin-header', { currentPage: 'returns', pageStyles: ['/css/admin/orders.css'] }) %>
+
+<%
+    const statusMap = {
+        pending: { label: 'Chờ xử lý', className: 'admin-table__badge--pending' },
+        approved: { label: 'Đã duyệt', className: 'admin-table__badge--processing' },
+        rejected: { label: 'Từ chối', className: 'admin-table__badge--cancelled' },
+        resolved: { label: 'Đã xử lý', className: 'admin-table__badge--delivered' }
+    };
+    const currentStatusFilter = typeof statusFilter !== 'undefined' ? statusFilter : '';
+    const currentReturnStatusCounts = typeof returnStatusCounts !== 'undefined' && returnStatusCounts ? returnStatusCounts : {};
+    const returnStatusTabs = [
+        { key: 'all', label: 'Tất cả', href: '/admin/returns', active: !currentStatusFilter },
+        { key: 'pending', label: 'Chờ xử lý', href: '/admin/returns?status=pending', active: currentStatusFilter === 'pending' },
+        { key: 'approved', label: 'Đã duyệt', href: '/admin/returns?status=approved', active: currentStatusFilter === 'approved' },
+        { key: 'rejected', label: 'Từ chối', href: '/admin/returns?status=rejected', active: currentStatusFilter === 'rejected' },
+        { key: 'resolved', label: 'Đã xử lý', href: '/admin/returns?status=resolved', active: currentStatusFilter === 'resolved' }
+    ];
+%>
+
+<div class="admin-page">
+    <div class="container">
+        <div class="admin-page-header">
+            <div class="admin-page-header__left">
+                <h1>Quản lý hoàn hàng</h1>
+                <p><%= returnRequests ? returnRequests.length : 0 %> yêu cầu</p>
+            </div>
+        </div>
+
+        <div class="admin-section admin-section--tabs">
+            <nav class="order-management-menu" aria-label="Nhóm quản lý hoàn hàng">
+                <% returnStatusTabs.forEach((tab) => { %>
+                    <a class="order-management-menu__link <%= tab.active ? 'active' : '' %>" href="<%= tab.href %>">
+                        <span><%= tab.label %></span>
+                        <span class="order-management-menu__count"><%= currentReturnStatusCounts[tab.key] || 0 %></span>
+                    </a>
+                <% }) %>
+            </nav>
+        </div>
+
+        <% if (returnRequests && returnRequests.length > 0) { %>
+            <div class="admin-table-wrapper">
+                <table class="admin-table admin-table--returns">
+                    <thead>
+                        <tr>
+                            <th>Đơn hàng</th>
+                            <th>Khách hàng</th>
+                            <th>Lý do</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-center">Ngày tạo</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% returnRequests.forEach((request) => { 
+                            const statusMeta = statusMap[request.status] || { label: request.status, className: 'admin-table__badge--pending' };
+                        %>
+                            <tr data-return-request-id="<%= request.id %>">
+                                <td class="return-cell return-cell--order">
+                                    <a class="admin-table__link" href="/admin/orders/<%= request.order_id %>">
+                                        <strong><%= request.order_code %></strong>
+                                    </a>
+                                </td>
+                                <td class="return-cell return-cell--customer">
+                                    <div class="order-customer">
+                                        <span class="order-customer__name"><%= request.user_name || 'N/A' %></span>
+                                        <span class="order-customer__phone"><%= request.user_email ? privacy.maskEmail(request.user_email) : '' %></span>
+                                    </div>
+                                </td>
+                                <td class="return-cell return-cell--reason">
+                                    <p class="return-cell__clamp return-cell__clamp--reason"><%= request.reason %></p>
+                                </td>
+                                <td class="text-center return-cell return-cell--status">
+                                    <span class="admin-table__badge <%= statusMeta.className %>"><%= statusMeta.label %></span>
+                                </td>
+                                <td class="text-center return-cell return-cell--date">
+                                    <span class="order-date"><%= new Date(request.created_at).toLocaleDateString('vi-VN') %></span>
+                                </td>
+                                <td class="text-center return-cell return-cell--actions">
+                                    <a href="/admin/returns/<%= request.id %>" class="admin-btn admin-btn--ghost return-detail-link">Xem chi tiết</a>
+                                    <!-- <form class="return-status-form" data-return-id="<%= request.id %>">
+                                        <select name="status" class="admin-form__select">
+                                            <option value="pending" <%= request.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
+                                            <option value="approved" <%= request.status === 'approved' ? 'selected' : '' %>>Đã duyệt</option>
+                                            <option value="rejected" <%= request.status === 'rejected' ? 'selected' : '' %>>Từ chối</option>
+                                            <option value="resolved" <%= request.status === 'resolved' ? 'selected' : '' %>>Đã xử lý</option>
+                                        </select>
+                                        <textarea name="admin_note" class="admin-form__textarea" rows="2" placeholder="Ghi chú xử lý"><%= request.admin_note || '' %></textarea>
+                                        <button type="submit" class="admin-btn admin-btn--primary">Lưu</button>
+                                    </form> -->
+                                </td>
+                            </tr>
+                            <tr class="return-note-row" data-return-request-note-id="<%= request.id %>">
+                                <td colspan="6">
+                                    <div class="return-note-row__content">
+                                        <strong>Ghi chú</strong>
+                                        <span><%= request.admin_note || 'Chưa có ghi chú xử lý.' %></span>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="admin-empty">
+                <h3 class="admin-empty__title">Chưa có yêu cầu hoàn hàng</h3>
+                <p class="admin-empty__text">Yêu cầu hoàn hàng của khách sẽ hiển thị tại đây.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<div id="toastContainer"></div>
+<script src="/js/admin/returns.js"></script>
+
+<%- include('../partials/admin-footer') %>

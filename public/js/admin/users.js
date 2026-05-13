@@ -1,9 +1,37 @@
+// Điều phối tương tác trình duyệt cho màn quản trị người dùng trong khu vực admin.
+function maskEmail(value) {
+    const email = String(value || '').trim();
+    const atIndex = email.indexOf('@');
+    if (atIndex <= 0) return email || 'Chưa cập nhật';
+    const local = email.slice(0, atIndex);
+    const domain = email.slice(atIndex);
+    if (local.length <= 5) {
+        return `${local.slice(0, 1)}****${local.slice(-1)}${domain}`;
+    }
+    return `${local.slice(0, 3)}****${local.slice(-2)}${domain}`;
+}
+
+// Che số điện thoại.
+function maskPhone(value) {
+    const phone = String(value || '').trim();
+    if (!phone) return 'Chưa cập nhật';
+    return `${'*'.repeat(Math.max(phone.length - 2, 0))}${phone.slice(-2)}`;
+}
+
+// Che ngày sinh.
+function maskBirthday(value) {
+    const dateValue = String(value || '').slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? dateValue.slice(0, 4) : 'Chưa cập nhật';
+}
+
+// Xử lý show người dùng toast.
 function showUsersToast(message, type = 'success') {
     if (typeof showGlobalToast === 'function') {
         showGlobalToast(message, type);
     }
 }
 
+// Xử lý show người dùng confirm.
 function showUsersConfirm(message, title = 'Xác nhận', yesText = 'Xác nhận', yesColor = '#f44336') {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirmModal');
@@ -24,6 +52,7 @@ function showUsersConfirm(message, title = 'Xác nhận', yesText = 'Xác nhận
     });
 }
 
+// Xử lý change per trang.
 function changePerPage(limit) {
     const url = new URL(window.location.href);
     url.searchParams.set('page', '1');
@@ -31,6 +60,7 @@ function changePerPage(limit) {
     window.location.href = url.toString();
 }
 
+// Bật/tắt người dùng trạng thái.
 async function toggleUserStatus(userId, currentStatus) {
     const action = currentStatus ? 'khóa' : 'mở khóa';
     const yesColor = currentStatus ? '#f44336' : '#4caf50';
@@ -61,6 +91,7 @@ async function toggleUserStatus(userId, currentStatus) {
     }
 }
 
+// Xử lý view người dùng.
 async function viewUser(userId) {
     const modal = document.getElementById('userDetailModal');
     const content = document.getElementById('userDetailContent');
@@ -96,15 +127,15 @@ async function viewUser(userId) {
                 </div>
                 <div class="user-detail-info">
                     <h3>${user.full_name || 'Chưa đặt tên'}</h3>
-                    <p>${user.email}</p>
+                    <p>${maskEmail(user.email)}</p>
                     <div style="display:flex; gap:8px; margin-top:8px;">${roleBadge} ${statusBadge}</div>
                 </div>
             </div>
 
             <div class="user-detail-section">
                 <h4>Thông tin cá nhân</h4>
-                <div class="user-detail-row"><span>SĐT</span><span>${user.phone || 'Chưa cập nhật'}</span></div>
-                <div class="user-detail-row"><span>Ngày sinh</span><span>${user.birthday ? new Date(user.birthday).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</span></div>
+                <div class="user-detail-row"><span>SĐT</span><span>${maskPhone(user.phone)}</span></div>
+                <div class="user-detail-row"><span>Ngày sinh</span><span>${maskBirthday(user.birthday)}</span></div>
                 <div class="user-detail-row"><span>Email xác thực</span><span>${user.email_verified ? '✅ Đã xác thực' : '❌ Chưa xác thực'}</span></div>
                 <div class="user-detail-row"><span>Nhận KM</span><span>${user.marketing_consent ? '✅ Có' : '❌ Không'}</span></div>
                 <div class="user-detail-row"><span>Ngày đăng ký</span><span>${new Date(user.created_at).toLocaleDateString('vi-VN')}</span></div>
@@ -115,7 +146,7 @@ async function viewUser(userId) {
             html += '<div class="user-detail-section"><h4>Địa chỉ (' + user.addresses.length + ')</h4>';
             user.addresses.forEach((address) => {
                 html += `<div class="user-detail-address">
-                    <strong>${address.full_name}</strong> - ${address.phone}<br>
+                    <strong>${address.full_name}</strong> - ${maskPhone(address.phone)}<br>
                     <small>${address.address_line || ''}${address.ward ? ', ' + address.ward : ''}${address.district ? ', ' + address.district : ''}${address.city ? ', ' + address.city : ''}</small>
                     ${address.is_default ? ' <span class="admin-table__badge admin-table__badge--processing" style="font-size:10px;">Mặc định</span>' : ''}
                 </div>`;
@@ -163,6 +194,7 @@ async function viewUser(userId) {
     }
 }
 
+// Đóng người dùng chi tiết modal.
 function closeUserDetailModal() {
     const modal = document.getElementById('userDetailModal');
     if (modal) {
@@ -170,6 +202,7 @@ function closeUserDetailModal() {
     }
 }
 
+// Khởi tạo quản trị người dùng trang.
 function initAdminUsersPage() {
     document.getElementById('perpageSelect')?.addEventListener('change', (event) => {
         changePerPage(event.target.value);
@@ -195,5 +228,4 @@ function initAdminUsersPage() {
         }
     });
 }
-
 document.addEventListener('DOMContentLoaded', initAdminUsersPage);

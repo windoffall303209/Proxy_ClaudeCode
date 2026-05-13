@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho màn quản trị dashboard quản trị trong khu vực admin.
 function getDashboardBootstrap() {
     const element = document.getElementById('adminDashboardBootstrap');
     if (!element) {
@@ -12,6 +13,7 @@ function getDashboardBootstrap() {
     }
 }
 
+// Khởi tạo recent limit selector.
 function initRecentLimitSelector() {
     const select = document.querySelector('[data-dashboard-recent-limit]');
     if (!select) {
@@ -21,6 +23,7 @@ function initRecentLimitSelector() {
     return select;
 }
 
+// Xử lý resize canvas.
 function resizeCanvas(canvas) {
     const pixelRatio = window.devicePixelRatio || 1;
     const width = Math.max(160, Math.floor(canvas.clientWidth));
@@ -34,6 +37,7 @@ function resizeCanvas(canvas) {
     return { ctx, width, height };
 }
 
+// Xử lý draw rounded rect.
 function drawRoundedRect(ctx, x, y, width, height, radius) {
     const safeRadius = Math.min(radius, width / 2, height / 2);
     ctx.beginPath();
@@ -49,6 +53,7 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
     ctx.closePath();
 }
 
+// Xử lý draw empty state.
 function drawEmptyState(ctx, width, height, message) {
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#8c7f6d';
@@ -58,6 +63,7 @@ function drawEmptyState(ctx, width, height, message) {
     ctx.fillText(message, width / 2, height / 2);
 }
 
+// Xử lý draw đơn hàng trạng thái chart.
 function drawOrderStatusChart(data) {
     const canvas = document.getElementById('orderStatusChart');
     if (!canvas) {
@@ -66,9 +72,9 @@ function drawOrderStatusChart(data) {
 
     const { ctx, width, height } = resizeCanvas(canvas);
     const chartData = [
-        { label: 'Chờ xử lý', value: Number(data?.pending || 0), color: '#d98b1b' },
+        { label: 'Chờ xử lý', value: Number(data?.pending || 0) + Number(data?.pending_payment || 0), color: '#d98b1b' },
         { label: 'Đang xử lý', value: Number(data?.processing || 0), color: '#2f6fd3' },
-        { label: 'Đã giao', value: Number(data?.delivered || 0), color: '#2e8b57' },
+        { label: 'Hoàn thành', value: Number(data?.completed || 0), color: '#2e8b57' },
         { label: 'Đã hủy', value: Number(data?.cancelled || 0), color: '#c54f35' }
     ];
 
@@ -129,6 +135,7 @@ function drawOrderStatusChart(data) {
     });
 }
 
+// Xử lý draw sản phẩm trạng thái chart.
 function drawProductStatusChart(data) {
     const canvas = document.getElementById('productStatusChart');
     if (!canvas) {
@@ -187,6 +194,7 @@ function drawProductStatusChart(data) {
     ctx.fillText('sản phẩm', centerX, centerY + 22);
 }
 
+// Tạo resize handler.
 function createResizeHandler(callback) {
     let frameId = null;
     return () => {
@@ -201,6 +209,7 @@ function createResizeHandler(callback) {
     };
 }
 
+// Xử lý escape html.
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -210,8 +219,11 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+// Định dạng đơn hàng trạng thái.
 function formatOrderStatus(status) {
     switch (status) {
+        case 'pending_payment':
+            return { text: 'Chờ thanh toán', className: 'admin-table__badge--pending' };
         case 'pending':
             return { text: 'Chờ xử lý', className: 'admin-table__badge--pending' };
         case 'confirmed':
@@ -220,6 +232,8 @@ function formatOrderStatus(status) {
             return { text: 'Đang giao', className: 'admin-table__badge--shipped' };
         case 'delivered':
             return { text: 'Đã giao', className: 'admin-table__badge--delivered' };
+        case 'completed':
+            return { text: 'Đã hoàn thành', className: 'admin-table__badge--delivered' };
         case 'cancelled':
             return { text: 'Đã hủy', className: 'admin-table__badge--cancelled' };
         default:
@@ -227,6 +241,7 @@ function formatOrderStatus(status) {
     }
 }
 
+// Hiển thị recent đơn hàng.
 function renderRecentOrders(orders, limit) {
     const tbody = document.getElementById('dashboardRecentOrdersBody');
     const limitLabel = document.querySelector('[data-dashboard-limit-label]');
@@ -283,6 +298,7 @@ function renderRecentOrders(orders, limit) {
     }
 }
 
+// Khởi tạo quản trị tổng quan trang.
 function initAdminDashboardPage() {
     document.querySelectorAll('[data-dashboard-action="refresh"]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -299,6 +315,7 @@ function initAdminDashboardPage() {
 
     const recentLimitSelect = initRecentLimitSelector();
 
+    // Hiển thị charts.
     const renderCharts = () => {
         drawOrderStatusChart(bootstrap.orderStatus || {});
         drawProductStatusChart(bootstrap.productStatus || {});
@@ -313,5 +330,4 @@ function initAdminDashboardPage() {
         renderRecentOrders(bootstrap.recentOrders || [], Number(recentLimitSelect.value || 10));
     });
 }
-
 document.addEventListener('DOMContentLoaded', initAdminDashboardPage);

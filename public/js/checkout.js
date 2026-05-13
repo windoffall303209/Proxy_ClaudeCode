@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho thanh toán, tách khỏi template EJS.
 let addressMap = null;
 let addressMarker = null;
 let locateButtonElement = null;
@@ -86,6 +87,7 @@ const ISO_TO_PROVINCE_CODE = {
     'VN-59': 96,  // Cà Mau
 };
 
+// Tìm province theo iso code.
 function findProvinceByIsoCode(data) {
     const isoCode = data?.address?.['ISO3166-2-lvl4'];
     if (!isoCode) {
@@ -100,6 +102,7 @@ function findProvinceByIsoCode(data) {
     return provincesData.find((p) => String(p.code) === String(provinceCode)) || null;
 }
 
+// Xử lý read checkout bootstrap dữ liệu.
 function readCheckoutBootstrapData() {
     if (checkoutRuntimeData) {
         return checkoutRuntimeData;
@@ -121,11 +124,13 @@ function readCheckoutBootstrapData() {
     return checkoutRuntimeData;
 }
 
+// Lấy saved addresses.
 function getSavedAddresses() {
     const bootstrap = readCheckoutBootstrapData();
     return Array.isArray(bootstrap.addresses) ? bootstrap.addresses : [];
 }
 
+// Lấy saved địa chỉ theo id.
 function getSavedAddressById(addressId) {
     const normalizedId = Number.parseInt(addressId, 10);
     if (!Number.isInteger(normalizedId) || normalizedId <= 0) {
@@ -135,10 +140,12 @@ function getSavedAddressById(addressId) {
     return getSavedAddresses().find((address) => Number.parseInt(address.id, 10) === normalizedId) || null;
 }
 
+// Lấy địa chỉ form element.
 function getAddressFormElement() {
     return document.getElementById('newAddressForm');
 }
 
+// Đóng địa chỉ form.
 function closeAddressForm() {
     const form = getAddressFormElement();
     if (!form) {
@@ -150,6 +157,7 @@ function closeAddressForm() {
     setAddressFormEditingState(null);
 }
 
+// Xử lý set địa chỉ form editing state.
 function setAddressFormEditingState(address = null) {
     editingAddressId = address ? Number.parseInt(address.id, 10) : null;
 
@@ -181,6 +189,7 @@ function setAddressFormEditingState(address = null) {
     }
 }
 
+// Xử lý reset địa chỉ form fields.
 function resetAddressFormFields() {
     const fullNameInput = document.getElementById('newFullName');
     const phoneInput = document.getElementById('newPhone');
@@ -232,6 +241,7 @@ function resetAddressFormFields() {
     }
 }
 
+// Mở địa chỉ form.
 function openAddressForm() {
     const form = getAddressFormElement();
     if (!form) {
@@ -253,6 +263,7 @@ function openAddressForm() {
     }
 }
 
+// Mở create địa chỉ form.
 async function openCreateAddressForm() {
     resetAddressFormFields();
     setAddressFormEditingState(null);
@@ -261,6 +272,7 @@ async function openCreateAddressForm() {
     document.getElementById('newFullName')?.focus();
 }
 
+// Xử lý populate địa chỉ administrative fields.
 async function populateAddressAdministrativeFields(address) {
     const citySelect = document.getElementById('newCity');
     const districtSelect = document.getElementById('newDistrict');
@@ -308,6 +320,7 @@ async function populateAddressAdministrativeFields(address) {
     }
 }
 
+// Xử lý edit địa chỉ.
 async function editAddress(addressId) {
     const address = getSavedAddressById(addressId);
     if (!address) {
@@ -327,6 +340,7 @@ async function editAddress(addressId) {
     document.getElementById('newFullName')?.focus();
 }
 
+// Xử lý set mã giảm giá tin nhắn.
 function setVoucherMessage(message, type = '') {
     const messageEl = document.getElementById('voucherMessage');
     if (!messageEl) {
@@ -341,6 +355,119 @@ function setVoucherMessage(message, type = '') {
     }
 }
 
+// Lấy mã giảm giá elements.
+function getVoucherElements() {
+    return {
+        codeInput: document.getElementById('voucherCode'),
+        appliedInput: document.getElementById('appliedVoucherCode'),
+        clearButton: document.querySelector('[data-checkout-action="clear-voucher"]'),
+        discountRow: document.getElementById('discountRow'),
+        discountAmount: document.getElementById('discountAmount'),
+        discountInput: document.getElementById('discountInput'),
+        total: document.getElementById('totalAmount')
+    };
+}
+
+// Đồng bộ mã giảm giá clear button.
+function syncVoucherClearButton() {
+    const { codeInput, appliedInput, clearButton } = getVoucherElements();
+    if (!clearButton) {
+        return;
+    }
+
+    const hasVoucherState = Boolean((codeInput?.value || '').trim() || (appliedInput?.value || '').trim());
+    clearButton.hidden = !hasVoucherState;
+}
+
+// Cập nhật mã giảm giá totals.
+function updateVoucherTotals(discountAmount = 0) {
+    const { discountRow, discountAmount: discountAmountEl, discountInput, total } = getVoucherElements();
+    const bootstrap = readCheckoutBootstrapData();
+    const checkoutSubtotal = bootstrap.subtotal || 0;
+    const checkoutShippingFee = bootstrap.shippingFee ?? 30000;
+    const normalizedDiscount = Math.max(0, Number(discountAmount) || 0);
+
+    if (discountRow) {
+        discountRow.style.display = normalizedDiscount > 0 ? 'flex' : 'none';
+    }
+
+    if (discountAmountEl) {
+        discountAmountEl.textContent = '-' + normalizedDiscount.toLocaleString('vi-VN') + 'đ';
+    }
+
+    if (discountInput) {
+        discountInput.value = normalizedDiscount;
+    }
+
+    if (total) {
+        const nextTotal = Math.max(0, checkoutSubtotal + checkoutShippingFee - normalizedDiscount);
+        total.textContent = nextTotal.toLocaleString('vi-VN') + 'đ';
+    }
+}
+
+// Xử lý clear applied mã giảm giá.
+function clearAppliedVoucher({ clearCode = true, message = '', type = '' } = {}) {
+    const { codeInput, appliedInput } = getVoucherElements();
+
+    if (clearCode && codeInput) {
+        codeInput.value = '';
+    }
+
+    if (appliedInput) {
+        appliedInput.value = '';
+    }
+
+    document.querySelectorAll('.voucher-card').forEach((card) => {
+        card.classList.remove('voucher-card--selected');
+    });
+
+    updateVoucherTotals(0);
+    setVoucherMessage(message, type);
+    syncVoucherClearButton();
+}
+
+// Xử lý set applied mã giảm giá code.
+function setAppliedVoucherCode(code) {
+    const { appliedInput } = getVoucherElements();
+    if (appliedInput) {
+        appliedInput.value = code || '';
+    }
+    syncVoucherClearButton();
+}
+
+// Xử lý enable scroll chaining.
+function enableScrollChaining(element) {
+    if (!element || element.dataset.scrollChainReady === 'true') {
+        return;
+    }
+
+    element.dataset.scrollChainReady = 'true';
+    element.addEventListener('wheel', (event) => {
+        const deltaY = event.deltaY;
+        const canScroll = element.scrollHeight > element.clientHeight + 1;
+
+        if (!deltaY || !canScroll) {
+            return;
+        }
+
+        const isAtTop = element.scrollTop <= 0;
+        const isAtBottom = Math.ceil(element.scrollTop + element.clientHeight) >= element.scrollHeight;
+
+        if ((deltaY < 0 && isAtTop) || (deltaY > 0 && isAtBottom)) {
+            event.preventDefault();
+            window.scrollBy({ top: deltaY, left: 0, behavior: 'auto' });
+        }
+    }, { passive: false });
+}
+
+// Khởi tạo checkout scroll chaining.
+function initCheckoutScrollChaining() {
+    document
+        .querySelectorAll('.address-list--scrollable, .order-summary__items, .voucher-section__list')
+        .forEach(enableScrollChaining);
+}
+
+// Đồng bộ selected ward name.
 function syncSelectedWardName() {
     const wardSelect = document.getElementById('newWard');
     if (!wardSelect) {
@@ -351,6 +478,7 @@ function syncSelectedWardName() {
     document.getElementById('newWardName').value = wardName;
 }
 
+// Xử lý set locate button loading.
 function setLocateButtonLoading(isLoading) {
     if (!locateButtonElement) {
         return;
@@ -361,6 +489,7 @@ function setLocateButtonLoading(isLoading) {
     locateButtonElement.setAttribute('aria-disabled', String(isLoading));
 }
 
+// Xử lý repair mojibake text.
 function repairMojibakeText(value) {
     const text = String(value || '').trim();
     if (!text || !MOJIBAKE_PATTERNS.some((pattern) => text.includes(pattern))) {
@@ -375,6 +504,7 @@ function repairMojibakeText(value) {
     }
 }
 
+// Chuẩn hóa location text.
 function normalizeLocationText(value) {
     return repairMojibakeText(value)
         .normalize('NFD')
@@ -387,6 +517,7 @@ function normalizeLocationText(value) {
         .trim();
 }
 
+// Xử lý strip administrative prefixes.
 function stripAdministrativePrefixes(value) {
     let normalized = normalizeLocationText(value);
     let previousValue = '';
@@ -401,6 +532,7 @@ function stripAdministrativePrefixes(value) {
     return normalized;
 }
 
+// Lấy normalized biến thể.
 function getNormalizedVariants(value) {
     const normalized = normalizeLocationText(value);
     const stripped = stripAdministrativePrefixes(value);
@@ -408,6 +540,7 @@ function getNormalizedVariants(value) {
     return Array.from(new Set([normalized, stripped].filter(Boolean)));
 }
 
+// Xử lý unique location values.
 function uniqueLocationValues(values) {
     return Array.from(
         new Set(
@@ -418,6 +551,7 @@ function uniqueLocationValues(values) {
     );
 }
 
+// Lấy display name parts.
 function getDisplayNameParts(data) {
     if (!data?.display_name) {
         return [];
@@ -429,6 +563,7 @@ function getDisplayNameParts(data) {
         .filter(Boolean);
 }
 
+// Lấy province ứng viên.
 function getProvinceCandidates(data) {
     const address = data?.address || {};
 
@@ -443,6 +578,7 @@ function getProvinceCandidates(data) {
     ]);
 }
 
+// Lấy district ứng viên.
 function getDistrictCandidates(data) {
     const address = data?.address || {};
 
@@ -458,6 +594,7 @@ function getDistrictCandidates(data) {
     ]);
 }
 
+// Lấy ward ứng viên.
 function getWardCandidates(data) {
     const address = data?.address || {};
 
@@ -474,6 +611,7 @@ function getWardCandidates(data) {
     ]);
 }
 
+// Xử lý sanitize administrative item.
 function sanitizeAdministrativeItem(item) {
     return {
         ...item,
@@ -483,6 +621,7 @@ function sanitizeAdministrativeItem(item) {
     };
 }
 
+// Xóa detected tùy chọn.
 function removeDetectedOptions(select) {
     Array.from(select?.options || []).forEach((option) => {
         if (option.dataset.detected === 'true') {
@@ -491,6 +630,7 @@ function removeDetectedOptions(select) {
     });
 }
 
+// Xử lý set detected selection.
 function setDetectedSelection(select, label, valueKey) {
     if (!select || !label) {
         return false;
@@ -509,6 +649,7 @@ function setDetectedSelection(select, label, valueKey) {
     return true;
 }
 
+// Lấy tùy chọn match values.
 function getOptionMatchValues(item) {
     return uniqueLocationValues([
         item?.name,
@@ -516,6 +657,7 @@ function getOptionMatchValues(item) {
     ]);
 }
 
+// Lấy match score.
 function getMatchScore(optionValue, candidateValue) {
     const optionVariants = getNormalizedVariants(optionValue);
     const candidateVariants = getNormalizedVariants(candidateValue);
@@ -541,6 +683,7 @@ function getMatchScore(optionValue, candidateValue) {
     return score;
 }
 
+// Tìm administrative match kết quả.
 function findAdministrativeMatchResult(items, candidates) {
     let bestMatch = null;
     let bestScore = 0;
@@ -570,10 +713,12 @@ function findAdministrativeMatchResult(items, candidates) {
     };
 }
 
+// Tìm administrative match.
 function findAdministrativeMatch(items, candidates) {
     return findAdministrativeMatchResult(items, candidates).item;
 }
 
+// Tạo dữ liệu địa chỉ line.
 function buildAddressLine(address) {
     return uniqueLocationValues([
         address?.house_number,
@@ -585,6 +730,7 @@ function buildAddressLine(address) {
     ]).join(' ');
 }
 
+// Đảm bảo provinces loaded.
 async function ensureProvincesLoaded() {
     if (provincesData.length) {
         return provincesData;
@@ -594,6 +740,7 @@ async function ensureProvincesLoaded() {
     return provincesData;
 }
 
+// Nạp province district tree.
 async function loadProvinceDistrictTree(provinceCode) {
     const cacheKey = String(provinceCode);
     if (provinceDistrictTreeCache.has(cacheKey)) {
@@ -612,12 +759,14 @@ async function loadProvinceDistrictTree(provinceCode) {
     return districts;
 }
 
+// Kiểm tra same location name.
 function isSameLocationName(left, right) {
     const leftVariants = getNormalizedVariants(left);
     const rightVariants = getNormalizedVariants(right);
     return leftVariants.some((leftValue) => rightVariants.includes(leftValue));
 }
 
+// Tìm province fallback label.
 function findProvinceFallbackLabel(data) {
     const address = data?.address || {};
     const directMatch = uniqueLocationValues([
@@ -643,6 +792,7 @@ function findProvinceFallbackLabel(data) {
         }) || displayParts.at(-1) || '';
 }
 
+// Tìm district fallback label.
 function findDistrictFallbackLabel(data, provinceLabel) {
     const directCandidates = uniqueLocationValues([
         data?.address?.city_district,
@@ -670,6 +820,7 @@ function findDistrictFallbackLabel(data, provinceLabel) {
         }) || '';
 }
 
+// Tìm ward fallback label.
 function findWardFallbackLabel(data, districtLabel, provinceLabel) {
     const directCandidates = uniqueLocationValues([
         data?.address?.suburb,
@@ -700,6 +851,7 @@ function findWardFallbackLabel(data, districtLabel, provinceLabel) {
     }) || '';
 }
 
+// Tìm district theo ward ứng viên.
 function findDistrictByWardCandidates(districts, wardCandidates) {
     let bestDistrict = null;
     let bestWard = null;
@@ -721,6 +873,7 @@ function findDistrictByWardCandidates(districts, wardCandidates) {
     };
 }
 
+// Đồng bộ administrative selections.
 async function syncAdministrativeSelections(data, requestId) {
     const citySelect = document.getElementById('newCity');
     const districtSelect = document.getElementById('newDistrict');
@@ -844,6 +997,7 @@ async function syncAdministrativeSelections(data, requestId) {
     }
 }
 
+// Nạp provinces.
 async function loadProvinces() {
     if (provincesLoadPromise) {
         return provincesLoadPromise;
@@ -880,6 +1034,7 @@ async function loadProvinces() {
     return provincesLoadPromise;
 }
 
+// Nạp districts.
 async function loadDistricts() {
     const citySelect = document.getElementById('newCity');
     const districtSelect = document.getElementById('newDistrict');
@@ -931,6 +1086,7 @@ async function loadDistricts() {
     return districtsData;
 }
 
+// Nạp wards.
 async function loadWards() {
     const districtSelect = document.getElementById('newDistrict');
     const wardSelect = document.getElementById('newWard');
@@ -977,10 +1133,12 @@ async function loadWards() {
     return wardsData;
 }
 
+// Bật/tắt địa chỉ form.
 async function toggleAddressForm() {
     await openCreateAddressForm();
 }
 
+// Khởi tạo địa chỉ map.
 function initAddressMap() {
     const mapContainer = document.getElementById('addressMap');
     if (!mapContainer || addressMap) return;
@@ -1054,6 +1212,7 @@ function initAddressMap() {
     }
 }
 
+// Xử lý place marker.
 function placeMarker(lat, lng) {
     if (addressMarker) {
         addressMarker.setLatLng([lat, lng]);
@@ -1066,6 +1225,7 @@ function placeMarker(lat, lng) {
     }
 }
 
+// Xử lý locate người dùng.
 function locateUser() {
     if (locateButtonElement?.classList.contains('is-loading')) {
         return;
@@ -1096,6 +1256,7 @@ function locateUser() {
     );
 }
 
+// Cập nhật địa chỉ từ coords.
 async function updateAddressFromCoords(lat, lng) {
     document.getElementById('newLatitude').value = lat;
     document.getElementById('newLongitude').value = lng;
@@ -1122,6 +1283,7 @@ async function updateAddressFromCoords(lat, lng) {
     }
 }
 
+// Xử lý select mã giảm giá.
 function selectVoucher(card) {
     document.querySelectorAll('.voucher-card').forEach((c) => {
         c.classList.remove('voucher-card--selected');
@@ -1134,6 +1296,7 @@ function selectVoucher(card) {
     applyVoucher();
 }
 
+// Xử lý set field error.
 function setFieldError(inputId, errorId, message) {
     const input = document.getElementById(inputId);
     const error = document.getElementById(errorId);
@@ -1141,6 +1304,7 @@ function setFieldError(inputId, errorId, message) {
     if (error) error.textContent = message;
 }
 
+// Xử lý clear field error.
 function clearFieldError(inputId, errorId) {
     const input = document.getElementById(inputId);
     const error = document.getElementById(errorId);
@@ -1148,6 +1312,7 @@ function clearFieldError(inputId, errorId) {
     if (error) error.textContent = '';
 }
 
+// Kiểm tra hợp lệ full name.
 function validateFullName() {
     const fullName = document.getElementById('newFullName').value.trim();
     if (!fullName || fullName.length < 2) {
@@ -1162,6 +1327,7 @@ function validateFullName() {
     return true;
 }
 
+// Kiểm tra hợp lệ số điện thoại.
 function validatePhone() {
     const phone = document.getElementById('newPhone').value.trim();
     if (!phone) {
@@ -1176,6 +1342,7 @@ function validatePhone() {
     return true;
 }
 
+// Lưu new địa chỉ.
 async function saveNewAddress() {
     const fullName = document.getElementById('newFullName').value.trim();
     const phone = document.getElementById('newPhone').value.trim();
@@ -1237,6 +1404,7 @@ async function saveNewAddress() {
     }
 }
 
+// Xóa địa chỉ.
 async function deleteAddress(addressId) {
     const confirmed = await window.showGlobalConfirm({
         title: 'Xóa địa chỉ',
@@ -1270,6 +1438,7 @@ async function deleteAddress(addressId) {
     }
 }
 
+// Xóa editing địa chỉ.
 async function deleteEditingAddress() {
     const currentEditingAddressId = editingAddressId || Number.parseInt(document.getElementById('editingAddressId')?.value, 10) || null;
     if (!currentEditingAddressId) {
@@ -1279,68 +1448,69 @@ async function deleteEditingAddress() {
     await deleteAddress(currentEditingAddressId);
 }
 
+// Xử lý apply mã giảm giá.
 async function applyVoucher() {
-    const code = document.getElementById('voucherCode').value.trim();
-    const discountRowEl = document.getElementById('discountRow');
-    const discountAmountEl = document.getElementById('discountAmount');
-    const discountInput = document.getElementById('discountInput');
-    const totalEl = document.getElementById('totalAmount');
+    const codeInput = document.getElementById('voucherCode');
+    const code = codeInput?.value.trim() || '';
 
     const bootstrap = readCheckoutBootstrapData();
     const checkoutSubtotal = bootstrap.subtotal || 0;
-    const checkoutShippingFee = bootstrap.shippingFee ?? 30000;
     const mode = bootstrap.mode || 'cart';
 
     let currentDiscount = 0;
 
     if (!code) {
-        setVoucherMessage('Vui lòng nhập mã giảm giá', 'error');
+        clearAppliedVoucher({ clearCode: false, message: 'Vui lòng nhập mã giảm giá', type: 'error' });
         return;
     }
 
     try {
+        const voucherPayload = {
+            code,
+            order_amount: checkoutSubtotal,
+            mode,
+            selected_cart_item_ids: Array.isArray(bootstrap.selectedCartItemIds)
+                ? bootstrap.selectedCartItemIds.join(',')
+                : ''
+        };
+
+        if (mode === 'buy-now') {
+            voucherPayload.product_id = bootstrap.productId;
+            voucherPayload.quantity = bootstrap.quantity;
+            voucherPayload.variant_id = bootstrap.variantId || null;
+        }
+
         const response = await fetch('/orders/validate-voucher', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({
-                code,
-                order_amount: checkoutSubtotal,
-                mode,
-                selected_cart_item_ids: Array.isArray(bootstrap.selectedCartItemIds)
-                    ? bootstrap.selectedCartItemIds.join(',')
-                    : ''
-            })
+            body: JSON.stringify(voucherPayload)
         });
 
         const data = await response.json();
 
         if (data.success) {
             currentDiscount = data.discount_amount;
+            setAppliedVoucherCode(code);
             setVoucherMessage('Đã áp dụng voucher - Giảm ' + currentDiscount.toLocaleString('vi-VN') + 'đ', 'success');
         } else {
             setVoucherMessage(data.message, 'error');
             currentDiscount = 0;
+            clearAppliedVoucher({ clearCode: false, message: data.message, type: 'error' });
+            return;
         }
     } catch (error) {
         console.error('Voucher validation error:', error);
-        setVoucherMessage('Có lỗi xảy ra khi kiểm tra voucher', 'error');
+        clearAppliedVoucher({ clearCode: false, message: 'Có lỗi xảy ra khi kiểm tra voucher', type: 'error' });
         currentDiscount = 0;
+        return;
     }
 
-    if (currentDiscount > 0) {
-        discountRowEl.style.display = 'flex';
-        discountAmountEl.textContent = '-' + currentDiscount.toLocaleString('vi-VN') + 'đ';
-    } else {
-        discountRowEl.style.display = 'none';
-    }
-
-    discountInput.value = currentDiscount;
-
-    const total = checkoutSubtotal + checkoutShippingFee - currentDiscount;
-    totalEl.textContent = total.toLocaleString('vi-VN') + 'đ';
+    updateVoucherTotals(currentDiscount);
+    syncVoucherClearButton();
 }
 
+// Khởi tạo checkout.
 function initCheckout() {
     const bootstrap = readCheckoutBootstrapData();
     loadProvinces();
@@ -1382,9 +1552,37 @@ function initCheckout() {
             button.addEventListener('click', applyVoucher);
         });
 
+        document.querySelectorAll('[data-checkout-action="clear-voucher"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                clearAppliedVoucher({ message: 'Đã bỏ voucher khỏi đơn hàng.', type: 'success' });
+            });
+        });
+
+        document.getElementById('voucherCode')?.addEventListener('input', () => {
+            const { codeInput, appliedInput } = getVoucherElements();
+            if (!appliedInput?.value) {
+                syncVoucherClearButton();
+                return;
+            }
+
+            if ((codeInput?.value || '').trim() !== appliedInput.value) {
+                clearAppliedVoucher({ clearCode: false });
+            }
+        });
+
+        document.getElementById('voucherCode')?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applyVoucher();
+            }
+        });
+
         document.querySelectorAll('.voucher-card').forEach((card) => {
             card.addEventListener('click', () => selectVoucher(card));
         });
+
+        syncVoucherClearButton();
+        window.__checkoutVoucherHandlersReady = true;
     }
 
     document.getElementById('newCity')?.addEventListener('change', loadDistricts);
@@ -1456,14 +1654,12 @@ function initCheckout() {
         document.body.classList.remove('address-form-open');
         setAddressFormEditingState(null);
     }
-
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !getAddressFormElement()?.hidden) {
             closeAddressForm();
         }
     });
 }
-
 document.addEventListener('DOMContentLoaded', initCheckout);
 
 

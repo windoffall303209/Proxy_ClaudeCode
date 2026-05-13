@@ -1,3 +1,4 @@
+-- File database/seed.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE product_variants;

@@ -1,3 +1,4 @@
+/* Định nghĩa giao diện storefront cho trang chủ. */
 .section-block {
     padding: 28px 0 56px;
 }
@@ -430,7 +431,7 @@
 
 .category-showcase {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(var(--storefront-home-category-columns, 3), minmax(0, 1fr));
     gap: 18px;
 }
 
@@ -438,7 +439,7 @@
     position: relative;
     overflow: hidden;
     height: 450px;
-    width: 350px;    
+    width: 100%;
     border-radius: 32px;
     box-shadow: var(--shadow-soft);
 }
@@ -489,12 +490,12 @@
 
 .home-products-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--storefront-home-product-columns, 5), minmax(0, 1fr));
     gap: 16px;
 }
 
 .home-products-grid--featured {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--storefront-home-product-columns, 5), minmax(0, 1fr));
 }
 
 .home-editorial__grid {
@@ -608,14 +609,17 @@
         bottom: 140px;
     }
 
-    .category-showcase,
+    .category-showcase {
+        grid-template-columns: repeat(var(--storefront-home-category-columns-tablet, 2), minmax(0, 1fr));
+    }
+
     .home-services__grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .home-products-grid,
     .home-products-grid--featured {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(var(--storefront-home-product-columns-tablet, 3), minmax(0, 1fr));
     }
 }
 

@@ -1,9 +1,11 @@
+// Điều phối tương tác trình duyệt cho màn quản trị đơn hàng trong khu vực admin.
 function showOrdersToast(message, type = 'success') {
     if (typeof showGlobalToast === 'function') {
         showGlobalToast(message, type);
     }
 }
 
+// Cập nhật đơn hàng trạng thái.
 async function updateOrderStatus(orderId, status) {
     try {
         const response = await fetch(`/admin/orders/${orderId}/status`, {
@@ -25,14 +27,17 @@ async function updateOrderStatus(orderId, status) {
     }
 }
 
+// Đóng đơn hàng modal.
 function closeOrderModal() {
     document.getElementById('orderDetailModal')?.style.setProperty('display', 'none');
 }
 
+// Xử lý print đơn hàng.
 function printOrder(orderId) {
     window.open(`/admin/orders/${orderId}/print`, '_blank');
 }
 
+// Khởi tạo đơn hàng tabs.
 function initOrderTabs() {
     document.querySelectorAll('.order-tab').forEach((tab) => {
         tab.addEventListener('click', function() {
@@ -47,6 +52,39 @@ function initOrderTabs() {
     });
 }
 
+function formatPaymentCountdown(milliseconds) {
+    if (milliseconds <= 0) {
+        return 'Đã quá hạn';
+    }
+
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `Còn ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function initPaymentCountdowns() {
+    const countdowns = Array.from(document.querySelectorAll('[data-payment-countdown]'));
+    if (countdowns.length === 0) {
+        return;
+    }
+
+    const tick = () => {
+        const now = Date.now();
+        countdowns.forEach((node) => {
+            const expiresAt = new Date(node.dataset.expiresAt || '').getTime();
+            const remaining = Number.isFinite(expiresAt) ? expiresAt - now : 0;
+            node.textContent = formatPaymentCountdown(remaining);
+            node.classList.toggle('is-expired', remaining <= 0);
+        });
+    };
+
+    tick();
+    setInterval(tick, 1000);
+}
+
+// Khởi tạo đơn hàng actions.
 function initOrderActions() {
     document.querySelectorAll('.order-status-select[data-order-id]').forEach((select) => {
         select.addEventListener('change', () => {
@@ -72,9 +110,10 @@ function initOrderActions() {
     });
 }
 
+// Khởi tạo quản trị đơn hàng trang.
 function initAdminOrdersPage() {
     initOrderTabs();
     initOrderActions();
+    initPaymentCountdowns();
 }
-
 document.addEventListener('DOMContentLoaded', initAdminOrdersPage);

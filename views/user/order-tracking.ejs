@@ -1,3 +1,4 @@
+<%# Template EJS render người dùng đơn hàng theo dõi đơn hàng cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/orders.css">
@@ -6,12 +7,18 @@
 <%
     const shipment = order.shipment || {};
     const trackingEvents = Array.isArray(order.tracking_events) ? order.tracking_events : [];
+    const currentReturnRequest = typeof returnRequest !== 'undefined' ? returnRequest : null;
+    const currentReturnFeedback = typeof returnFeedback !== 'undefined' ? returnFeedback : null;
+    const currentReceivedFeedback = typeof receivedFeedback !== 'undefined' ? receivedFeedback : null;
+    const currentCancelFeedback = typeof cancelFeedback !== 'undefined' ? cancelFeedback : null;
     const statusMap = {
+        pending_payment: 'Chờ thanh toán',
         pending: 'Chờ xác nhận',
         confirmed: 'Đã xác nhận',
         processing: 'Đang xử lý',
         shipping: 'Đang giao',
         delivered: 'Đã giao',
+        completed: 'Đã hoàn thành',
         cancelled: 'Đã hủy'
     };
     const paymentLabels = {
@@ -20,24 +27,30 @@
         momo: 'MoMo'
     };
     const progressStepMap = {
+        pending_payment: 0,
         pending: 0,
         confirmed: 1,
         processing: 1,
         shipping: 2,
         delivered: 3,
+        completed: 3,
         cancelled: 0
     };
     const steps = [
         { key: 'pending', label: 'Tạo đơn' },
         { key: 'confirmed', label: 'Xác nhận' },
         { key: 'shipping', label: 'Vận chuyển' },
-        { key: 'delivered', label: 'Hoàn tất' }
+        { key: 'completed', label: 'Hoàn tất' }
     ];
     const currentStep = progressStepMap[order.status] ?? 0;
     const hasCoordinates = shipment.current_lat !== null && shipment.current_lat !== undefined && shipment.current_lng !== null && shipment.current_lng !== undefined;
     const mapsUrl = hasCoordinates ? `https://www.google.com/maps?q=${shipment.current_lat},${shipment.current_lng}` : null;
+    const isPaymentSettled = order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status);
+    const paymentStatusLabel = isPaymentSettled ? 'Đã thanh toán' : (order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
+    const canCancelOrder = ['pending', 'confirmed'].includes(order.status);
 %>
 
+<!-- ===== Trang theo dõi vận chuyển đơn hàng ===== -->
 <div class="tracking-page page-shell">
     <div class="container tracking-page__container">
         <section class="tracking-hero">
@@ -53,7 +66,6 @@
                 <strong><%= new Date(order.created_at).toLocaleString('vi-VN') %></strong>
             </div>
         </section>
-
         <section class="tracking-card">
             <div class="tracking-progress <%= order.status === 'cancelled' ? 'is-cancelled' : '' %>">
                 <% steps.forEach((step, index) => { %>
@@ -121,7 +133,6 @@
                         <p><%= order.address_line %><%= order.ward ? ', ' + order.ward : '' %><%= order.district ? ', ' + order.district : '' %>, <%= order.city %></p>
                     </div>
                 </section>
-
                 <section class="tracking-card">
                     <div class="tracking-card__header">
                         <h2>Thanh toán</h2>
@@ -133,17 +144,89 @@
                         </div>
                         <div class="tracking-info">
                             <span>Trạng thái</span>
-                            <strong><%= order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' %></strong>
+                            <strong><%= paymentStatusLabel %></strong>
                         </div>
                         <div class="tracking-info">
                             <span>Tổng thanh toán</span>
                             <strong><%= (order.final_amount || order.total_amount).toLocaleString('vi-VN') %>đ</strong>
                         </div>
                     </div>
+                    <% if (order.status === 'pending_payment' && order.payment_status !== 'paid' && (order.payment_method === 'vnpay' || order.payment_method === 'momo')) { %>
+                        <div class="tracking-map-preview">
+                            <p>Đơn hàng đang chờ hoàn tất thanh toán.</p>
+                            <a href="/orders/<%= order.order_code %>/pay" class="btn btn-primary">Thanh toán ngay</a>
+                        </div>
+                    <% } %>
+                    <% if (canCancelOrder) { %>
+                        <div class="tracking-map-preview">
+                            <p>Bạn có thể hủy đơn trước khi đơn chuyển sang xử lý giao hàng.</p>
+                            <form action="/orders/<%= order.order_code %>/cancel" method="POST" data-confirm-submit data-confirm-message="Ban chac chan muon huy don hang nay?">
+                                <button type="submit" class="btn btn-danger">Hủy đơn hàng</button>
+                            </form>
+                        </div>
+                    <% } %>
                 </section>
             </aside>
         </div>
 
+        <% if (currentCancelFeedback === 'success') { %>
+            <section class="tracking-card tracking-action-card tracking-action-card--success">
+                <p>Đã hủy đơn hàng. Tồn kho và lượt sử dụng voucher đã được hoàn lại.</p>
+            </section>
+        <% } else if (currentCancelFeedback === 'invalid-status') { %>
+            <section class="tracking-card tracking-action-card tracking-action-card--warning">
+                <p>Chỉ có thể hủy đơn ở trạng thái Chờ xác nhận hoặc Đã xác nhận.</p>
+            </section>
+        <% } %>
+
+        <% if (currentReceivedFeedback === 'confirmed') { %>
+            <section class="tracking-card tracking-action-card tracking-action-card--success">
+                <p>Đã xác nhận nhận hàng. Đơn hàng đã chuyển sang trạng thái hoàn thành.</p>
+            </section>
+        <% } %>
+
+        <% if (currentReturnFeedback === 'requested') { %>
+            <section class="tracking-card tracking-action-card tracking-action-card--success">
+                <p>Đã gửi yêu cầu hoàn hàng. Bộ phận quản trị sẽ kiểm tra minh chứng và phản hồi.</p>
+            </section>
+        <% } else if (currentReturnFeedback) { %>
+            <section class="tracking-card tracking-action-card tracking-action-card--warning">
+                <p>
+                    <% if (currentReturnFeedback === 'missing-reason') { %>
+                        Vui lòng nhập lý do hoàn hàng tối thiểu 10 ký tự.
+                    <% } else if (currentReturnFeedback === 'missing-media') { %>
+                        Vui lòng tải lên hình ảnh hoặc video minh chứng.
+                    <% } else if (currentReturnFeedback === 'already-requested') { %>
+                        Đơn hàng này đã có yêu cầu hoàn hàng.
+                    <% } else if (currentReturnFeedback === 'invalid-status') { %>
+                        Chỉ đơn hàng đã giao mới có thể yêu cầu hoàn hàng.
+                    <% } else { %>
+                        Không thể gửi yêu cầu hoàn hàng. Vui lòng kiểm tra lại tệp minh chứng.
+                    <% } %>
+                </p>
+            </section>
+        <% } %>
+
+        <% if (order.status === 'delivered') { %>
+            <section class="tracking-card tracking-action-card" id="return-request">
+                <div class="tracking-card__header">
+                    <h2>Xác nhận sau giao hàng</h2>
+                </div>
+                <% if (currentReturnRequest) { %>
+                    <p class="tracking-info-note">Yêu cầu hoàn hàng của bạn đang ở trạng thái <strong><%= currentReturnRequest.status %></strong>.</p>
+                    <div class="tracking-post-delivery-actions tracking-post-delivery-actions--inline">
+                        <a href="/orders/<%= order.order_code %>/return-request" class="btn btn-secondary">Xem yêu cầu hoàn hàng</a>
+                    </div>
+                <% } else { %>
+                    <div class="tracking-post-delivery-actions tracking-post-delivery-actions--inline">
+                        <form action="/orders/<%= order.order_code %>/confirm-received" method="POST">
+                            <button type="submit" class="btn btn-primary">Xác nhận nhận hàng</button>
+                        </form>
+                        <a href="/orders/<%= order.order_code %>/return-request" class="btn btn-secondary">Yêu cầu hoàn hàng</a>
+                    </div>
+                <% } %>
+            </section>
+        <% } %>
         <section class="tracking-card">
             <div class="tracking-card__header">
                 <h2>Tiến trình vận chuyển</h2>
@@ -180,8 +263,15 @@
         <div class="confirmation-actions">
             <a href="/orders/history" class="btn btn-secondary">Quay lại lịch sử đơn</a>
             <a href="/orders/<%= order.order_code %>/confirmation" class="btn btn-primary">Xem chi tiết đơn</a>
+            <% if (canCancelOrder) { %>
+                <form action="/orders/<%= order.order_code %>/cancel" method="POST" data-confirm-submit data-confirm-message="Ban chac chan muon huy don hang nay?">
+                    <button type="submit" class="btn btn-danger">Hủy đơn hàng</button>
+                </form>
+            <% } %>
         </div>
     </div>
 </div>
+
+<script src="/js/order-actions.js"></script>
 
 <%- include('../partials/footer') %>

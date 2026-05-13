@@ -17,8 +17,14 @@ const pool = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 class User {
+    // Thao tác với generate random mật khẩu hash.
+    static async generateRandomPasswordHash() {
+        const crypto = require('crypto');
+        const randomPassword = crypto.randomBytes(24).toString('hex');
+        return bcrypt.hash(randomPassword, 10);
+    }
     // =============================================================================
-    // ĐĂNG KÝ NGƯỜI DÙNG - CREATE USER
+    // Tạo người dùng mới khi đăng ký tài khoản.
     // =============================================================================
 
     /**
@@ -59,7 +65,13 @@ class User {
                 marketing_consent || false
             ]);
 
-            return { id: result.insertId, email, full_name };
+            return {
+                id: result.insertId,
+                email,
+                full_name,
+                role: 'customer',
+                email_verified: false
+            };
         } catch (error) {
             // Xử lý lỗi email trùng lặp
             if (error.code === 'ER_DUP_ENTRY') {
@@ -87,6 +99,70 @@ class User {
         const query = 'SELECT * FROM users WHERE email = ?';
         const [rows] = await pool.execute(query, [email]);
         return rows[0] || null;
+    }
+
+    // Tạo google người dùng.
+    static async createGoogleUser({ email, full_name, avatar_url = null }) {
+        const password_hash = await this.generateRandomPasswordHash();
+        const [result] = await pool.execute(
+            `INSERT INTO users (
+                email,
+                password_hash,
+                full_name,
+                avatar_url,
+                email_verified,
+                email_verified_at,
+                marketing_consent
+            )
+            VALUES (?, ?, ?, ?, TRUE, NOW(), FALSE)`,
+            [email, password_hash, full_name, avatar_url]
+        );
+
+        return this.findById(result.insertId);
+    }
+
+    // Đồng bộ google profile.
+    static async syncGoogleProfile(userId, { full_name, avatar_url = null }) {
+        await pool.execute(
+            `UPDATE users
+             SET full_name = COALESCE(NULLIF(full_name, ''), ?),
+                 avatar_url = COALESCE(NULLIF(avatar_url, ''), ?),
+                 email_verified = TRUE,
+                 email_verified_at = COALESCE(email_verified_at, NOW())
+             WHERE id = ?`,
+            [full_name || null, avatar_url || null, userId]
+        );
+
+        return this.findById(userId);
+    }
+
+    // TìT?m ho?c t?o google người dùng.
+    static async findOrCreateGoogleUser(profile = {}) {
+        const email = String(profile.email || '').trim().toLowerCase();
+        const fullName = String(profile.name || profile.full_name || '').trim() || email.split('@')[0] || 'Google User';
+        const avatarUrl = String(profile.picture || profile.avatar_url || '').trim() || null;
+
+        if (!email) {
+            throw new Error('Google account does not provide a valid email');
+        }
+
+        const existingUser = await this.findByEmail(email);
+        if (existingUser) {
+            if (existingUser.is_active === false || existingUser.is_active === 0) {
+                throw new Error('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.');
+            }
+
+            return this.syncGoogleProfile(existingUser.id, {
+                full_name: fullName,
+                avatar_url: avatarUrl
+            });
+        }
+
+        return this.createGoogleUser({
+            email,
+            full_name: fullName,
+            avatar_url: avatarUrl
+        });
     }
 
     // =============================================================================
@@ -129,7 +205,7 @@ class User {
     }
 
     // =============================================================================
-    // CẬP NHẬT PROFILE CƠ BẢN - UPDATE PROFILE
+    // Cập nhật hồ sơ cơ bản của người dùng.
     // =============================================================================
 
     /**
@@ -152,7 +228,7 @@ class User {
     }
 
     // =============================================================================
-    // CẬP NHẬT PROFILE ĐẦY ĐỦ - UPDATE FULL PROFILE
+    // Cập nhật hồ sơ đầy đủ, gồm các trường mở rộng.
     // =============================================================================
 
     /**
@@ -176,7 +252,7 @@ class User {
     }
 
     // =============================================================================
-    // CẬP NHẬT AVATAR - UPDATE AVATAR
+    // Cập nhật ảnh đại diện của người dùng.
     // =============================================================================
 
     /**
@@ -236,7 +312,7 @@ class User {
     }
 
     // =============================================================================
-    // CẬP NHẬT ĐỒNG Ý MARKETING - UPDATE MARKETING CONSENT
+    // Cập nhật trạng thái đồng ý nhận marketing.
     // =============================================================================
 
     /**
@@ -268,7 +344,7 @@ class User {
      * @returns {Promise<void>}
      */
     static async verifyEmail(userId) {
-        const query = 'UPDATE users SET email_verified = TRUE WHERE id = ?';
+        const query = 'UPDATE users SET email_verified = TRUE, email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = ?';
         await pool.execute(query, [userId]);
     }
 
@@ -290,6 +366,20 @@ class User {
         const query = 'SELECT id, email, full_name FROM users WHERE marketing_consent = TRUE AND email_verified = TRUE AND is_active = TRUE';
         const [rows] = await pool.execute(query);
         return rows;
+    }
+
+    // Lấy admin emails.
+    static async getAdminEmails() {
+        const [rows] = await pool.execute(
+            `SELECT email
+             FROM users
+             WHERE role = 'admin'
+               AND is_active = TRUE
+               AND email IS NOT NULL
+               AND email <> ''`
+        );
+
+        return rows.map((row) => row.email).filter(Boolean);
     }
 
     // =============================================================================
@@ -331,7 +421,7 @@ class User {
         // Sắp xếp theo ngày đăng ký mới nhất
         query += ' ORDER BY created_at DESC';
 
-        // Phân trang
+        // Phuong thuc trang
         if (filters.limit) {
             const limit = parseInt(filters.limit) || 50;
             const offset = parseInt(filters.offset) || 0;
@@ -343,7 +433,7 @@ class User {
     }
 
     // =============================================================================
-    // CẬP NHẬT TRẠNG THÁI (ADMIN) - UPDATE STATUS
+    // Admin cập nhật trạng thái hoạt động của tài khoản.
     // =============================================================================
 
     /**
@@ -362,7 +452,7 @@ class User {
     }
 
     // =============================================================================
-    // CẬP NHẬT QUYỀN (ADMIN) - UPDATE ROLE
+    // Admin cập nhật quyền của tài khoản.
     // =============================================================================
 
     /**

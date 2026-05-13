@@ -1,3 +1,4 @@
+// Khai báo route authroutes và nối middleware/controller tương ứng.
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
@@ -6,6 +7,8 @@ const { verifyToken } = require('../middleware/auth');
 // Show forms
 router.get('/register', authController.showRegister);
 router.get('/login', authController.showLogin);
+router.get('/google', authController.startGoogleLogin);
+router.get('/google/callback', authController.handleGoogleCallback);
 
 // Authentication actions
 router.post('/register', authController.register);

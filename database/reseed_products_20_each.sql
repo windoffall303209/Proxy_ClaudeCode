@@ -1,3 +1,4 @@
+-- File database/reseed_products_20_each.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 USE tmdt_ecommerce;
 
 START TRANSACTION;

@@ -1,4 +1,6 @@
+<%# Partial EJS dùng lại cho catalog phân trang để các view giữ cấu trúc thống nhất. %>
 <%
+    // Chuẩn hóa dữ liệu phân trang catalog
     const pagerQuery = typeof paginationQuery !== 'undefined' ? (paginationQuery || {}) : {};
     const pagerPath = typeof paginationPath !== 'undefined' ? (paginationPath || '/products') : '/products';
     const pagerCurrentPage = Number(typeof currentPage !== 'undefined' ? (currentPage || 1) : 1);
@@ -57,6 +59,7 @@
     };
 %>
 
+<!-- ===== Phân trang catalog ===== -->
 <% if (pagerTotalPages > 1) { %>
     <div class="catalog-pagination">
         <p class="catalog-pagination__info">Trang <%= pagerCurrentPage %> / <%= pagerTotalPages %></p>

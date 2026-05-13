@@ -1,6 +1,94 @@
+/* Định nghĩa giao diện storefront cho đơn hàng. */
 .orders-list {
     display: grid;
     gap: 18px;
+}
+
+.user-order-menu {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    padding: 5px;
+    border: 1px solid rgba(215, 197, 154, 0.72);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.86);
+}
+
+.user-order-menu__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.user-order-menu__link:hover,
+.user-order-menu__link.active {
+    color: var(--ink);
+    background: rgba(242, 201, 76, 0.18);
+}
+
+.user-order-menu__count {
+    min-width: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(24, 20, 13, 0.08);
+    color: var(--ink);
+    font-size: 12px;
+    text-align: center;
+}
+
+.order-review-card {
+    display: grid;
+    gap: 10px;
+    padding: 16px 18px;
+    border: 1px solid rgba(215, 197, 154, 0.8);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-soft);
+}
+
+.order-review-card__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.order-review-card__product {
+    display: block;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.order-review-card__product:hover,
+.order-review-card a:hover {
+    color: var(--accent-strong);
+}
+
+.order-review-card__header p,
+.order-review-card__comment,
+.order-review-card__date {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.order-review-card__stars {
+    flex: 0 0 auto;
+    color: #d99017;
+    font-weight: 900;
+    letter-spacing: 1px;
 }
 
 .order-card,
@@ -59,9 +147,15 @@
     color: var(--warning);
 }
 
+.order-status.is-pending-payment {
+    background: rgba(225, 143, 17, 0.18);
+    color: #9a5b00;
+}
+
 .order-status.is-confirmed,
 .order-status.is-processing,
-.order-status.is-delivered {
+.order-status.is-delivered,
+.order-status.is-completed {
     background: rgba(36, 122, 85, 0.12);
     color: var(--success);
 }
@@ -74,6 +168,25 @@
 
 .order-status.is-cancelled {
     background: rgba(198, 64, 45, 0.12);
+    color: var(--danger);
+}
+
+.order-status-wrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.order-payment-countdown {
+    margin: 0;
+    color: #9a5b00;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.order-payment-countdown.is-expired {
     color: var(--danger);
 }
 
@@ -123,6 +236,11 @@
     font-size: 16px;
     font-weight: 800;
     line-height: 1.2;
+    display: block;
+    max-width: min(46vw, 520px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .order-item__meta,
@@ -175,6 +293,14 @@
     line-height: 1.1;
 }
 
+.order-card__payment-status {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .order-card__total {
     text-align: right;
 }
@@ -184,6 +310,41 @@
     flex-wrap: wrap;
     gap: 12px;
     padding: 0 24px 24px;
+}
+
+.order-card__action-form {
+    margin: 0;
+    display: inline-flex;
+}
+
+.order-feedback {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid rgba(215, 197, 154, 0.72);
+    border-radius: 14px;
+    font-size: 13px;
+}
+
+.order-feedback p {
+    margin: 0;
+}
+
+.order-feedback.tracking-action-card--success {
+    border-color: rgba(36, 122, 85, 0.22);
+    background: rgba(231, 246, 238, 0.88);
+    color: var(--success);
+}
+
+.order-feedback.tracking-action-card--warning {
+    border-color: rgba(225, 143, 17, 0.24);
+    background: rgba(255, 247, 226, 0.9);
+    color: var(--warning);
+}
+
+.order-card__actions .btn,
+.order-card__action-form .btn {
+    min-height: 38px;
+    align-items: center;
 }
 
 .order-card__empty {
@@ -329,6 +490,11 @@
     gap: 12px;
 }
 
+.confirmation-actions form {
+    margin: 0;
+    display: inline-flex;
+}
+
 @media (max-width: 1180px) {
     .confirmation-layout {
         grid-template-columns: 1fr;
@@ -362,5 +528,273 @@
 
     .order-card__actions {
         padding: 0 18px 18px;
+    }
+}
+
+/* Compact order history and confirmation */
+.orders-list {
+    gap: 14px;
+}
+
+.order-card,
+.confirmation-card,
+.confirmation-hero {
+    border-radius: 22px;
+}
+
+.order-card__header,
+.order-card__footer {
+    gap: 12px;
+    padding: 16px 20px;
+}
+
+.order-card__code {
+    font-size: 16px;
+}
+
+.order-card__date,
+.order-card__tracking-summary p {
+    font-size: 12.5px;
+}
+
+.order-status {
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.order-card__items,
+.confirmation-items {
+    gap: 9px;
+    padding: 14px 20px;
+}
+
+.order-item {
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.order-item__image,
+.order-item__image img,
+.order-item__placeholder {
+    border-radius: 13px;
+}
+
+.order-item__image img,
+.order-item__placeholder {
+    width: 58px;
+    height: 72px;
+}
+
+.order-item__name {
+    font-size: 14px;
+}
+
+.order-item__name-link {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.order-item__name-link:hover {
+    color: var(--accent-strong);
+}
+
+.order-item__meta,
+.order-item__qty {
+    font-size: 12px;
+}
+
+.order-item__price {
+    font-size: 15px;
+}
+
+.order-card__tracking-summary {
+    gap: 6px;
+    padding: 12px 20px;
+}
+
+.order-card__payment strong,
+.order-card__total strong {
+    margin-top: 4px;
+    font-size: 15px;
+}
+
+.order-card__payment-status {
+    font-size: 11.5px;
+}
+
+.order-card__actions {
+    gap: 9px;
+    padding: 0 20px 18px;
+}
+
+.confirmation-page__container {
+    gap: 16px;
+}
+
+.confirmation-hero {
+    padding: 24px;
+}
+
+.confirmation-hero__icon {
+    width: 56px;
+    height: 56px;
+    font-size: 14px;
+}
+
+.confirmation-hero__title {
+    font-size: clamp(26px, 3.2vw, 40px);
+}
+
+.confirmation-hero__code {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 16px;
+}
+
+.confirmation-hero__code strong {
+    font-size: 19px;
+}
+
+.confirmation-layout {
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 16px;
+}
+
+.confirmation-side {
+    gap: 12px;
+}
+
+.confirmation-card {
+    padding: 18px;
+}
+
+.confirmation-card h3 {
+    font-size: 20px;
+}
+
+.confirmation-summary {
+    gap: 9px;
+    margin-top: 12px;
+}
+
+.confirmation-summary__total {
+    padding-top: 12px;
+}
+
+.confirmation-summary__total strong {
+    font-size: 22px;
+}
+
+.confirmation-block {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 14px;
+}
+
+.confirmation-actions {
+    gap: 9px;
+}
+
+.confirmation-pay-now {
+    margin-top: 10px;
+}
+
+@media (max-width: 960px) {
+    .confirmation-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Extra compact order density */
+.orders-list {
+    gap: 10px;
+}
+
+.order-card__header,
+.order-card__footer {
+    padding: 12px 16px;
+}
+
+.order-card__items,
+.confirmation-items {
+    padding: 10px 16px;
+    gap: 7px;
+}
+
+.order-item {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    padding: 9px 10px;
+    border-radius: 14px;
+}
+
+.order-item__image {
+    width: 52px;
+    height: 52px;
+}
+
+.order-card__tracking-summary {
+    padding: 10px 16px;
+}
+
+.order-card__actions {
+    padding: 0 16px 14px;
+    gap: 8px;
+}
+
+.confirmation-page__container {
+    gap: 12px;
+}
+
+.confirmation-hero {
+    padding: 18px;
+}
+
+.confirmation-hero__title {
+    font-size: clamp(22px, 2.8vw, 34px);
+}
+
+.confirmation-layout {
+    gap: 12px;
+}
+
+.confirmation-card {
+    padding: 14px;
+}
+
+.confirmation-card h3 {
+    font-size: 17px;
+}
+
+.confirmation-summary__total strong {
+    font-size: 19px;
+}
+
+.confirmation-block {
+    padding: 10px;
+    border-radius: 12px;
+}
+
+@media (max-width: 640px) {
+    .order-card__header,
+    .order-card__footer,
+    .confirmation-card,
+    .confirmation-hero,
+    .order-card__items,
+    .order-card__tracking-summary,
+    .confirmation-items {
+        padding: 15px;
+    }
+
+    .order-item {
+        grid-template-columns: 58px minmax(0, 1fr);
+    }
+
+    .order-item__price {
+        grid-column: 2;
+    }
+
+    .order-card__actions {
+        padding: 0 15px 15px;
     }
 }

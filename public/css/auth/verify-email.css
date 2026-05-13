@@ -1,14 +1,15 @@
+/* Định nghĩa giao diện storefront cho xác thực email. */
 .verify-email-page {
-    padding-top: 34px;
+    padding-top: 20px;
 }
 
 .verify-email-shell {
-    max-width: 620px;
+    max-width: 560px;
     margin: 0 auto;
-    padding: clamp(24px, 3.5vw, 32px);
+    padding: clamp(18px, 2.8vw, 26px);
     display: grid;
-    gap: 18px;
-    border-radius: 30px;
+    gap: 14px;
+    border-radius: 22px;
 }
 
 .verify-email-head {
@@ -17,7 +18,7 @@
 }
 
 .verify-email-head__eyebrow {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -31,14 +32,15 @@
 .verify-email-head__copy {
     margin: 0;
     color: var(--gray-700);
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.45;
 }
 
 .verify-email-recipient {
     display: grid;
-    gap: 6px;
-    padding: 14px 16px;
-    border-radius: 18px;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 14px;
     border: 1px solid rgba(215, 197, 154, 0.7);
     background: linear-gradient(180deg, rgba(254, 251, 245, 0.95), rgba(249, 243, 229, 0.78));
 }
@@ -52,7 +54,7 @@
 }
 
 .verify-email-recipient__value {
-    font-size: 18px;
+    font-size: 15px;
     line-height: 1.35;
     color: var(--ink);
     word-break: break-word;
@@ -60,9 +62,9 @@
 
 .verify-panel {
     display: grid;
-    gap: 16px;
-    padding: 18px 20px;
-    border-radius: 24px;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
     border: 1px solid rgba(215, 197, 154, 0.7);
     background: rgba(255, 251, 245, 0.82);
 }
@@ -81,31 +83,31 @@
 
 .verify-panel__header h2 {
     margin: 0;
-    font-size: 22px;
+    font-size: 18px;
     line-height: 1.15;
     letter-spacing: -0.02em;
 }
 
 .verify-code-form {
     display: grid;
-    gap: 16px;
+    gap: 12px;
 }
 
 .code-inputs {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
 }
 
 .code-input {
     width: 100%;
     min-width: 0;
-    height: 60px;
+    height: 48px;
     text-align: center;
-    font-size: 24px;
+    font-size: 19px;
     font-weight: 800;
     border: 1px solid rgba(120, 99, 53, 0.24);
-    border-radius: 16px;
+    border-radius: 12px;
     background: #fff;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -136,11 +138,11 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 10px 12px;
     margin: 0;
-    border-radius: 18px;
+    border-radius: 14px;
     border-left: none;
-    font-size: 15px;
+    font-size: 13px;
     line-height: 1.5;
 }
 
@@ -175,7 +177,7 @@
 .resend-section__copy,
 .timer-text {
     margin: 0;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .resend-section__copy {

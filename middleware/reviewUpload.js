@@ -1,3 +1,4 @@
+// Middleware xử lý reviewupload trước khi request đi vào controller.
 const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
@@ -34,10 +35,12 @@ class ReviewUploadError extends Error {
     }
 }
 
+// Tạo dữ liệu đánh giá điều hướng.
 function buildReviewRedirect(slug, code) {
     return `/products/${encodeURIComponent(slug)}?review=${encodeURIComponent(code)}`;
 }
 
+// Dọn dẹp temp tệp.
 function cleanupTempFile(filePath) {
     try {
         if (filePath && fs.existsSync(filePath)) {
@@ -48,10 +51,12 @@ function cleanupTempFile(filePath) {
     }
 }
 
+// Dọn dẹp temp tệp.
 function cleanupTempFiles(files = []) {
     files.forEach((file) => cleanupTempFile(file?.path));
 }
 
+// Xử lý detect đánh giá media type.
 function detectReviewMediaType(file) {
     if (!file) {
         return null;
@@ -68,6 +73,7 @@ function detectReviewMediaType(file) {
     return null;
 }
 
+// Xử lý map l?i upload vào feedback code.
 function mapUploadErrorToFeedbackCode(error) {
     if (!error) {
         return 'invalid-media';
@@ -128,6 +134,7 @@ const reviewUpload = multer({
     }
 });
 
+// Dọn dẹp uploaded cloudinary media.
 async function cleanupUploadedCloudinaryMedia(mediaItems = []) {
     for (const media of mediaItems) {
         const publicId = media?.publicId || media?.public_id;
@@ -142,6 +149,7 @@ async function cleanupUploadedCloudinaryMedia(mediaItems = []) {
     }
 }
 
+// Tải lên đánh giá media tệp.
 async function uploadReviewMediaFiles(files = []) {
     const uploadedMedia = [];
 
@@ -174,6 +182,7 @@ async function uploadReviewMediaFiles(files = []) {
     }
 }
 
+// Xử lý đánh giá media t?i l?n.
 function handleReviewMediaUpload(req, res, next) {
     reviewUpload.array('reviewMedia', MAX_REVIEW_FILES)(req, res, async (error) => {
         if (error) {
@@ -187,7 +196,7 @@ function handleReviewMediaUpload(req, res, next) {
                 : [];
             return next();
         } catch (uploadError) {
-            console.error('Review media upload error:', uploadError);
+            console.error('Review media l?i upload:', uploadError);
             return res.redirect(buildReviewRedirect(req.params.slug, 'upload-failed'));
         }
     });

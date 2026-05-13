@@ -1,14 +1,18 @@
+// Service gom logic adminproductvariantservice để controller không phải lặp xử lý nghiệp vụ.
 const Product = require('../models/Product');
 
+// Chuẩn hóa text.
 function normalizeText(value) {
     return typeof value === 'string' ? value.trim() : '';
 }
 
+// Chuẩn hóa nullable text.
 function normalizeNullableText(value) {
     const normalized = normalizeText(value);
     return normalized === '' ? null : normalized;
 }
 
+// Chuẩn hóa biến thể payload.
 function normalizeVariantPayload(variant) {
     return {
         id: variant.id ? parseInt(variant.id, 10) : null,
@@ -22,6 +26,7 @@ function normalizeVariantPayload(variant) {
     };
 }
 
+// Phân tích biến thể payload.
 function parseVariantsPayload(rawVariants) {
     if (!rawVariants || rawVariants === '[]') {
         return [];
@@ -37,6 +42,7 @@ function parseVariantsPayload(rawVariants) {
         .filter(variant => variant.size || variant.color || variant.sku || variant.image_id || variant.image_key);
 }
 
+// Kiểm tra hợp lệ biến thể.
 function validateVariants(variants) {
     const comboKeys = new Set();
     const skuKeys = new Set();
@@ -66,10 +72,12 @@ function validateVariants(variants) {
     });
 }
 
+// Lấy uploaded tệp url.
 function getUploadedFileUrl(file) {
     return file.cloudinaryUrl || `/uploads/${file.filename}`;
 }
 
+// Xử lý split uploaded tệp.
 function splitUploadedFiles(files) {
     const allFiles = Array.isArray(files)
         ? files
@@ -81,6 +89,7 @@ function splitUploadedFiles(files) {
     };
 }
 
+// Xử lý attach uploaded ảnh vào sản phẩm.
 async function attachUploadedImagesToProduct(productId, files) {
     const { productImages, variantImages } = splitUploadedFiles(files);
     const existingImages = await Product.getImages(productId);
@@ -117,6 +126,7 @@ async function attachUploadedImagesToProduct(productId, files) {
     return imageKeyMap;
 }
 
+// Xác định biến thể ảnh id.
 async function resolveVariantImageId(productId, variant, imageKeyMap) {
     if (variant.image_id) {
         const image = await Product.findImageById(productId, variant.image_id);
@@ -136,6 +146,7 @@ async function resolveVariantImageId(productId, variant, imageKeyMap) {
     return null;
 }
 
+// Đồng bộ biến thể.
 async function syncVariants(productId, rawVariants, imageKeyMap) {
     const variants = parseVariantsPayload(rawVariants);
     validateVariants(variants);

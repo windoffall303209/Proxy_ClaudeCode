@@ -1,6 +1,8 @@
+<%# Template EJS render xác thực email cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header', { pageStyles: ['/css/auth/verify-email.css'] }) %>
 
-<div class="auth-page verify-email-page">
+<!-- ===== Trang xác thực email bằng mã OTP ===== -->
+<div class="auth-page verify-email-page" data-code-sent="<%= codeSent ? 'true' : 'false' %>" data-redirect="<%= typeof redirect !== 'undefined' ? redirect : '' %>">
     <div class="container">
         <div class="auth-container verify-email-shell">
             <div class="verify-email-head">
@@ -14,21 +16,27 @@
                 <strong class="verify-email-recipient__value"><%= user.email %></strong>
             </div>
 
-            <div id="alert-container" class="verify-email-alerts"></div>
+            <div id="alert-container" class="verify-email-alerts">
+                <% if (error) { %>
+                    <div class="alert alert-error"><%= error %></div>
+                <% } %>
+                <% if (success) { %>
+                    <div class="alert alert-success"><%= success %></div>
+                <% } %>
+            </div>
 
-            <div id="step-send" class="verify-panel verify-panel--send">
+            <div id="step-send" class="verify-panel verify-panel--send" <%= codeSent ? 'hidden' : '' %>>
                 <p class="verify-panel__copy">Nhấn nút bên dưới để nhận mã xác nhận qua email.</p>
                 <button type="button" id="btn-send-code" class="btn btn-primary btn-block">
                     Gửi Mã Xác Nhận
                 </button>
             </div>
 
-            <div id="step-verify" class="verify-panel verify-panel--verify" hidden>
+            <div id="step-verify" class="verify-panel verify-panel--verify" <%= codeSent ? '' : 'hidden' %>>
                 <div class="verify-panel__header">
                     <h2>Nhập Mã Xác Nhận</h2>
                     <p>Nhập đủ 6 số đã gửi đến email của bạn. Mã có hiệu lực trong 10 phút.</p>
                 </div>
-
                 <form id="verify-form" class="verify-code-form">
                     <div class="code-inputs" aria-label="Nhập mã xác nhận 6 số">
                         <input type="text" maxlength="1" class="code-input" data-index="0" inputmode="numeric" pattern="[0-9]*" aria-label="Số 1" autofocus>
@@ -52,7 +60,7 @@
             </div>
 
             <div class="auth-footer verify-email-footer">
-                <a href="/auth/profile">Quay lại trang cá nhân</a>
+                <a href="/auth/login">Quay lại đăng nhập</a>
             </div>
         </div>
     </div>

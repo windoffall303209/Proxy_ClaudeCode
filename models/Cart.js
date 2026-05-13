@@ -102,6 +102,37 @@ class Cart {
         await pool.execute('DELETE FROM cart WHERE id = ?', [guestCartId]);
     }
 
+    // Lấy available stock.
+    static async getAvailableStock(productId, variantId = null) {
+        if (variantId !== null && variantId !== undefined) {
+            const [variants] = await pool.execute(
+                `SELECT pv.stock_quantity
+                 FROM product_variants pv
+                 JOIN products p ON pv.product_id = p.id
+                 WHERE pv.id = ? AND pv.product_id = ? AND p.is_active = TRUE
+                 LIMIT 1`,
+                [variantId, productId]
+            );
+
+            if (variants.length === 0) {
+                throw new Error('Variant is not available for this product');
+            }
+
+            return Number.parseInt(variants[0].stock_quantity, 10) || 0;
+        }
+
+        const [products] = await pool.execute(
+            'SELECT stock_quantity FROM products WHERE id = ? AND is_active = TRUE LIMIT 1',
+            [productId]
+        );
+
+        if (products.length === 0) {
+            throw new Error('Product is not available');
+        }
+
+        return Number.parseInt(products[0].stock_quantity, 10) || 0;
+    }
+
     // =========================================================================
     // QUẢN LÝ SẢN PHẨM TRONG GIỎ
     // =========================================================================
@@ -120,17 +151,30 @@ class Cart {
      *                   updated = true nếu cập nhật số lượng, false nếu thêm mới
      */
     static async addItem(cartId, productId, quantity = 1, variantId = null) {
+        const quantityNumber = Number.parseInt(quantity, 10);
+        if (!Number.isInteger(quantityNumber) || quantityNumber <= 0) {
+            throw new Error('Quantity is invalid');
+        }
+
         // Kiểm tra sản phẩm đã có trong giỏ chưa
         const checkQuery = `
             SELECT * FROM cart_items
             WHERE cart_id = ? AND product_id = ? AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))
         `;
         const [existing] = await pool.execute(checkQuery, [cartId, productId, variantId ?? null, variantId ?? null]);
+        const existingQuantity = existing.length > 0 ? Number.parseInt(existing[0].quantity, 10) || 0 : 0;
+        const nextQuantity = existingQuantity + quantityNumber;
+        const availableStock = await this.getAvailableStock(productId, variantId);
+
+        if (availableStock < nextQuantity) {
+            throw new Error('Insufficient stock');
+        }
 
         if (existing.length > 0) {
             // Đã có: cập nhật số lượng (cộng thêm)
             const updateQuery = 'UPDATE cart_items SET quantity = quantity + ? WHERE id = ?';
-            await pool.execute(updateQuery, [quantity, existing[0].id]);
+            await pool.execute(updateQuery, [quantityNumber, existing[0].id]);
+            await pool.execute('UPDATE cart SET updated_at = NOW() WHERE id = ?', [cartId]);
             return { id: existing[0].id, updated: true };
         } else {
             // Chưa có: thêm mới
@@ -138,7 +182,7 @@ class Cart {
                 INSERT INTO cart_items (cart_id, product_id, variant_id, quantity)
                 VALUES (?, ?, ?, ?)
             `;
-            const [result] = await pool.execute(insertQuery, [cartId, productId, variantId ?? null, quantity]);
+            const [result] = await pool.execute(insertQuery, [cartId, productId, variantId ?? null, quantityNumber]);
 
             // Cập nhật thời gian giỏ hàng
             await pool.execute('UPDATE cart SET updated_at = NOW() WHERE id = ?', [cartId]);
@@ -147,6 +191,7 @@ class Cart {
         }
     }
 
+    // Tìm item theo sản phẩm.
     static async findItemByProduct(cartId, productId, variantId = null) {
         const query = `
             SELECT *
@@ -158,6 +203,7 @@ class Cart {
         return items[0] || null;
     }
 
+    // Lấy scoped item.
     static async getScopedItem(cartId, cartItemId) {
         const query = `
             SELECT *

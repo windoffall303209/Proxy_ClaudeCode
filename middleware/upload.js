@@ -1,16 +1,17 @@
+// Cấu hình upload ảnh chung và đẩy file lên Cloudinary sau khi multer nhận file.
 const multer = require('multer');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 
-// Use OS temp directory for temporary local storage before uploading to Cloudinary
+// Dùng thư mục tạm của hệ điều hành trước khi đẩy file lên Cloudinary.
 const tempDir = path.join(os.tmpdir(), 'tmdt_uploads');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Storage configuration - save to temp directory before uploading to Cloudinary
+// Multer lưu file vào thư mục tạm, bước sau mới upload lên Cloudinary.
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, tempDir);
@@ -21,7 +22,7 @@ const storage = multer.diskStorage({
     }
 });
 
-// File filter - only images
+// Kiểm tra file upload có đúng định dạng ảnh được hỗ trợ hay không.
 const fileFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -34,7 +35,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Create multer upload instance
+// Instance multer dùng chung cho các route nhận ảnh.
 const upload = multer({
     storage: storage,
     limits: {
@@ -43,6 +44,7 @@ const upload = multer({
     fileFilter: fileFilter
 });
 
+// Tải lên single tệp.
 async function uploadSingleFile(file, folder) {
     const localPath = file.path;
 
@@ -61,8 +63,7 @@ async function uploadSingleFile(file, folder) {
 }
 
 /**
- * Middleware to upload files to Cloudinary (cloud only)
- * After multer saves to temp, this uploads to Cloudinary then deletes the temp file
+ * Middleware đẩy file đã được multer lưu tạm lên Cloudinary rồi xóa file local.
  */
 const uploadToCloud = async (req, res, next) => {
     try {
@@ -90,7 +91,7 @@ const uploadToCloud = async (req, res, next) => {
             return;
         }
 
-        // Handle single file
+        // Nhánh fallback cho request chỉ có một file.
         if (req.file) {
             const localPath = req.file.path;
             const result = await uploadToCloudinary(localPath, {
@@ -104,11 +105,11 @@ const uploadToCloud = async (req, res, next) => {
                 console.error('❌ Cloudinary upload failed:', result.error);
             }
 
-            // Delete temp file after upload
+            // Xóa file tạm sau khi Cloudinary đã nhận dữ liệu.
             cleanupTempFile(localPath);
         }
 
-        // Handle multiple files (array)
+        // Nhánh fallback cho nhiều file cùng một field.
         if (req.files && Array.isArray(req.files)) {
             for (const file of req.files) {
                 const localPath = file.path;
@@ -123,12 +124,12 @@ const uploadToCloud = async (req, res, next) => {
                     console.error('❌ Cloudinary upload failed:', result.error);
                 }
 
-                // Delete temp file after upload
+                // Xóa file tạm sau khi Cloudinary đã nhận dữ liệu.
                 cleanupTempFile(localPath);
             }
         }
 
-        // Handle files object (multiple fields)
+        // Nhánh fallback cho nhiều field upload khác nhau.
         if (req.files && !Array.isArray(req.files)) {
             for (const fieldName in req.files) {
                 for (const file of req.files[fieldName]) {
@@ -144,7 +145,7 @@ const uploadToCloud = async (req, res, next) => {
                         console.error('❌ Cloudinary upload failed:', result.error);
                     }
 
-                    // Delete temp file after upload
+                    // Xóa file tạm sau khi Cloudinary đã nhận dữ liệu.
                     cleanupTempFile(localPath);
                 }
             }
@@ -152,13 +153,13 @@ const uploadToCloud = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.error('❌ Cloud upload error:', error);
+        console.error('❌ Cloud l?i upload:', error);
         next(error);
     }
 };
 
 /**
- * Get the Cloudinary URL for an uploaded file
+ * Lấy URL Cloudinary đã gắn vào ??i t??ng file sau khi upload.
  */
 const getFileUrl = (file) => {
     if (file.cloudinaryUrl) {
@@ -169,17 +170,17 @@ const getFileUrl = (file) => {
 };
 
 /**
- * Delete file from Cloudinary
+ * Xóa file trên Cloudinary nếu request có public ID.
  */
 const deleteFile = async (localPath, cloudinaryPublicId) => {
-    // Delete from Cloudinary
+    // localPath được giữ trong chữ ký hàm để tương thích với code gọi hiện có.
     if (cloudinaryPublicId) {
         await deleteFromCloudinary(cloudinaryPublicId);
     }
 };
 
 /**
- * Cleanup temporary local file
+ * Xóa file tạm trên máy chủ sau khi xử lý upload.
  */
 const cleanupTempFile = (filePath) => {
     try {

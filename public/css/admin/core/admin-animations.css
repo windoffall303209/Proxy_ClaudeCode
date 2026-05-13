@@ -37,7 +37,7 @@
     }
 }
 
-/* Toast container */
+/* Vùng cố định hiển thị toast của khu admin. */
 .toast-container {
     position: fixed;
     top: 80px;

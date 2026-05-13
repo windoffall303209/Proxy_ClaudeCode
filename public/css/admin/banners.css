@@ -1,4 +1,4 @@
-/* Page Header */
+/* Tiêu đề và thanh thao tác của màn quản lý banner. */
 .admin-page-header {
     display: flex;
     justify-content: space-between;
@@ -19,7 +19,7 @@
     margin: 0;
 }
 
-/* Admin Form */
+/* Form tạo/sửa banner trong modal admin. */
 .admin-form__row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -39,6 +39,12 @@
 }
 
 /* Banners Grid */
+.banners-sort-hint {
+    margin: 0 0 12px;
+    color: var(--admin-text-secondary);
+    font-size: 13px;
+}
+
 .banners-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -218,7 +224,7 @@
     color: white;
 }
 
-/* Responsive */
+/* Điều chỉnh layout banner cho màn nhỏ. */
 @media (max-width: 1024px) {
     .banners-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -248,7 +254,7 @@
 .admin-section--collapsible.is-open .admin-section__content {
     max-height: 2000px;
     opacity: 1;
-    padding-top: 20px;
+    padding-top: 16px;
 }
 
 .admin-section__title--toggle {
@@ -302,5 +308,36 @@
 }
 
 .banner-card__status-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
     z-index: 2;
+}
+
+.banner-card__status-badge--active {
+    background: rgba(76, 175, 80, 0.9);
+}
+
+.banner-card__status-badge--hidden {
+    background: rgba(244, 67, 54, 0.9);
+}
+
+.admin-modal__content--banner-edit {
+    max-width: 540px;
+}
+
+.admin-form__group--modal {
+    margin-bottom: 16px;
+}
+
+.admin-form__hint--compact {
+    margin-top: 4px;
+    color: var(--admin-text-secondary);
+    font-size: 12px;
 }

@@ -1,9 +1,11 @@
+// Nạp cấu hình môi trường và khởi động HTTP server cho Express app.
 require('dotenv').config();
 const app = require('./app');
 
 const PORT = process.env.PORT || 3000;
 let server = null;
 
+// Định dạng startup tin nhắn.
 function formatStartupMessage(port) {
     const emailConfigured = Boolean(process.env.RESEND_API_KEY);
     const environment = process.env.NODE_ENV || 'development';
@@ -18,6 +20,7 @@ function formatStartupMessage(port) {
     ].join('\n');
 }
 
+// Xử lý start server.
 function startServer(port = PORT) {
     if (server && server.listening) {
         return Promise.resolve(server);
@@ -26,11 +29,13 @@ function startServer(port = PORT) {
     return new Promise((resolve, reject) => {
         const instance = app.listen(port);
 
+        // Xử lý error.
         const handleError = (error) => {
             instance.off('listening', handleListening);
             reject(error);
         };
 
+        // Xử lý listening.
         const handleListening = () => {
             instance.off('error', handleError);
             server = instance;
@@ -47,6 +52,7 @@ function startServer(port = PORT) {
     });
 }
 
+// Xử lý stop server.
 function stopServer() {
     if (!server) {
         return Promise.resolve();
@@ -64,6 +70,7 @@ function stopServer() {
     });
 }
 
+// Xử lý shutdown.
 async function shutdown(signal) {
     console.log(`${signal} received. Shutting down gracefully...`);
 

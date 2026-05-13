@@ -1,3 +1,4 @@
+// Script bảo trì sync chat RAG, dùng khi cần kiểm tra hoặc đồng bộ dữ liệu dự án.
 require('dotenv').config();
 
 const { syncChatRagIndex } = require('../services/chatRagService');

@@ -1,7 +1,9 @@
+/* Định nghĩa giao diện storefront cho người dùng hồ sơ người dùng. */
 .profile-grid {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
     gap: 22px;
+    min-width: 0;
 }
 
 .profile-sidebar,
@@ -17,6 +19,7 @@
     top: calc(var(--header-height) + 18px);
     padding: 26px;
     text-align: center;
+    min-width: 0;
 }
 
 .profile-avatar {
@@ -69,12 +72,15 @@
 .profile-sidebar__name {
     font-size: 28px;
     line-height: 1.05;
+    overflow-wrap: anywhere;
 }
 
 .profile-sidebar__email,
 .profile-sidebar__joined {
     margin-top: 8px;
     color: var(--muted);
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .profile-sidebar__badges {
@@ -99,6 +105,7 @@
 .profile-content {
     display: grid;
     gap: 18px;
+    min-width: 0;
 }
 
 .profile-section {
@@ -173,6 +180,11 @@
     border-radius: 22px;
     background: #faf4e8;
     border: 1px solid rgba(215, 197, 154, 0.72);
+    min-width: 0;
+}
+
+.contact-info__left {
+    min-width: 0;
 }
 
 .contact-info__label {
@@ -187,12 +199,16 @@
     margin-top: 6px;
     font-size: 18px;
     font-weight: 800;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .contact-info__right {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 0 0 auto;
 }
 
 .verification-badge {
@@ -305,5 +321,166 @@
     .profile-avatar {
         width: 118px;
         height: 118px;
+    }
+}
+
+/* Compact account page */
+.profile-grid {
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
+}
+
+.profile-sidebar,
+.profile-section {
+    border-radius: 22px;
+}
+
+.profile-sidebar {
+    padding: 18px;
+}
+
+.profile-avatar {
+    width: 112px;
+    height: 112px;
+}
+
+.profile-sidebar__name {
+    margin-top: 12px;
+    font-size: 20px;
+}
+
+.profile-sidebar__email,
+.profile-sidebar__joined {
+    font-size: 12.5px;
+}
+
+.profile-sidebar__badges {
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.profile-sidebar__badges span {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 11.5px;
+}
+
+.profile-section {
+    padding: 18px;
+}
+
+.profile-section__header {
+    margin-bottom: 12px;
+}
+
+.profile-section__title {
+    font-size: 21px;
+}
+
+.profile-section__copy {
+    margin-top: 4px;
+    font-size: 13px;
+}
+
+.profile-form__grid {
+    gap: 12px;
+}
+
+.profile-form__field {
+    margin-bottom: 12px;
+}
+
+.profile-form__label {
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.profile-form__input {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 13px;
+    font-size: 13.5px;
+}
+
+.profile-form__submit,
+.verify-btn {
+    min-height: 42px;
+    padding: 0 15px;
+    border-radius: 13px;
+    font-size: 13px;
+}
+
+.contact-info {
+    gap: 9px;
+}
+
+.contact-info__item {
+    gap: 10px;
+    padding: 13px;
+    border-radius: 16px;
+    align-items: flex-start;
+}
+
+.contact-info__label {
+    font-size: 11.5px;
+}
+
+.contact-info__value {
+    margin-top: 4px;
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.verification-badge {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 11.5px;
+}
+
+.password-section__info {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+}
+
+.password-toggle {
+    width: 30px;
+    height: 30px;
+    right: 10px;
+    border-radius: 999px;
+}
+
+.password-toggle:hover {
+    background: rgba(24, 20, 13, 0.07);
+}
+
+.password-toggle svg,
+.password-toggle img {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+@media (max-width: 900px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .profile-section {
+        padding: 15px;
+        border-radius: 18px;
+    }
+
+    .profile-form__grid {
+        grid-template-columns: 1fr;
     }
 }

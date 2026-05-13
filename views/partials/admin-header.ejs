@@ -1,3 +1,4 @@
+<%# Partial EJS dùng lại cho quản trị header để các view giữ cấu trúc thống nhất. %>
 <!DOCTYPE html>
 <html lang="vi">
 <%
@@ -6,8 +7,10 @@
         dashboard: { label: 'Bảng điều khiển', group: 'Tổng quan' },
         products: { label: 'Sản phẩm', group: 'Danh mục bán hàng' },
         orders: { label: 'Đơn hàng', group: 'Vận hành bán hàng' },
+        returns: { label: 'Hoàn hàng', group: 'Vận hành bán hàng' },
         users: { label: 'Người dùng', group: 'Quản trị tài khoản' },
         banners: { label: 'Banner', group: 'Nội dung hiển thị' },
+        storefront: { label: 'Quản lí trang web', group: 'Nội dung hiển thị' },
         sales: { label: 'Khuyến mãi', group: 'Giá và ưu đãi' },
         vouchers: { label: 'Voucher', group: 'Giá và ưu đãi' },
         chat: { label: 'Chat khách hàng', group: 'Chăm sóc khách hàng' }
@@ -15,7 +18,7 @@
 
     const pageMeta = adminPages[currentPage] || { label: 'Quản trị', group: 'Back office' };
     const adminUserName = user && user.full_name ? user.full_name : 'Quản trị viên';
-    const adminUserEmail = user && user.email ? user.email : 'admin@windoffall.local';
+    const adminUserEmail = user && user.email ? privacy.maskEmail(user.email) : 'admin@windoffall.local';
     const adminUserInitial = adminUserName.trim().charAt(0).toUpperCase();
     const todayLabel = new Date().toLocaleDateString('vi-VN', {
         weekday: 'long',
@@ -25,31 +28,42 @@
     });
     const isChatPage = currentPage === 'chat';
     const extraAdminPageStyles = Array.isArray(typeof pageStyles !== 'undefined' ? pageStyles : null) ? pageStyles : [];
+    const adminWebsiteSettings = typeof storefrontSettings !== 'undefined' && storefrontSettings ? storefrontSettings : {};
+    const adminSiteName = adminWebsiteSettings.site_name || 'WIND OF FALL';
+    const adminLogoUrl = adminWebsiteSettings.admin_logo_url || adminWebsiteSettings.logo_url || '/favicon.png';
+    const adminFaviconUrl = adminWebsiteSettings.favicon_url || '/favicon.png';
 %>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= pageMeta.label %> | Admin WIND OF FALL</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
+    <title><%= pageMeta.label %> | Admin <%= adminSiteName %></title>
+    <link rel="icon" type="image/png" href="<%= adminFaviconUrl %>">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/admin.css">
-    <link rel="stylesheet" href="/css/admin-animations.css">
-    <link rel="stylesheet" href="/css/admin-overhaul.css">
+    <link rel="stylesheet" href="/css/admin/core/admin-variables.css">
+    <link rel="stylesheet" href="/css/admin/core/admin-sidebar.css">
+    <link rel="stylesheet" href="/css/admin/core/admin-components.css">
+    <link rel="stylesheet" href="/css/admin/core/admin-responsive.css">
+    <link rel="stylesheet" href="/css/admin/core/admin.css">
+    <link rel="stylesheet" href="/css/admin/core/admin-animations.css">
+    <link rel="stylesheet" href="/css/admin/core/admin-overhaul.css">
     <% extraAdminPageStyles.forEach((href) => { %>
         <link rel="stylesheet" href="<%= href %>">
     <% }) %>
+    <link rel="stylesheet" href="/css/admin/core/admin-compact-density.css">
 </head>
 
+<!-- ===== Khung Admin: sidebar, topbar, vùng nội dung ===== -->
 <body class="admin-body admin-body--<%= currentPage %>">
+    <!-- Sidebar điều hướng bên trái -->
     <aside class="admin-sidebar" id="adminSidebar">
         <div class="admin-sidebar__brand">
             <a href="/admin/dashboard" class="admin-sidebar__brand-link">
-                <img src="/favicon.png" alt="WIND OF FALL" class="admin-sidebar__brand-mark">
+                <img src="<%= adminLogoUrl %>" alt="<%= adminSiteName %>" class="admin-sidebar__brand-mark">
                 <span class="admin-sidebar__brand-copy">
-                    <strong>WIND OF FALL</strong>
+                    <strong><%= adminSiteName %></strong>
                     <small>Back office control</small>
                 </span>
             </a>
@@ -98,6 +112,15 @@
                         <strong>Đơn hàng</strong>
                     </span>
                 </a>
+                <a href="/admin/returns" class="<%= currentPage === 'returns' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 14 4 9 9 4" />
+                        <path d="M4 9h10a6 6 0 0 1 0 12h-2" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Hoàn hàng</strong>
+                    </span>
+                </a>
                 <a href="/admin/users" class="<%= currentPage === 'users' ? 'active' : '' %>">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -117,6 +140,22 @@
                     </svg>
                     <span class="admin-sidebar__nav-copy">
                         <strong>Banner</strong>
+                    </span>
+                </a>
+                <a href="/admin/storefront" class="<%= currentPage === 'storefront' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="4" y1="21" x2="4" y2="14" />
+                        <line x1="4" y1="10" x2="4" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12" y2="3" />
+                        <line x1="20" y1="21" x2="20" y2="16" />
+                        <line x1="20" y1="12" x2="20" y2="3" />
+                        <line x1="1" y1="14" x2="7" y2="14" />
+                        <line x1="9" y1="8" x2="15" y2="8" />
+                        <line x1="17" y1="16" x2="23" y2="16" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Quản lí trang web</strong>
                     </span>
                 </a>
                 <a href="/admin/sales" class="<%= currentPage === 'sales' ? 'active' : '' %>">
@@ -169,7 +208,7 @@
                     </svg>
                     <span>Xem storefront</span>
                 </a>
-                <form action="/auth/logout" method="POST" class="admin-sidebar__logout-form">
+                <form action="/admin/logout" method="POST" class="admin-sidebar__logout-form">
                     <button type="submit" class="admin-sidebar__link admin-sidebar__link--danger">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -183,6 +222,7 @@
         </div>
     </aside>
 
+    <!-- Thanh topbar (nút mobile + thao tác nhanh) -->
     <header class="admin-topbar">
         <button class="admin-topbar__toggle" id="adminMobileMenuBtn" aria-label="Mở menu">
             <span></span>
@@ -191,9 +231,9 @@
         </button>
 
         <a href="/admin/dashboard" class="admin-topbar__brand">
-            <img src="/favicon.png" alt="WIND OF FALL" class="admin-topbar__brand-mark">
+            <img src="<%= adminLogoUrl %>" alt="<%= adminSiteName %>" class="admin-topbar__brand-mark">
             <span class="admin-topbar__brand-copy">
-                <strong>WIND OF FALL</strong>
+                <strong><%= adminSiteName %></strong>
                 <small>Admin</small>
             </span>
         </a>
@@ -205,7 +245,7 @@
                     <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
             </a>
-            <form action="/auth/logout" method="POST" class="admin-topbar__logout-form">
+            <form action="/admin/logout" method="POST" class="admin-topbar__logout-form">
                 <button type="submit" title="Đăng xuất">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

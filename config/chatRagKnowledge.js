@@ -1,3 +1,4 @@
+// Khai báo nguồn kiến thức tĩnh để chatbot RAG trả lời theo dữ liệu cửa hàng.
 module.exports = [
     {
         sourceKey: 'store-overview',

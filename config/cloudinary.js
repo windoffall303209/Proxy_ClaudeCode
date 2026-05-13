@@ -1,6 +1,7 @@
+// Cấu hình Cloudinary và helper upload/xóa ảnh dùng trong các luồng quản trị.
 const cloudinary = require('cloudinary').v2;
 
-// Configure Cloudinary
+// Cấu hình Cloudinary bằng biến môi trường để dùng chung cho upload và xóa ảnh.
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -9,10 +10,10 @@ cloudinary.config({
 });
 
 /**
- * Upload file to Cloudinary
- * @param {string} filePath - Local file path
- * @param {object} options - Upload options
- * @returns {Promise<object>} - Cloudinary upload result
+ * Tải file lên Cloudinary và chuẩn hóa dữ liệu trả về cho controller.
+ * @param {string} filePath - Đường dẫn file tạm trên server
+ * @param {object} options - Tùy chọn tải lên của Cloudinary
+ * @returns {Promise<object>} Kết quả tải lên đã rút gọn
  */
 const uploadToCloudinary = async (filePath, options = {}) => {
     try {
@@ -45,7 +46,7 @@ const uploadToCloudinary = async (filePath, options = {}) => {
             bytes: result.bytes
         };
     } catch (error) {
-        console.error('Cloudinary upload error:', error);
+        console.error('Cloudinary l?i upload:', error);
         return {
             success: false,
             error: error.message
@@ -54,10 +55,10 @@ const uploadToCloudinary = async (filePath, options = {}) => {
 };
 
 /**
- * Delete file from Cloudinary
- * @param {string} publicId - Cloudinary public ID
- * @param {object} [options] - Delete options
- * @returns {Promise<object>} - Delete result
+ * Xóa asset khỏi Cloudinary theo public ID.
+ * @param {string} publicId - Public ID của asset trên Cloudinary
+ * @param {object} [options] - Tùy chọn xóa của Cloudinary
+ * @returns {Promise<object>} Kết quả xóa đã chuẩn hóa
  */
 const deleteFromCloudinary = async (publicId, options = {}) => {
     try {
@@ -76,10 +77,10 @@ const deleteFromCloudinary = async (publicId, options = {}) => {
 };
 
 /**
- * Get optimized URL with transformations
- * @param {string} publicId - Cloudinary public ID
- * @param {object} options - Transformation options
- * @returns {string} - Optimized URL
+ * Tạo URL ảnh tối ưu với transformation mặc định.
+ * @param {string} publicId - Public ID của ảnh trên Cloudinary
+ * @param {object} options - Tùy chọn transformation bổ sung
+ * @returns {string} URL ảnh đã áp dụng transformation
  */
 const getOptimizedUrl = (publicId, options = {}) => {
     const defaultTransformations = {

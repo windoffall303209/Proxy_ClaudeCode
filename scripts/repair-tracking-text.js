@@ -1,3 +1,4 @@
+// Script bảo trì repair theo dõi đơn hàng text, dùng khi cần kiểm tra hoặc đồng bộ dữ liệu dự án.
 const pool = require('../config/database');
 
 const PRESETS = {
@@ -27,6 +28,7 @@ const PRESETS = {
     }
 };
 
+// Xử lý looks corrupted.
 function looksCorrupted(value) {
     const text = String(value || '');
 
@@ -37,6 +39,7 @@ function looksCorrupted(value) {
     return /[?]/.test(text) || /Ã|Ä|Æ|áº|á»|â|�/.test(text);
 }
 
+// Xử lý repair theo dõi text.
 async function repairTrackingText() {
     const [rows] = await pool.execute(
         'SELECT id, status, title, description FROM order_tracking_events ORDER BY id ASC'

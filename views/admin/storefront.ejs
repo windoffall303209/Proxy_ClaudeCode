@@ -1,0 +1,221 @@
+<%# Trung tâm quản lí trang web: cấu hình nhận diện, giao diện, nội dung và vận hành. %>
+<%- include('../partials/admin-header', {
+    currentPage: 'storefront',
+    pageStyles: ['/css/admin/storefront.css']
+}) %>
+
+<%
+    const state = settingsState || {};
+    const groups = Array.isArray(settingGroups) ? settingGroups : [];
+    const definitions = settingDefinitions || {};
+    const currentValues = state.inputValues || settings || {};
+    const publishedValues = state.publishedValues || {};
+    const currentActiveSection = typeof activeSection !== 'undefined' && activeSection
+        ? activeSection
+        : '';
+
+    function inputValue(key) {
+        const value = currentValues[key];
+        if (value === undefined || value === null) return '';
+        return value;
+    }
+
+    function publishedValue(key) {
+        const value = publishedValues[key];
+        if (value === undefined || value === null) return '';
+        return value;
+    }
+
+    function isChecked(key) {
+        const value = currentValues[key];
+        return value === true || value === 'true' || value === 1 || value === '1';
+    }
+
+    function isLongText(definition) {
+        return definition.type === 'json' || Number(definition.maxLength || 0) > 220;
+    }
+%>
+
+<div class="admin-page" data-website-management data-active-section="<%= currentActiveSection %>">
+    <div class="container">
+        <div class="admin-page-header">
+            <div class="admin-page-header__left">
+                <h1>Quản lí trang web</h1>
+            </div>
+        </div>
+
+        <% if (notice) { %>
+            <div class="storefront-notice storefront-notice--<%= noticeType === 'error' ? 'error' : (noticeType === 'warning' ? 'warning' : 'success') %>">
+                <%= notice %>
+            </div>
+        <% } %>
+
+        <div class="website-management-shell">
+            <aside class="website-management-sidebar" aria-label="Danh sách chức năng quản lí trang web">
+                <div class="website-management-sidebar__head">
+                    <strong>Chức năng</strong>
+                    <% if (state.hasDraft) { %>
+                        <span><%= state.draftKeys.length %> mục nháp</span>
+                    <% } else { %>
+                        <span>Đã áp dụng</span>
+                    <% } %>
+                </div>
+
+                <div class="website-management-menu" data-website-menu>
+                    <% groups.forEach((group) => { %>
+                        <button
+                            type="button"
+                            class="website-management-card"
+                            data-website-section-target="<%= group.key %>"
+                        >
+                            <span><%= group.title %></span>
+                            <% if (group.hasDraft) { %>
+                                <em>Có <%= group.draftCount %> bản nháp</em>
+                            <% } else { %>
+                                <em>Đã áp dụng</em>
+                            <% } %>
+                        </button>
+                    <% }) %>
+                </div>
+            </aside>
+
+            <div class="website-management-content">
+                <% groups.forEach((group) => { %>
+                    <section class="admin-section website-management-panel" data-website-section="<%= group.key %>" hidden>
+                        <div class="website-management-panel__top">
+                            <button type="button" class="admin-btn admin-btn--ghost website-management-back" data-website-back aria-label="Quay lại danh sách" title="Quay lại danh sách">&larr;</button>
+                            <div>
+                                <h3 class="admin-section__title"><%= group.title %></h3>
+                            </div>
+                            <span class="website-management-status <%= group.hasDraft ? 'website-management-status--draft' : '' %>">
+                                <%= group.hasDraft ? 'Có bản nháp' : 'Đã áp dụng' %>
+                            </span>
+                        </div>
+
+                        <form action="/admin/storefront/draft" method="POST" class="admin-form storefront-settings-form">
+                            <input type="hidden" name="active_group" value="<%= group.key %>">
+
+                            <div class="storefront-settings-grid">
+                                <% group.keys.forEach((key) => { %>
+                                    <% const definition = definitions[key] || {}; %>
+                                    <div class="storefront-settings-card storefront-settings-card--<%= definition.type || 'string' %>">
+                                        <div class="storefront-settings-card__label-row">
+                                            <label class="admin-form__label" for="setting-<%= key %>"><%= definition.label || key %></label>
+                                            <% if (state.draftKeys && state.draftKeys.includes(key)) { %>
+                                                <span class="storefront-settings-card__draft">Nháp</span>
+                                            <% } %>
+                                        </div>
+
+                                        <% if (definition.type === 'boolean') { %>
+                                            <input type="hidden" name="<%= key %>" value="false">
+                                            <label class="website-toggle">
+                                                <input
+                                                    id="setting-<%= key %>"
+                                                    type="checkbox"
+                                                    name="<%= key %>"
+                                                    value="true"
+                                                    <%= isChecked(key) ? 'checked' : '' %>
+                                                >
+                                                <span></span>
+                                                <strong><%= isChecked(key) ? 'Đang bật' : 'Đang tắt' %></strong>
+                                            </label>
+                                        <% } else if (definition.type === 'select') { %>
+                                            <select id="setting-<%= key %>" name="<%= key %>" class="admin-form__select">
+                                                <% (definition.options || []).forEach((option) => { %>
+                                                    <option value="<%= option.value %>" <%= String(inputValue(key)) === String(option.value) ? 'selected' : '' %>><%= option.label %></option>
+                                                <% }) %>
+                                            </select>
+                                        <% } else if (definition.type === 'int') { %>
+                                            <input
+                                                id="setting-<%= key %>"
+                                                type="number"
+                                                name="<%= key %>"
+                                                class="admin-form__input"
+                                                min="<%= definition.min ?? '' %>"
+                                                max="<%= definition.max ?? '' %>"
+                                                value="<%= inputValue(key) %>"
+                                            >
+                                        <% } else if (definition.type === 'color') { %>
+                                            <div class="website-color-input">
+                                                <input id="setting-<%= key %>" type="color" name="<%= key %>" value="<%= inputValue(key) %>">
+                                                <code><%= inputValue(key) %></code>
+                                            </div>
+                                        <% } else if (definition.type === 'image') { %>
+                                            <div class="website-asset-field" data-storefront-asset>
+                                                <div class="website-asset-field__preview">
+                                                    <% if (inputValue(key)) { %>
+                                                        <img src="<%= inputValue(key) %>" alt="<%= definition.label || key %>" data-storefront-asset-preview>
+                                                    <% } else { %>
+                                                        <span data-storefront-asset-preview>Chưa có ảnh</span>
+                                                    <% } %>
+                                                </div>
+                                                <input
+                                                    id="setting-<%= key %>"
+                                                    type="text"
+                                                    name="<%= key %>"
+                                                    class="admin-form__input"
+                                                    value="<%= inputValue(key) %>"
+                                                    data-storefront-asset-value
+                                                >
+                                                <label class="admin-btn admin-btn--ghost website-asset-field__button">
+                                                    Upload ảnh
+                                                    <input type="file" accept="image/*" data-storefront-asset-input hidden>
+                                                </label>
+                                            </div>
+                                        <% } else if (definition.type === 'json' || isLongText(definition)) { %>
+                                            <textarea
+                                                id="setting-<%= key %>"
+                                                name="<%= key %>"
+                                                class="admin-form__textarea"
+                                                rows="<%= definition.type === 'json' ? 5 : 3 %>"
+                                            ><%= inputValue(key) %></textarea>
+                                        <% } else { %>
+                                            <input
+                                                id="setting-<%= key %>"
+                                                type="text"
+                                                name="<%= key %>"
+                                                class="admin-form__input"
+                                                maxlength="<%= definition.maxLength || 500 %>"
+                                                value="<%= inputValue(key) %>"
+                                            >
+                                        <% } %>
+
+                                        <% if (publishedValue(key) !== '' && String(publishedValue(key)) !== String(inputValue(key))) { %>
+                                            <p class="storefront-settings-card__hint">Đang áp dụng: <code><%= typeof publishedValue(key) === 'object' ? JSON.stringify(publishedValue(key)) : publishedValue(key) %></code></p>
+                                        <% } %>
+                                    </div>
+                                <% }) %>
+                            </div>
+
+                            <div class="website-management-panel__actions">
+                                <button type="submit" class="admin-btn admin-btn--primary">Lưu nháp</button>
+                            </div>
+                        </form>
+
+                        <div class="website-management-panel__secondary-actions">
+                            <form action="/admin/storefront/publish" method="POST">
+                                <input type="hidden" name="active_group" value="<%= group.key %>">
+                                <button type="submit" class="admin-btn admin-btn--success" <%= group.hasDraft ? '' : 'disabled' %>>Áp dụng</button>
+                            </form>
+                            <form action="/admin/storefront/discard" method="POST">
+                                <input type="hidden" name="active_group" value="<%= group.key %>">
+                                <button type="submit" class="admin-btn admin-btn--ghost" <%= group.hasDraft ? '' : 'disabled' %>>Bỏ nháp</button>
+                            </form>
+                            <form action="/admin/storefront/reset" method="POST">
+                                <input type="hidden" name="active_group" value="<%= group.key %>">
+                                <button type="submit" class="admin-btn admin-btn--danger">Khôi phục mặc định</button>
+                            </form>
+                            <% if (group.key === 'banner_popup') { %>
+                                <a href="/admin/banners" class="admin-btn admin-btn--ghost">Mở Quản lí banner</a>
+                            <% } %>
+                        </div>
+                    </section>
+                <% }) %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/admin/storefront.js?v=website-management-20260426"></script>
+
+<%- include('../partials/admin-footer') %>

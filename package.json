@@ -12,6 +12,7 @@
     "check:inline-views": "node scripts/check-no-inline-view-assets.js",
     "chat:rag:sync": "node scripts/sync-chat-rag.js",
     "product:visual:sync": "node scripts/sync-product-image-embeddings.js",
+    "product:category:reconcile": "node scripts/reconcile-product-category-ids.js",
     "test": "jest --coverage"
   },
   "keywords": [

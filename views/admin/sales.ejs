@@ -1,10 +1,21 @@
+<%# Template admin render màn quản trị khuyến mãi với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'sales', pageStyles: ['/css/admin/sales.css'] }) %>
 
-<% const canNotifySubscribers = Number(subscriberCount || 0) > 0; %>
+<%
+    const canNotifySubscribers = Number(subscriberCount || 0) > 0;
+    const currentSaleStats = typeof saleStats !== 'undefined' && saleStats ? saleStats : {};
+    const saleStatusLabels = {
+        unassigned: 'Chưa gắn sản phẩm',
+        paused: 'Tạm dừng',
+        upcoming: 'Sắp diễn ra',
+        expired: 'Hết hạn',
+        active: 'Đang diễn ra'
+    };
+%>
 
 <div class="admin-page">
     <div class="container">
-        <!-- Page Header -->
+        <!-- Tiêu đề trang + nút thao tác nhanh -->
         <div class="admin-page-header">
             <div class="admin-page-header__left">
                 <h1>Quản Lý Khuyến Mãi</h1>
@@ -32,35 +43,32 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- Các thẻ thống kê khuyến mãi -->
         <div class="stats-grid">
             <div class="stat-card stat-card--purple">
                 <h3 class="stat-card__label">Tổng khuyến mãi</h3>
-                <p class="stat-card__value"><%= sales ? sales.length : 0 %></p>
+                <p class="stat-card__value"><%= currentSaleStats.total || 0 %></p>
             </div>
             <div class="stat-card stat-card--green">
                 <h3 class="stat-card__label">Đang hoạt động</h3>
-                <p class="stat-card__value"><%= sales ? sales.filter(s => s.is_active).length : 0 %></p>
+                <p class="stat-card__value"><%= currentSaleStats.active || 0 %></p>
             </div>
             <div class="stat-card stat-card--pink">
                 <h3 class="stat-card__label">Hết hạn</h3>
-                <p class="stat-card__value"><%= sales ? sales.filter(s => !s.is_active).length : 0 %></p>
+                <p class="stat-card__value"><%= currentSaleStats.expired || 0 %></p>
             </div>
             <div class="stat-card stat-card--blue">
                 <h3 class="stat-card__label">Giảm theo %</h3>
-                <p class="stat-card__value"><%= sales ? sales.filter(s => s.type === 'percentage').length : 0 %></p>
+                <p class="stat-card__value"><%= currentSaleStats.percentage || 0 %></p>
             </div>
         </div>
 
         <div class="admin-toolbar">
             <div class="admin-toolbar__info">
                 <p class="admin-toolbar__title">Tìm khuyến mãi nhanh</p>
-                <p class="admin-toolbar__text">
-                    Tìm theo tên, mô tả hoặc loại khuyến mãi.
-                    <% if (searchQuery) { %>
-                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
-                    <% } %>
-                </p>
+                <% if (searchQuery) { %>
+                    <p class="admin-toolbar__text">Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"</p>
+                <% } %>
             </div>
             <form action="/admin/sales" method="GET" class="admin-search-form">
                 <input
@@ -79,7 +87,7 @@
             </form>
         </div>
 
-        <!-- Add Sale Form -->
+        <!-- Form tạo chương trình khuyến mãi -->
         <div class="admin-section admin-section--collapsible">
             <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -99,7 +107,7 @@
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">Loại giảm giá</label>
-                        <select name="type" class="admin-form__select">
+                        <select name="type" id="createSaleType" class="admin-form__select">
                             <option value="percentage">Phần trăm (%)</option>
                             <option value="fixed">Số tiền cố định (VNĐ)</option>
                         </select>
@@ -108,7 +116,8 @@
                 <div class="admin-form__row">
                     <div class="admin-form__group">
                         <label class="admin-form__label">Giá trị <span>*</span></label>
-                        <input type="number" name="value" required step="0.01" class="admin-form__input" placeholder="VD: 20 (cho 20%)">
+                        <input type="number" id="createSaleValue" name="value" required min="0.01" max="99.99" step="0.01" class="admin-form__input" placeholder="VD: 20 (cho 20%)">
+                        <p class="admin-form__hint admin-form__hint--warning" id="createSaleValueWarning" hidden>Giá trị phần trăm phải nhỏ hơn 100%.</p>
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">Ngày bắt đầu</label>
@@ -152,7 +161,7 @@
                     </div>
                     <div id="createSaleProducts" class="admin-product-checklist"></div>
                     <p class="admin-form__hint">
-                        Tích chọn từng sản phẩm muốn áp dụng khuyến mãi. Nếu không chọn, chương trình sẽ được tạo nhưng chưa áp dụng cho sản phẩm nào.
+                        Nếu không chọn sản phẩm nào, khuyến mãi sẽ áp dụng cho toàn bộ sản phẩm đang hoạt động.
                     </p>
                 </div>
                 <div class="admin-form__actions">
@@ -209,14 +218,14 @@
                                         <div class="sale-products">
                                             <span class="sale-products__count"><%= sale.assigned_product_count %> sản phẩm</span>
                                             <span class="sale-products__preview">
-                                                <%= sale.assigned_products.slice(0, 2).map(product => product.name).join(', ') %>
-                                                <% if (sale.assigned_product_count > 2) { %>
+                                                <%= sale.applies_to_all_products ? 'Tất cả sản phẩm' : sale.assigned_products.slice(0, 2).map(product => product.name).join(', ') %>
+                                                <% if (sale.assigned_product_count > 2 && !sale.applies_to_all_products) { %>
                                                     +<%= sale.assigned_product_count - 2 %> khác
                                                 <% } %>
                                             </span>
                                         </div>
                                     <% } else { %>
-                                        <span class="sale-products__none">Chưa chọn sản phẩm</span>
+                                        <span class="sale-products__none">Tất cả sản phẩm</span>
                                     <% } %>
                                 </td>
                                 <td class="text-center">
@@ -236,11 +245,8 @@
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    <% if (sale.is_active) { %>
-                                        <span class="admin-table__badge admin-table__badge--delivered">Hoạt động</span>
-                                    <% } else { %>
-                                        <span class="admin-table__badge admin-table__badge--cancelled">Hết hạn</span>
-                                    <% } %>
+                                    <% const saleStatus = sale.status_meta || { key: 'paused', label: 'Tạm dừng', tone: 'pending' }; %>
+                                    <span class="admin-table__badge admin-table__badge--<%= saleStatus.tone %>"><%= saleStatusLabels[saleStatus.key] || saleStatus.label %></span>
                                 </td>
                                 <td class="text-center">
                                     <div class="admin-actions-group">
@@ -310,7 +316,7 @@
                 </div>
                 <div class="admin-form__group">
                     <label class="admin-form__label">Loại giảm giá</label>
-                    <select name="type" class="admin-form__select">
+                    <select name="type" id="editSaleType" class="admin-form__select">
                         <option value="percentage">Phần trăm (%)</option>
                         <option value="fixed">Số tiền cố định (VNĐ)</option>
                     </select>
@@ -319,7 +325,8 @@
             <div class="admin-form__row">
                 <div class="admin-form__group">
                     <label class="admin-form__label">Giá trị <span>*</span></label>
-                    <input type="number" name="value" required step="0.01" class="admin-form__input">
+                    <input type="number" id="editSaleValue" name="value" required min="0.01" max="99.99" step="0.01" class="admin-form__input">
+                    <p class="admin-form__hint admin-form__hint--warning" id="editSaleValueWarning" hidden>Giá trị phần trăm phải nhỏ hơn 100%.</p>
                 </div>
                 <div class="admin-form__group">
                     <label class="admin-form__label">Ngày bắt đầu</label>
@@ -354,7 +361,7 @@
                 </div>
                 <div id="editSaleProducts" class="admin-product-checklist"></div>
                 <p class="admin-form__hint">
-                    Bạn có thể thay đổi danh sách sản phẩm áp dụng trong lần sửa này.
+                    Nếu bỏ chọn toàn bộ, khuyến mãi sẽ áp dụng cho tất cả sản phẩm đang hoạt động.
                 </p>
             </div>
             <div class="admin-modal__buttons">
@@ -404,10 +411,11 @@
 
 
 
+<%# Bootstrap du lieu JSON cho script phia client. %>
 <script type="application/json" id="adminSalesBootstrap"><%- JSON.stringify({
     products: (products || []).map(product => ({ id: product.id, name: product.name, sku: product.sku || '', sale_name: product.sale_name || '' })),
     subscriberCount: Number(subscriberCount || 0),
-    sales: (sales || []).map(sale => ({ id: sale.id, name: sale.name || '', description: sale.description || '', type: sale.type, value: sale.value, start_date: sale.start_date, end_date: sale.end_date, is_active: !!sale.is_active, product_ids: (sale.assigned_products || []).map(product => product.id) }))
+    sales: (sales || []).map(sale => ({ id: sale.id, name: sale.name || '', description: sale.description || '', type: sale.type, value: sale.value, start_date: sale.start_date, end_date: sale.end_date, is_active: !!sale.is_active, product_ids: (sale.assigned_products || []).map(product => product.id), status_meta: sale.status_meta || null }))
 }).replace(/</g, '\u003c') %></script>
 <script src="/js/admin/sales.js"></script>
 

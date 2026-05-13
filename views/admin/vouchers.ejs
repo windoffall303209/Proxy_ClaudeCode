@@ -1,10 +1,11 @@
+<%# Template admin render màn quản trị mã giảm giá với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'vouchers', pageStyles: ['/css/admin/vouchers.css'] }) %>
 
 <% const canNotifySubscribers = Number(subscriberCount || 0) > 0; %>
 
 <div class="admin-page">
     <div class="container">
-        <!-- Page Header -->
+        <!-- Tiêu đề trang + nút thao tác nhanh -->
         <div class="admin-page-header">
             <div class="admin-page-header__left">
                 <h1>Quản Lý Voucher</h1>
@@ -32,7 +33,7 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- Các thẻ thống kê voucher -->
         <div class="stats-grid">
             <div class="stat-card stat-card--purple">
                 <h3 class="stat-card__label">Tổng voucher</h3>
@@ -55,12 +56,9 @@
         <div class="admin-toolbar">
             <div class="admin-toolbar__info">
                 <p class="admin-toolbar__title">Tìm voucher nhanh</p>
-                <p class="admin-toolbar__text">
-                    Tìm theo mã, tên hoặc mô tả voucher.
-                    <% if (searchQuery) { %>
-                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
-                    <% } %>
-                </p>
+                <% if (searchQuery) { %>
+                    <p class="admin-toolbar__text">Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"</p>
+                <% } %>
             </div>
             <form action="/admin/vouchers" method="GET" class="admin-search-form">
                 <input
@@ -79,7 +77,7 @@
             </form>
         </div>
 
-        <!-- Add Voucher Form -->
+        <!-- Form tạo voucher mới -->
         <div class="admin-section admin-section--collapsible">
             <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -112,7 +110,8 @@
                 <div class="admin-form__row">
                     <div class="admin-form__group">
                         <label class="admin-form__label">Giá trị <span>*</span></label>
-                        <input type="number" name="value" required step="0.01" class="admin-form__input" placeholder="VD: 10 (cho 10%)">
+                        <input type="number" id="voucherValue" name="value" required min="0.01" max="99.99" step="0.01" class="admin-form__input" placeholder="VD: 10 (cho 10%)">
+                        <p class="admin-form__hint admin-form__hint--warning" id="voucherValueWarning" hidden>Giá trị phần trăm phải nhỏ hơn 100%.</p>
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">Đơn hàng tối thiểu</label>
@@ -197,7 +196,7 @@
             </form>
         </div>
 
-        <!-- Vouchers Table -->
+        <!-- Bảng danh sách voucher -->
         <% if (vouchers && vouchers.length > 0) { %>
             <div class="admin-table-wrapper">
                 <table class="admin-table">
@@ -384,7 +383,8 @@
             <div class="admin-form__row">
                 <div class="admin-form__group">
                     <label class="admin-form__label">Giá trị <span>*</span></label>
-                    <input type="number" name="value" required step="0.01" class="admin-form__input">
+                    <input type="number" id="editVoucherValue" name="value" required min="0.01" max="99.99" step="0.01" class="admin-form__input">
+                    <p class="admin-form__hint admin-form__hint--warning" id="editVoucherValueWarning" hidden>Giá trị phần trăm phải nhỏ hơn 100%.</p>
                 </div>
                 <div class="admin-form__group">
                     <label class="admin-form__label">Đơn hàng tối thiểu</label>
@@ -487,6 +487,7 @@
 
 
 
+<%# Bootstrap du lieu JSON cho script phia client. %>
 <script type="application/json" id="adminVouchersBootstrap"><%- JSON.stringify({
     products: (products || []).map(product => ({ id: product.id, name: product.name, sku: product.sku || '' })),
     subscriberCount: Number(subscriberCount || 0),

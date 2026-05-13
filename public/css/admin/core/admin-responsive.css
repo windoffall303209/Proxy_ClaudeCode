@@ -238,7 +238,7 @@
         margin-top: 16px;
     }
 
-    /* Buttons */
+    /* Cụm nút thao tác cần full-width để dễ chạm trên màn nhỏ. */
     .admin-btn {
         padding: 5px 8px;
         font-size: 10px;
@@ -255,7 +255,7 @@
         padding: 8px 14px;
     }
 
-    /* Pagination */
+    /* Phân trang thu gọn cho viewport nhỏ. */
     .admin-pagination {
         flex-direction: column;
         align-items: flex-start;
@@ -266,7 +266,7 @@
         justify-content: space-between;
     }
 
-    /* Modal */
+    /* Modal chiếm gần hết chiều rộng trên mobile để giữ nội dung đọc được. */
     .admin-modal__content {
         margin: 8px;
         padding: 14px;
@@ -508,7 +508,7 @@
         font-size: 14px;
     }
 
-    /* Buttons */
+    /* Nút trong bảng và form chuyển sang bố cục dọc trên mobile. */
     .admin-btn {
         padding: 4px 6px;
         font-size: 9px;
@@ -519,7 +519,7 @@
         height: 10px;
     }
 
-    /* Section */
+    /* Section admin giảm padding để nội dung không tràn trên màn hẹp. */
     .admin-section {
         padding: 10px;
     }

@@ -1,34 +1,36 @@
-/**
- * =============================================================================
- * SALE MODEL - Model Chương trình khuyến mãi
- * =============================================================================
- * File này chứa các phương thức tương tác với bảng sales trong database:
- * - Lấy danh sách chương trình khuyến mãi
- * - Lấy khuyến mãi đang hoạt động
- * - CRUD khuyến mãi (Tạo, Đọc, Cập nhật, Xóa)
- * - Tự động kích hoạt/vô hiệu hóa theo lịch
- * =============================================================================
- */
-
+// Model truy vấn và chuẩn hóa dữ liệu khuyến mãi trong MySQL.
 const pool = require('../config/database');
 
 class Sale {
-    // =============================================================================
-    // LẤY TẤT CẢ KHUYẾN MÃI - FIND ALL SALES
-    // =============================================================================
+    // Chuẩn hóa sản phẩm ID.
+    static normalizeProductIds(productIds = []) {
+        if (!Array.isArray(productIds)) {
+            return [];
+        }
 
-    /**
-     * Lấy danh sách chương trình khuyến mãi
-     *
-     * @description Lấy tất cả hoặc chỉ các khuyến mãi đang hoạt động.
-     *              Khuyến mãi đang hoạt động là những chương trình:
-     *              - is_active = TRUE
-     *              - Thời gian hiện tại nằm trong khoảng start_date đến end_date
-     *
-     * @param {boolean} [activeOnly=false] - true = chỉ lấy đang hoạt động
-     *
-     * @returns {Promise<Array>} Mảng chương trình khuyến mãi
-     */
+        return [...new Set(
+            productIds
+                .map((value) => Number.parseInt(value, 10))
+                .filter((value) => Number.isInteger(value) && value > 0)
+        )];
+    }
+
+    // Chuẩn hóa discount giá trị.
+    static normalizeDiscountValue(type, value) {
+        const normalizedValue = Number(value);
+
+        if (!Number.isFinite(normalizedValue) || normalizedValue <= 0) {
+            throw new Error('Giá trị khuyến mãi phải lớn hơn 0');
+        }
+
+        if (type === 'percentage' && normalizedValue >= 100) {
+            throw new Error('Khuyến mãi phần trăm phải nhỏ hơn 100%');
+        }
+
+        return normalizedValue;
+    }
+
+    // Tìm tất cả.
     static async findAll(filters = {}) {
         const normalizedFilters = typeof filters === 'boolean'
             ? { activeOnly: filters }
@@ -36,7 +38,6 @@ class Sale {
         let query = 'SELECT * FROM sales WHERE 1=1';
         const params = [];
 
-        // Lọc chỉ lấy khuyến mãi đang hoạt động
         if (normalizedFilters.activeOnly) {
             query += ' AND is_active = TRUE AND NOW() BETWEEN start_date AND end_date';
         }
@@ -53,107 +54,71 @@ class Sale {
         return rows;
     }
 
-    // =============================================================================
-    // TÌM KHUYẾN MÃI THEO ID - FIND BY ID
-    // =============================================================================
-
-    /**
-     * Tìm khuyến mãi theo ID
-     *
-     * @description Lấy thông tin chi tiết của một chương trình khuyến mãi
-     *
-     * @param {number} id - ID khuyến mãi
-     *
-     * @returns {Promise<Object|null>} Thông tin khuyến mãi hoặc null
-     */
+    // Tìm theo ID.
     static async findById(id) {
-        const query = 'SELECT * FROM sales WHERE id = ?';
-        const [rows] = await pool.execute(query, [id]);
+        const [rows] = await pool.execute('SELECT * FROM sales WHERE id = ?', [id]);
         return rows[0] || null;
     }
 
-    // =============================================================================
-    // LẤY KHUYẾN MÃI ĐANG HOẠT ĐỘNG - GET ACTIVE SALES
-    // =============================================================================
-
-    /**
-     * Lấy các chương trình khuyến mãi đang hoạt động
-     *
-     * @description Shortcut để gọi findAll(true)
-     *
-     * @returns {Promise<Array>} Mảng khuyến mãi đang hoạt động
-     */
+    // Lấy đang bật sales.
     static async getActiveSales() {
-        return await this.findAll({ activeOnly: true });
+        return this.findAll({ activeOnly: true });
     }
 
-    // =============================================================================
-    // TẠO KHUYẾN MÃI MỚI - CREATE SALE
-    // =============================================================================
-
-    /**
-     * Tạo chương trình khuyến mãi mới
-     *
-     * @description Thêm một khuyến mãi mới vào database.
-     *              Hỗ trợ các loại giảm giá:
-     *              - 'percentage': Giảm theo phần trăm (VD: 20% off)
-     *              - 'fixed': Giảm số tiền cố định (VD: 50,000đ off)
-     *              - 'bogo': Buy One Get One Free
-     *
-     * @param {Object} saleData - Dữ liệu khuyến mãi
-     * @param {string} saleData.name - Tên chương trình
-     * @param {string} [saleData.description] - Mô tả chi tiết
-     * @param {string} saleData.type - Loại giảm giá ('percentage', 'fixed', 'bogo')
-     * @param {number} saleData.value - Giá trị giảm (% hoặc số tiền)
-     * @param {string} saleData.start_date - Ngày bắt đầu (YYYY-MM-DD HH:mm:ss)
-     * @param {string} saleData.end_date - Ngày kết thúc (YYYY-MM-DD HH:mm:ss)
-     *
-     * @returns {Promise<Object>} Khuyến mãi vừa tạo với ID
-     */
+    // Tạo bản ghi mới.
     static async create(saleData) {
         const { name, description, type, value, start_date, end_date } = saleData;
+        const normalizedValue = this.normalizeDiscountValue(type, value);
 
-        const query = `
-            INSERT INTO sales (name, description, type, value, start_date, end_date)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `;
-
-        const [result] = await pool.execute(query, [
-            name,
-            description || null,
-            type,
-            value,
-            start_date,
-            end_date
-        ]);
+        const [result] = await pool.execute(
+            `INSERT INTO sales (name, description, type, value, start_date, end_date)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+                name,
+                description || null,
+                type,
+                normalizedValue,
+                start_date,
+                end_date
+            ]
+        );
 
         return { id: result.insertId, ...saleData };
     }
 
-    /**
-     * Gán chương trình khuyến mãi cho danh sách sản phẩm.
-     * Nếu truyền mảng rỗng thì chương trình vẫn được tạo nhưng chưa áp dụng cho sản phẩm nào.
-     */
+    // Thao tác với assign sản phẩm.
     static async assignProducts(saleId, productIds = [], connection = pool) {
+        const normalizedProductIds = this.normalizeProductIds(productIds);
+
         await connection.execute(
             'UPDATE products SET sale_id = NULL WHERE sale_id = ?',
             [saleId]
         );
 
-        if (!Array.isArray(productIds) || productIds.length === 0) {
+        if (normalizedProductIds.length === 0) {
+            await connection.execute(
+                'UPDATE products SET sale_id = ? WHERE is_active = TRUE',
+                [saleId]
+            );
             return;
         }
 
-        const placeholders = productIds.map(() => '?').join(', ');
+        const placeholders = normalizedProductIds.map(() => '?').join(', ');
         await connection.execute(
             `UPDATE products SET sale_id = ? WHERE id IN (${placeholders})`,
-            [saleId, ...productIds]
+            [saleId, ...normalizedProductIds]
         );
     }
 
-    /**
-     * Lấy danh sách sản phẩm đang gắn với từng chương trình sale.
-     */
+    // Thao tác với clear assigned sản phẩm.
+    static async clearAssignedProducts(saleId, connection = pool) {
+        await connection.execute(
+            'UPDATE products SET sale_id = NULL WHERE sale_id = ?',
+            [saleId]
+        );
+    }
+
+    // Lấy assigned sản phẩm map.
     static async getAssignedProductsMap(saleIds = []) {
         if (!Array.isArray(saleIds) || saleIds.length === 0) {
             return new Map();
@@ -190,112 +155,52 @@ class Sale {
         return assignments;
     }
 
-    // =============================================================================
-    // CẬP NHẬT KHUYẾN MÃI - UPDATE SALE
-    // =============================================================================
-
-    /**
-     * Cập nhật thông tin khuyến mãi
-     *
-     * @description Cập nhật tất cả thông tin của chương trình khuyến mãi
-     *
-     * @param {number} id - ID khuyến mãi cần cập nhật
-     * @param {Object} saleData - Dữ liệu cập nhật
-     * @param {boolean} [saleData.is_active=true] - Trạng thái hoạt động
-     *
-     * @returns {Promise<Object>} Khuyến mãi sau khi cập nhật
-     */
+    // Cập nhật bản ghi hiện có.
     static async update(id, saleData) {
         const { name, description, type, value, start_date, end_date, is_active } = saleData;
+        const normalizedValue = this.normalizeDiscountValue(type, value);
 
-        const query = `
-            UPDATE sales
-            SET name = ?, description = ?, type = ?, value = ?, start_date = ?, end_date = ?, is_active = ?
-            WHERE id = ?
-        `;
+        await pool.execute(
+            `UPDATE sales
+             SET name = ?, description = ?, type = ?, value = ?, start_date = ?, end_date = ?, is_active = ?
+             WHERE id = ?`,
+            [
+                name,
+                description || null,
+                type,
+                normalizedValue,
+                start_date,
+                end_date,
+                is_active !== undefined ? is_active : true,
+                id
+            ]
+        );
 
-        await pool.execute(query, [
-            name,
-            description || null,
-            type,
-            value,
-            start_date,
-            end_date,
-            is_active !== undefined ? is_active : true,
-            id
-        ]);
-
-        return await this.findById(id);
+        return this.findById(id);
     }
 
-    // =============================================================================
-    // XÓA KHUYẾN MÃI - DELETE SALE (SOFT DELETE)
-    // =============================================================================
-
-    /**
-     * Xóa khuyến mãi (soft delete)
-     *
-     * @description Không xóa thật sự mà chỉ đánh dấu is_active = FALSE.
-     *              Giữ lại dữ liệu để báo cáo doanh thu theo khuyến mãi.
-     *
-     * @param {number} id - ID khuyến mãi cần xóa
-     *
-     * @returns {Promise<void>}
-     */
+    // Xóa bản ghi theo điều kiện truyền vào.
     static async delete(id) {
-        // Soft delete: chỉ vô hiệu hóa, không xóa thật
-        const query = 'UPDATE sales SET is_active = FALSE WHERE id = ?';
-        await pool.execute(query, [id]);
+        await pool.execute('UPDATE sales SET is_active = FALSE WHERE id = ?', [id]);
     }
 
-    // =============================================================================
-    // TỰ ĐỘNG KÍCH HOẠT KHUYẾN MÃI THEO LỊCH - ACTIVATE SCHEDULED SALES
-    // =============================================================================
-
-    /**
-     * Kích hoạt các khuyến mãi theo lịch
-     *
-     * @description Tự động kích hoạt các khuyến mãi đã đến thời gian bắt đầu.
-     *              Dùng trong cron job hoặc scheduler.
-     *              Điều kiện kích hoạt:
-     *              - is_active = FALSE
-     *              - Thời gian hiện tại >= start_date
-     *              - Thời gian hiện tại <= end_date
-     *
-     * @returns {Promise<number>} Số khuyến mãi đã được kích hoạt
-     */
+    // Thao tác với activate scheduled sales.
     static async activateScheduledSales() {
-        const query = `
-            UPDATE sales
-            SET is_active = TRUE
-            WHERE is_active = FALSE AND NOW() >= start_date AND NOW() <= end_date
-        `;
-        const [result] = await pool.execute(query);
+        const [result] = await pool.execute(
+            `UPDATE sales
+             SET is_active = TRUE
+             WHERE is_active = FALSE AND NOW() >= start_date AND NOW() <= end_date`
+        );
         return result.affectedRows;
     }
 
-    // =============================================================================
-    // TỰ ĐỘNG VÔ HIỆU HÓA KHUYẾN MÃI HẾT HẠN - DEACTIVATE EXPIRED SALES
-    // =============================================================================
-
-    /**
-     * Vô hiệu hóa các khuyến mãi đã hết hạn
-     *
-     * @description Tự động vô hiệu hóa các khuyến mãi đã qua thời gian kết thúc.
-     *              Dùng trong cron job hoặc scheduler.
-     *              Điều kiện vô hiệu hóa:
-     *              - is_active = TRUE
-     *              - Thời gian hiện tại > end_date
-     *
-     * @returns {Promise<number>} Số khuyến mãi đã được vô hiệu hóa
-     */
+    // Thao tác với deactivate expired sales.
     static async deactivateExpiredSales() {
-        const query = `
-            UPDATE sales
-            SET is_active = FALSE
-            WHERE is_active = TRUE AND NOW() > end_date
-        `;
-        const [result] = await pool.execute(query);
+        const [result] = await pool.execute(
+            `UPDATE sales
+             SET is_active = FALSE
+             WHERE is_active = TRUE AND NOW() > end_date`
+        );
         return result.affectedRows;
     }
 }

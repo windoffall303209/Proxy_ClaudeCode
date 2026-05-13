@@ -14,16 +14,19 @@
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 
+// Chuyển giá trị đầu vào về số nguyên.
 function parseInteger(value) {
     const parsed = Number(value);
     return Number.isInteger(parsed) ? parsed : null;
 }
 
+// Phân tích positive integer.
 function parsePositiveInteger(value) {
     const parsed = parseInteger(value);
     return parsed !== null && parsed > 0 ? parsed : null;
 }
 
+// Phân tích optional positive integer.
 function parseOptionalPositiveInteger(value) {
     if (value === undefined || value === null || value === '') {
         return null;
@@ -32,6 +35,29 @@ function parseOptionalPositiveInteger(value) {
     return parsePositiveInteger(value);
 }
 
+// Xác định post đăng nhập điều hướng.
+function resolvePostLoginRedirect(req) {
+    const requestedRedirect = typeof req.body?.redirect === 'string' ? req.body.redirect.trim() : '';
+    if (requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//')) {
+        return requestedRedirect;
+    }
+
+    const referer = typeof req.get === 'function' ? req.get('Referer') : '';
+    if (referer) {
+        try {
+            const url = new URL(referer, 'http://local');
+            if (url.pathname.startsWith('/') && !url.pathname.startsWith('/auth/login')) {
+                return `${url.pathname}${url.search}`;
+            }
+        } catch (error) {
+            // Referer lỗi định dạng thì quay về danh sách sản phẩm mặc định.
+        }
+    }
+
+    return '/products';
+}
+
+// Lấy giỏ hàng context.
 async function getCartContext(req) {
     const userId = req.user ? req.user.id : null;
     const sessionId = req.sessionID || null;
@@ -44,6 +70,7 @@ async function getCartContext(req) {
     return { cart, userId, sessionId };
 }
 
+// Kiểm tra hợp lệ sản phẩm selection.
 async function validateProductSelection(productId, quantity, variantId = null) {
     const product = await Product.findById(productId, { incrementView: false });
 
@@ -82,6 +109,45 @@ async function validateProductSelection(productId, quantity, variantId = null) {
     }
 
     return { valid: true, product };
+}
+
+// Xác định add vào giỏ hàng biến thể.
+async function resolveAddToCartVariant(productId, variantId = null) {
+    const product = await Product.findById(productId, { incrementView: false });
+
+    if (!product) {
+        return {
+            valid: false,
+            status: 404,
+            message: 'Không tìm thấy sản phẩm'
+        };
+    }
+
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+
+    if (variantId === null && variants.length === 1) {
+        return {
+            valid: true,
+            product,
+            variantId: parsePositiveInteger(variants[0].id)
+        };
+    }
+
+    if (variantId === null && variants.length > 1) {
+        return {
+            valid: false,
+            status: 400,
+            requiresVariant: true,
+            message: 'Vui lòng chọn phân loại sản phẩm trước khi thêm vào giỏ hàng.',
+            productUrl: product.slug ? `/products/${product.slug}` : `/products/${product.id}`
+        };
+    }
+
+    return {
+        valid: true,
+        product,
+        variantId
+    };
 }
 
 /**
@@ -137,11 +203,31 @@ exports.viewCart = async (req, res) => {
  */
 exports.addToCart = async (req, res) => {
     try {
+        if (!req.user) {
+            const redirect = resolvePostLoginRedirect(req);
+            return res.status(401).json({
+                success: false,
+                requiresLogin: true,
+                message: 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.',
+                loginUrl: `/auth/login?redirect=${encodeURIComponent(redirect)}`
+            });
+        }
+
+        if (req.user.email_verified === false || req.user.email_verified === 0) {
+            const redirect = resolvePostLoginRedirect(req);
+            return res.status(403).json({
+                success: false,
+                requiresEmailVerification: true,
+                message: 'Vui lòng xác thực email trước khi thêm sản phẩm vào giỏ hàng.',
+                loginUrl: `/auth/verify-email?redirect=${encodeURIComponent(redirect)}`
+            });
+        }
+
         // Lấy thông tin sản phẩm từ request body
         const { product_id, quantity = 1, variant_id } = req.body;
         const productId = parsePositiveInteger(product_id);
         const quantityNumber = parsePositiveInteger(quantity);
-        const safeVariantId = parseOptionalPositiveInteger(variant_id);
+        let safeVariantId = parseOptionalPositiveInteger(variant_id);
 
         // Kiểm tra product_id có được cung cấp không
         if (!productId) {
@@ -155,6 +241,18 @@ exports.addToCart = async (req, res) => {
         if (variant_id !== undefined && variant_id !== null && variant_id !== '' && safeVariantId === null) {
             return res.status(400).json({ success: false, message: 'Variant ID is invalid' });
         }
+
+        const variantResolution = await resolveAddToCartVariant(productId, safeVariantId);
+        if (!variantResolution.valid) {
+            return res.status(variantResolution.status).json({
+                success: false,
+                message: variantResolution.message,
+                requiresVariant: Boolean(variantResolution.requiresVariant),
+                productUrl: variantResolution.productUrl
+            });
+        }
+
+        safeVariantId = variantResolution.variantId;
 
         const { cart } = await getCartContext(req);
         const existingItem = await Cart.findItemByProduct(cart.id, productId, safeVariantId);

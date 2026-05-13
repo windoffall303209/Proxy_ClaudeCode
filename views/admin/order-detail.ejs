@@ -1,8 +1,18 @@
+<%# Template admin render màn quản trị đơn hàng chi tiết với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'orders', pageStyles: ['/css/admin/order-detail.css'] }) %>
 
 <%
+    // Chuẩn hóa dữ liệu hiển thị chi tiết đơn hàng và tracking
     const shipment = order && order.shipment ? order.shipment : {};
     const trackingEvents = order && Array.isArray(order.tracking_events) ? order.tracking_events : [];
+    const paymentLabels = {
+        cod: 'Thanh toán khi nhận hàng',
+        vnpay: 'VNPay',
+        momo: 'MoMo'
+    };
+    const isPaymentSettled = order && (order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status));
+    const paymentStatusText = isPaymentSettled ? 'Đã thanh toán' : (order && order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
+    const paymentStatusClass = isPaymentSettled ? 'admin-table__badge--delivered' : (order && order.payment_method === 'cod' ? 'admin-table__badge--processing' : 'admin-table__badge--pending');
     const toDatetimeLocalValue = (value) => {
         if (!value) return '';
         const date = new Date(value);
@@ -12,6 +22,7 @@
     };
 %>
 
+<!-- ===== Trang chi tiết đơn hàng trong admin ===== -->
 <div class="admin-page" data-order-id="<%= order ? order.id : '' %>">
     <div class="container">
         <a href="/admin/orders" class="back-link">
@@ -32,11 +43,13 @@
                         let statusClass = '';
                         let statusText = '';
                         switch (order.status) {
+                            case 'pending_payment': statusClass = 'admin-table__badge--pending'; statusText = 'Chờ thanh toán'; break;
                             case 'pending': statusClass = 'admin-table__badge--pending'; statusText = 'Chờ xử lý'; break;
                             case 'confirmed': statusClass = 'admin-table__badge--processing'; statusText = 'Đã xác nhận'; break;
                             case 'processing': statusClass = 'admin-table__badge--processing'; statusText = 'Đang xử lý'; break;
                             case 'shipping': statusClass = 'admin-table__badge--shipped'; statusText = 'Đang giao'; break;
                             case 'delivered': statusClass = 'admin-table__badge--delivered'; statusText = 'Đã giao'; break;
+                            case 'completed': statusClass = 'admin-table__badge--delivered'; statusText = 'Đã hoàn thành'; break;
                             case 'cancelled': statusClass = 'admin-table__badge--cancelled'; statusText = 'Đã hủy'; break;
                             default: statusText = order.status;
                         }
@@ -61,7 +74,7 @@
                         </div>
                         <div class="info-item">
                             <span class="info-item__label">Email</span>
-                            <span class="info-item__value"><%= order.user_email || 'N/A' %></span>
+                            <span class="info-item__value"><%= order.user_email ? privacy.maskEmail(order.user_email) : 'N/A' %></span>
                         </div>
                     </div>
                 </div>
@@ -83,7 +96,7 @@
                         </div>
                         <div class="info-item">
                             <span class="info-item__label">SĐT</span>
-                            <span class="info-item__value"><%= order.shipping_phone || 'N/A' %></span>
+                            <span class="info-item__value"><%= order.shipping_phone ? privacy.maskPhone(order.shipping_phone) : 'N/A' %></span>
                         </div>
                         <div class="info-item">
                             <span class="info-item__label">Địa chỉ</span>
@@ -124,7 +137,11 @@
                                                     <img src="<%= item.product_image %>" alt="<%= item.product_name %>" class="item-info__img">
                                                 <% } %>
                                                 <div>
-                                                    <strong><%= item.product_name || 'Sản phẩm #' + item.product_id %></strong>
+                                                    <% if (item.product_slug) { %>
+                                                        <a href="/products/<%= item.product_slug %>" class="admin-table__link"><strong><%= item.product_name || 'Sản phẩm #' + item.product_id %></strong></a>
+                                                    <% } else { %>
+                                                        <strong><%= item.product_name || 'Sản phẩm #' + item.product_id %></strong>
+                                                    <% } %>
                                                     <% if (item.variant_color || item.variant_size) { %>
                                                         <br>
                                                         <small class="order-detail__sku">
@@ -179,16 +196,12 @@
                         </div>
                         <div class="summary-item">
                             <span>Phương thức</span>
-                            <span><%= order.payment_method || 'N/A' %></span>
+                            <span><%= paymentLabels[order.payment_method] || order.payment_method || 'N/A' %></span>
                         </div>
                         <div class="summary-item">
                             <span>Trạng thái TT</span>
                             <span>
-                                <% if (order.payment_status === 'paid') { %>
-                                    <span class="admin-table__badge admin-table__badge--delivered">Đã thanh toán</span>
-                                <% } else { %>
-                                    <span class="admin-table__badge admin-table__badge--pending">Chưa thanh toán</span>
-                                <% } %>
+                                <span class="admin-table__badge <%= paymentStatusClass %>"><%= paymentStatusText %></span>
                             </span>
                         </div>
                     </div>
@@ -229,11 +242,17 @@
 
                     <div class="status-update">
                         <select id="statusSelect" class="admin-form__select order-status-select order-status-select--<%= order.status %>">
+                            <% if (order.status === 'pending_payment') { %>
+                                <option value="pending_payment" selected>Chờ thanh toán</option>
+                            <% } %>
                             <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
                             <option value="confirmed" <%= order.status === 'confirmed' ? 'selected' : '' %>>Đã xác nhận</option>
                             <option value="processing" <%= order.status === 'processing' ? 'selected' : '' %>>Đang xử lý</option>
                             <option value="shipping" <%= order.status === 'shipping' ? 'selected' : '' %>>Đang giao</option>
                             <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Đã giao</option>
+                            <% if (order.status === 'completed') { %>
+                                <option value="completed" selected disabled>Đã hoàn thành</option>
+                            <% } %>
                             <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Đã hủy</option>
                         </select>
 

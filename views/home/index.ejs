@@ -1,19 +1,31 @@
+<%# Template EJS render trang chủ index cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/home.css">
 
 <%
+    const storefrontConfig = storefrontSettings || {};
+    const sfText = (key, fallback) => storefrontConfig[key] || fallback;
+    const sfBool = (key, fallback = true) => storefrontConfig[key] === undefined ? fallback : storefrontConfig[key] !== false;
+    const productGridColumns = Math.min(6, Math.max(2, Number.parseInt(storefrontConfig.product_grid_columns, 10) || 5));
+    const categoryShowcaseCount = Math.min(8, Math.max(1, Number.parseInt(storefrontConfig.home_category_showcase_count, 10) || 3));
+    const newProductsLimit = Math.min(24, Math.max(4, Number.parseInt(storefrontConfig.home_new_products_limit, 10) || 10));
+    const bestSellersLimit = Math.min(12, Math.max(2, Number.parseInt(storefrontConfig.home_best_sellers_limit, 10) || productGridColumns));
+    const categoryColumnsDesktop = Math.min(categoryShowcaseCount, 4);
+    const categoryColumnsTablet = Math.min(categoryColumnsDesktop, 2);
+    const productColumnsTablet = Math.min(productGridColumns, 3);
     const heroVisual =
         (banners && banners[1] && banners[1].image_url) ||
         (newProducts && newProducts[0] && newProducts[0].primary_image) ||
         'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1400&q=80';
 %>
 
-<% if (banners && banners.length > 0) { %>
+<% if (sfBool('popup_enabled', true) && banners && banners.length > 0) { %>
 <div
     id="popupBanner"
     class="popup-banner"
     data-popup-banner-key="<%= `${banners[0].id || 'banner'}:${banners[0].updated_at || banners[0].image_url || banners[0].title || 'default'}` %>"
+    data-popup-cooldown-hours="<%= storefrontConfig.popup_frequency_hours || 24 %>"
     hidden
 >
     <div class="popup-banner__overlay" data-popup-close></div>
@@ -30,43 +42,49 @@
                 <img src="<%= popupBanner.image_url %>" alt="<%= popupBanner.title %>">
             <% } else { %>
                 <div class="popup-banner__text">
-                    <p class="popup-banner__eyebrow">WIND OF FALL</p>
+                    <p class="popup-banner__eyebrow"><%= sfText('popup_fallback_eyebrow', storefrontConfig.site_name || 'WIND OF FALL') %></p>
                     <h2><%= popupBanner.title %></h2>
                     <% if (popupBanner.subtitle) { %>
                         <p><%= popupBanner.subtitle %></p>
                     <% } %>
-                    <span class="popup-banner__btn">Khám phá ngay</span>
+                    <span class="popup-banner__btn"><%= sfText('popup_fallback_button_label', 'Khám phá ngay') %></span>
                 </div>
             <% } %>
         </a>
     </div>
 </div>
 <% } %>
-
-<section class="home-hero">
+<section
+    class="home-hero"
+    data-home-layout
+    data-product-columns="<%= productGridColumns %>"
+    data-product-columns-tablet="<%= productColumnsTablet %>"
+    data-category-columns="<%= categoryColumnsDesktop %>"
+    data-category-columns-tablet="<%= categoryColumnsTablet %>"
+>
     <div class="container home-hero__inner">
         <div class="home-hero__content">
-            <p class="home-hero__eyebrow">Bộ sưu tập mới / mặc đẹp mỗi ngày</p>
-            <h1 class="home-hero__title">Chọn nhanh outfit đẹp cho nam, nữ và trẻ em.</h1>
+            <p class="home-hero__eyebrow"><%= sfText('hero_eyebrow', 'Bộ sưu tập mới / mặc đẹp mỗi ngày') %></p>
+            <h1 class="home-hero__title"><%= sfText('hero_title', 'Chọn nhanh outfit đẹp cho nam, nữ và trẻ em.') %></h1>
             <p class="home-hero__copy">
-                Áo polo, sơ mi, váy, jeans và nhiều mẫu dễ mặc đã sẵn sàng để bạn mua ngay.
+                <%= sfText('hero_copy', 'Áo polo, sơ mi, váy, jeans và nhiều mẫu dễ mặc đã sẵn sàng để bạn mua ngay.') %>
             </p>
             <div class="home-hero__actions">
-                <a href="/products" class="btn btn-primary">Mua bộ sưu tập mới</a>
-                <a href="/products?sale=true" class="btn btn-secondary">Xem khu sale</a>
+                <a href="<%= sfText('hero_primary_url', '/products') %>" class="btn btn-primary"><%= sfText('hero_primary_label', 'Mua bộ sưu tập mới') %></a>
+                <a href="<%= sfText('hero_secondary_url', '/products?sale=true') %>" class="btn btn-secondary"><%= sfText('hero_secondary_label', 'Xem khu sale') %></a>
             </div>
             <div class="home-hero__stats">
                 <div>
-                    <strong>Từ 499K</strong>
-                    <span>Freeship toàn quốc</span>
+                    <strong><%= sfText('hero_stat_1_value', 'Từ 499K') %></strong>
+                    <span><%= sfText('hero_stat_1_label', 'Freeship toàn quốc') %></span>
                 </div>
                 <div>
-                    <strong>30 ngày</strong>
-                    <span>Đổi trả dễ dàng</span>
+                    <strong><%= sfText('hero_stat_2_value', '30 ngày') %></strong>
+                    <span><%= sfText('hero_stat_2_label', 'Đổi trả linh hoạt') %></span>
                 </div>
                 <div>
-                    <strong>Nam, nữ, trẻ em</strong>
-                    <span>Đủ size và màu cơ bản</span>
+                    <strong><%= sfText('hero_stat_3_value', '24/7') %></strong>
+                    <span><%= sfText('hero_stat_3_label', 'Hỗ trợ online') %></span>
                 </div>
             </div>
         </div>
@@ -109,7 +127,6 @@
         </div>
     </div>
 </section>
-
 <section class="home-strip">
     <div class="container home-strip__grid">
         <div class="home-strip__item">
@@ -126,21 +143,21 @@
         </div>
     </div>
 </section>
-
+<% if (sfBool('show_home_categories', true)) { %>
 <section class="home-categories section-block">
     <div class="container">
         <div class="home-section__header">
             <div>
                 <p class="section-kicker">Danh mục nổi bật</p>
-                <h2 class="section-title">Mua sắm theo nhu cầu của bạn.</h2>
-                <p class="section-copy">Chọn nhanh theo nam, nữ và trẻ em để tìm đúng sản phẩm bạn cần.</p>
+                <h2 class="section-title"><%= sfText('home_categories_title', 'Mua sắm theo nhu cầu của bạn.') %></h2>
+                <p class="section-copy"><%= sfText('home_categories_copy', 'Chọn nhanh theo nam, nữ và trẻ em để tìm đúng sản phẩm bạn cần.') %></p>
             </div>
             <a href="/products" class="home-section__link">Xem tất cả sản phẩm</a>
         </div>
 
         <% if (categories && categories.length > 0) { %>
             <div class="category-showcase">
-                <% categories.slice(0, 3).forEach((category, index) => { %>
+                <% categories.slice(0, categoryShowcaseCount).forEach((category, index) => { %>
                     <a href="/products/category/<%= category.slug %>" class="category-showcase__card category-showcase__card--<%= index + 1 %>">
                         <% if (category.image_url) { %>
                             <img src="<%= category.image_url %>" alt="<%= category.name %>">
@@ -158,20 +175,21 @@
         <% } %>
     </div>
 </section>
-
+<% } %>
+<% if (sfBool('show_home_new_products', true)) { %>
 <section class="section-block">
     <div class="container">
         <div class="home-section__header">
             <div>
                 <p class="section-kicker">Mẫu mới</p>
-                <h2 class="section-title">Hàng mới lên kệ hôm nay.</h2>
+                <h2 class="section-title"><%= sfText('home_new_products_title', 'Hàng mới lên kệ hôm nay.') %></h2>
             </div>
             <a href="/products" class="home-section__link">Xem tất cả</a>
         </div>
 
         <% if (newProducts && newProducts.length > 0) { %>
             <div class="home-products-grid">
-                <% newProducts.slice(0, 10).forEach(product => { %>
+                <% newProducts.slice(0, newProductsLimit).forEach(product => { %>
                     <%- include('../partials/product-card', { product }) %>
                 <% }) %>
             </div>
@@ -183,14 +201,15 @@
         <% } %>
     </div>
 </section>
-
+<% } %>
+<% if (sfBool('show_home_editorial', true)) { %>
 <section class="home-editorial section-block">
     <div class="container home-editorial__grid">
         <div class="home-editorial__copy">
             <p class="section-kicker">Gợi ý phối đồ</p>
-            <h2 class="section-title">Dễ mặc từ công sở đến cuối tuần.</h2>
+            <h2 class="section-title"><%= sfText('home_editorial_title', 'Dễ mặc từ công sở đến cuối tuần.') %></h2>
             <p class="section-copy">
-                Các nhóm sản phẩm được sắp theo những nhu cầu mặc thường ngày để bạn chọn nhanh hơn.
+                <%= sfText('home_editorial_copy', 'Các nhóm sản phẩm được sắp theo những nhu cầu mặc thường ngày để bạn chọn nhanh hơn.') %>
             </p>
             <div class="home-editorial__benefits">
                 <div>
@@ -222,47 +241,49 @@
         </div>
     </div>
 </section>
+<% } %>
 
-<% if (bestSellers && bestSellers.length > 0) { %>
+<% if (sfBool('show_home_best_sellers', true) && bestSellers && bestSellers.length > 0) { %>
 <section class="section-block section-block--alt">
     <div class="container">
         <div class="home-section__header">
             <div>
                 <p class="section-kicker">Bán chạy</p>
-                <h2 class="section-title">Những mẫu được chọn nhiều nhất.</h2>
+                <h2 class="section-title"><%= sfText('home_best_sellers_title', 'Những mẫu được chọn nhiều nhất.') %></h2>
             </div>
             <a href="/products?sort=sold_count" class="home-section__link">Xem thêm</a>
         </div>
 
         <div class="home-products-grid home-products-grid--featured">
-            <% bestSellers.slice(0, 5).forEach(product => { %>
+            <% bestSellers.slice(0, bestSellersLimit).forEach(product => { %>
                 <%- include('../partials/product-card', { product }) %>
             <% }) %>
         </div>
     </div>
 </section>
 <% } %>
-
+<% if (sfBool('show_home_services', true)) { %>
 <section class="home-services section-block">
     <div class="container home-services__grid">
         <div class="home-service-card">
-            <strong>Freeship đơn từ 499K</strong>
-            <p>Thông tin ưu đãi rõ ràng ngay từ trang đầu để bạn chốt đơn nhanh hơn.</p>
+            <strong><%= sfText('service_shipping_title', 'Freeship đơn từ 499K') %></strong>
+            <p><%= sfText('service_shipping_copy', 'Thông tin ưu đãi rõ ràng ngay từ trang đầu để bạn chốt đơn nhanh hơn.') %></p>
         </div>
         <div class="home-service-card">
-            <strong>Đổi trả trong 30 ngày</strong>
-            <p>Yên tâm thử size và đổi mẫu nếu chưa thật sự phù hợp.</p>
+            <strong><%= sfText('service_return_title', 'Đổi trả trong 30 ngày') %></strong>
+            <p><%= sfText('service_return_copy', 'Yên tâm thử size và đổi mẫu nếu chưa thật sự phù hợp.') %></p>
         </div>
         <div class="home-service-card">
-            <strong>Hỗ trợ qua hotline và chat</strong>
-            <p>Dễ hỏi size, hỏi phối đồ và theo dõi đơn hàng khi cần.</p>
+            <strong><%= sfText('service_consult_title', 'Hỗ trợ qua hotline và chat') %></strong>
+            <p><%= sfText('service_consult_copy', 'Dễ hỏi size, hỏi phối đồ và theo dõi đơn hàng khi cần.') %></p>
         </div>
         <div class="home-service-card">
-            <strong>Thanh toán rõ ràng</strong>
-            <p>COD, VNPay và MoMo hiển thị sớm để người mua dễ lựa chọn.</p>
+            <strong><%= sfText('service_payment_title', 'Thanh toán rõ ràng') %></strong>
+            <p><%= sfText('service_payment_copy', 'COD, VNPay và MoMo hiển thị sớm để người mua dễ lựa chọn.') %></p>
         </div>
     </div>
 </section>
+<% } %>
 
 <script src="/js/home.js"></script>
 

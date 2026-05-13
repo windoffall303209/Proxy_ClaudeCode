@@ -1,9 +1,15 @@
+<%# Template EJS render sản phẩm danh sách cho storefront hoặc tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
 <link rel="stylesheet" href="/css/product-list.css">
 
 <%
+    // Chuẩn bị tiêu đề trang và số cột grid theo cấu hình storefront
     const currentCategory = typeof category !== 'undefined' ? category : null;
+    const storefrontConfig = storefrontSettings || {};
+    const productGridColumns = Math.min(6, Math.max(2, Number.parseInt(storefrontConfig.product_grid_columns, 10) || 5));
+    const productGridColumnsLg = Math.min(productGridColumns, 4);
+    const productGridColumnsMd = Math.min(productGridColumns, 3);
     const pageTitle = currentCategory
         ? currentCategory.name
         : (typeof query !== 'undefined' && query
@@ -14,8 +20,15 @@
         : ((typeof isSalePage !== 'undefined' && isSalePage) ? 'Ưu đãi' : 'Sản phẩm');
 %>
 
+<!-- ===== Trang danh sách sản phẩm tổng quát / sale / search context ===== -->
 <div class="catalog-page page-shell">
-    <div class="container">
+    <div
+        class="container"
+        data-catalog-container
+        data-catalog-columns="<%= productGridColumns %>"
+        data-catalog-columns-lg="<%= productGridColumnsLg %>"
+        data-catalog-columns-md="<%= productGridColumnsMd %>"
+    >
         <section class="page-intro page-intro--compact catalog-intro catalog-intro--compact">
             <div class="catalog-intro__content">
                 <h1 class="page-intro__title page-intro__title-inline">
@@ -25,45 +38,62 @@
                 </h1>
             </div>
         </section>
-
+<!-- 
         <div class="catalog-shortcuts">
             <a href="/products/category/nam">Nam</a>
             <a href="/products/category/nu">Nữ</a>
             <a href="/products/category/tre-em">Trẻ em</a>
             <a href="/products?sale=true">Sale</a>
+        </div> -->
+
+        <div class="catalog-layout">
+            <%- include('../partials/catalog-sidebar', {
+                category,
+                categories,
+                currentSort,
+                filters,
+                filterPriceRanges,
+                filterRatingOptions,
+                paginationPath,
+                perPage,
+                query,
+                totalItems
+            }) %>
+
+            <div class="catalog-results">
+                <%- include('../partials/catalog-toolbar', {
+                    paginationPath,
+                    paginationQuery,
+                    totalItems,
+                    perPage,
+                    perPageOptions,
+                    currentSort,
+                    resultsLabel: 'sản phẩm'
+                }) %>
+
+                <% if (products && products.length > 0) { %>
+                    <div class="products-grid catalog-grid" id="productsGrid">
+                        <% products.forEach((product) => { %>
+                            <%- include('../partials/product-card', { product }) %>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="empty-panel">
+                        <h3>Chưa tìm thấy sản phẩm phù hợp</h3>
+                        <p>Thử đổi từ khóa, chuyển danh mục hoặc mở khu sale để tiếp tục mua sắm.</p>
+                        <a href="/products" class="btn btn-primary">Xem lại toàn bộ sản phẩm</a>
+                    </div>
+                <% } %>
+
+                <%- include('../partials/catalog-pagination', {
+                    paginationPath,
+                    paginationQuery,
+                    currentPage,
+                    totalPages,
+                    perPage
+                }) %>
+            </div>
         </div>
-
-        <%- include('../partials/catalog-toolbar', {
-            paginationPath,
-            paginationQuery,
-            totalItems,
-            perPage,
-            perPageOptions,
-            currentSort,
-            resultsLabel: 'sản phẩm'
-        }) %>
-
-        <% if (products && products.length > 0) { %>
-            <div class="products-grid catalog-grid" id="productsGrid">
-                <% products.forEach((product) => { %>
-                    <%- include('../partials/product-card', { product }) %>
-                <% }) %>
-            </div>
-        <% } else { %>
-            <div class="empty-panel">
-                <h3>Chưa tìm thấy sản phẩm phù hợp</h3>
-                <p>Thử đổi từ khóa, chuyển danh mục hoặc mở khu sale để tiếp tục mua sắm.</p>
-                <a href="/products" class="btn btn-primary">Xem lại toàn bộ sản phẩm</a>
-            </div>
-        <% } %>
-
-        <%- include('../partials/catalog-pagination', {
-            paginationPath,
-            paginationQuery,
-            currentPage,
-            totalPages,
-            perPage
-        }) %>
     </div>
 </div>
 

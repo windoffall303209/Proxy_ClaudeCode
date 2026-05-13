@@ -1,6 +1,8 @@
+// Điều phối tương tác trình duyệt cho buy now, tách khỏi template EJS.
 let currentDiscount = 0;
 let buyNowRuntimeData = null;
 
+// Xử lý read buy now bootstrap dữ liệu.
 function readBuyNowBootstrapData() {
     if (buyNowRuntimeData) {
         return buyNowRuntimeData;
@@ -22,6 +24,7 @@ function readBuyNowBootstrapData() {
     return buyNowRuntimeData;
 }
 
+// Xử lý set buy now mã giảm giá tin nhắn.
 function setBuyNowVoucherMessage(message, type = '') {
     const messageElement = document.getElementById('voucherMessage');
     if (!messageElement) {
@@ -36,12 +39,62 @@ function setBuyNowVoucherMessage(message, type = '') {
     }
 }
 
+// Lấy buy now mã giảm giá elements.
+function getBuyNowVoucherElements() {
+    return {
+        codeInput: document.getElementById('voucherCode'),
+        appliedInput: document.getElementById('appliedVoucherCode'),
+        clearButton: document.querySelector('[data-checkout-action="clear-voucher"]')
+    };
+}
+
+// Đồng bộ buy now mã giảm giá clear button.
+function syncBuyNowVoucherClearButton() {
+    const { codeInput, appliedInput, clearButton } = getBuyNowVoucherElements();
+    if (!clearButton) {
+        return;
+    }
+
+    clearButton.hidden = !((codeInput?.value || '').trim() || (appliedInput?.value || '').trim());
+}
+
+// Xử lý set buy now applied mã giảm giá code.
+function setBuyNowAppliedVoucherCode(code) {
+    const { appliedInput } = getBuyNowVoucherElements();
+    if (appliedInput) {
+        appliedInput.value = code || '';
+    }
+    syncBuyNowVoucherClearButton();
+}
+
+// Xử lý clear buy now mã giảm giá.
+function clearBuyNowVoucher({ clearCode = true, message = '', type = '' } = {}) {
+    const { codeInput, appliedInput } = getBuyNowVoucherElements();
+
+    if (clearCode && codeInput) {
+        codeInput.value = '';
+    }
+
+    if (appliedInput) {
+        appliedInput.value = '';
+    }
+
+    currentDiscount = 0;
+    document.querySelectorAll('.voucher-card').forEach((card) => {
+        card.classList.remove('voucher-card--selected');
+    });
+    updateTotals();
+    setBuyNowVoucherMessage(message, type);
+    syncBuyNowVoucherClearButton();
+}
+
+// Xử lý apply mã giảm giá.
 async function applyVoucher() {
     const codeInput = document.getElementById('voucherCode');
     const code = codeInput?.value.trim();
 
     if (!code) {
-        setBuyNowVoucherMessage('Vui lòng nhập mã giảm giá', 'error');
+        clearBuyNowVoucher({ clearCode: false, message: 'Vui lòng nhập mã giảm giá', type: 'error' });
         return;
     }
 
@@ -65,26 +118,45 @@ async function applyVoucher() {
         const result = await response.json();
 
         if (!response.ok || !result.success) {
-            currentDiscount = 0;
-            setBuyNowVoucherMessage(result.message || 'Mã giảm giá không hợp lệ', 'error');
-            updateTotals();
+            clearBuyNowVoucher({
+                clearCode: false,
+                message: result.message || 'Mã giảm giá không hợp lệ',
+                type: 'error'
+            });
             return;
         }
 
         currentDiscount = result.discount_amount || 0;
+        setBuyNowAppliedVoucherCode(code);
         setBuyNowVoucherMessage(
             `${result.message} - Giảm ${currentDiscount.toLocaleString('vi-VN')}đ`,
             'success'
         );
     } catch (error) {
         console.error('Buy now voucher validation error:', error);
-        currentDiscount = 0;
-        setBuyNowVoucherMessage('Có lỗi xảy ra khi kiểm tra voucher', 'error');
+        clearBuyNowVoucher({ clearCode: false, message: 'Có lỗi xảy ra khi kiểm tra voucher', type: 'error' });
+        return;
     }
 
     updateTotals();
+    syncBuyNowVoucherClearButton();
 }
 
+// Xử lý select buy now mã giảm giá.
+function selectBuyNowVoucher(card) {
+    document.querySelectorAll('.voucher-card').forEach((voucherCard) => {
+        voucherCard.classList.remove('voucher-card--selected');
+    });
+    card.classList.add('voucher-card--selected');
+
+    const codeInput = document.getElementById('voucherCode');
+    if (codeInput) {
+        codeInput.value = card.dataset.code || '';
+    }
+    applyVoucher();
+}
+
+// Cập nhật totals.
 function updateTotals() {
     const data = readBuyNowBootstrapData();
     const subtotal = data.subtotal || 0;
@@ -98,10 +170,11 @@ function updateTotals() {
         discountRow.style.display = currentDiscount > 0 ? 'flex' : 'none';
     }
 
-    const total = subtotal + shippingFee - currentDiscount;
+    const total = Math.max(0, subtotal + shippingFee - currentDiscount);
     document.getElementById('totalAmount').textContent = `${total.toLocaleString('vi-VN')}đ`;
 }
 
+// Khởi tạo buy now.
 function initBuyNow() {
     readBuyNowBootstrapData();
 
@@ -136,21 +209,46 @@ function initBuyNow() {
         button.disabled = true;
     });
 
-    document.getElementById('voucherCode')?.addEventListener('keypress', function(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            applyVoucher();
-        }
-    });
+    if (!window.__checkoutVoucherHandlersReady) {
+        document.getElementById('voucherCode')?.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applyVoucher();
+            }
+        });
 
-    document.querySelectorAll('[data-checkout-action="apply-voucher"]').forEach((button) => {
-        button.addEventListener('click', applyVoucher);
-    });
+        document.querySelectorAll('[data-checkout-action="apply-voucher"]').forEach((button) => {
+            button.addEventListener('click', applyVoucher);
+        });
+
+        document.querySelectorAll('[data-checkout-action="clear-voucher"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                clearBuyNowVoucher({ message: 'Đã bỏ voucher khỏi đơn hàng.', type: 'success' });
+            });
+        });
+
+        document.getElementById('voucherCode')?.addEventListener('input', () => {
+            const { codeInput, appliedInput } = getBuyNowVoucherElements();
+            if (!appliedInput?.value) {
+                syncBuyNowVoucherClearButton();
+                return;
+            }
+
+            if ((codeInput?.value || '').trim() !== appliedInput.value) {
+                clearBuyNowVoucher({ clearCode: false });
+            }
+        });
+
+        document.querySelectorAll('.voucher-card').forEach((card) => {
+            card.addEventListener('click', () => selectBuyNowVoucher(card));
+        });
+
+        syncBuyNowVoucherClearButton();
+    }
 
     const discountRow = document.getElementById('discountRow');
     if (discountRow) {
         discountRow.style.display = 'none';
     }
 }
-
 document.addEventListener('DOMContentLoaded', initBuyNow);

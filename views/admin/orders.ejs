@@ -1,68 +1,53 @@
-<%- include('../partials/admin-header', { currentPage: 'orders', pageStyles: ['/css/admin/orders.css'] }) %>
+<%- include('../partials/admin-header', { currentPage: 'orders', activeGroup, pageStyles: ['/css/admin/orders.css'] }) %>
+
+<%
+    const currentActiveGroup = typeof activeGroup !== 'undefined' ? activeGroup : 'all';
+    const currentOrderGroups = Array.isArray(typeof orderGroups !== 'undefined' ? orderGroups : null) ? orderGroups : [];
+    const currentOrderGroupCounts = typeof orderGroupCounts !== 'undefined' && orderGroupCounts ? orderGroupCounts : {};
+    const activeGroupMeta = currentOrderGroups.find((group) => group.key === currentActiveGroup) || { label: 'Tất cả' };
+    const orderStatusLabels = {
+        pending_payment: 'Chờ thanh toán',
+        pending: 'Chờ xác nhận',
+        confirmed: 'Đã xác nhận',
+        processing: 'Đang xử lý',
+        shipping: 'Đang giao',
+        delivered: 'Đã giao',
+        completed: 'Đã hoàn thành',
+        cancelled: 'Đã hủy'
+    };
+%>
 
 <div class="admin-page">
     <div class="container">
-        <!-- Page Header -->
         <div class="admin-page-header">
             <div class="admin-page-header__left">
-                <h1>Quản Lý Đơn Hàng</h1>
-                <p><%= orders ? orders.length : 0 %> đơn hàng</p>
-            </div>
-            <!-- <div class="admin-page-header__actions">
-                <button class="admin-btn admin-btn--primary" data-order-action="export">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                    Xuất Excel
-                </button>
-            </div> -->
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-            <div class="stat-card stat-card--blue">
-                <h3 class="stat-card__label">Tổng đơn hàng</h3>
-                <p class="stat-card__value"><%= orders ? orders.length : 0 %></p>
-            </div>
-            <div class="stat-card stat-card--purple">
-                <h3 class="stat-card__label">Chờ xử lý</h3>
-                <p class="stat-card__value"><%= orders ? orders.filter(o => o.status === 'pending').length : 0 %></p>
-            </div>
-            <div class="stat-card stat-card--green">
-                <h3 class="stat-card__label">Đã giao</h3>
-                <p class="stat-card__value"><%= orders ? orders.filter(o => o.status === 'delivered').length : 0 %></p>
-            </div>
-            <div class="stat-card stat-card--pink">
-                <h3 class="stat-card__label">Đã hủy</h3>
-                <p class="stat-card__value"><%= orders ? orders.filter(o => o.status === 'cancelled').length : 0 %></p>
+                <h1>Quản lý đơn hàng</h1>
+                <p><%= orders ? orders.length : 0 %> mục trong nhóm <%= activeGroupMeta.label %></p>
             </div>
         </div>
 
-        <!-- Filter Tabs -->
         <div class="admin-section admin-section--tabs">
-            <div class="order-tabs">
-                <button class="order-tab active" data-status="all">Tất cả</button>
-                <button class="order-tab" data-status="pending">Chờ xử lý</button>
-                <button class="order-tab" data-status="confirmed">Đã xác nhận</button>
-                <button class="order-tab" data-status="shipping">Đang giao</button>
-                <button class="order-tab" data-status="delivered">Đã giao</button>
-                <button class="order-tab" data-status="cancelled">Đã hủy</button>
-            </div>
+            <nav class="order-management-menu" aria-label="Nhóm quản lý đơn hàng">
+                <% currentOrderGroups.forEach((group) => { %>
+                    <a class="order-management-menu__link <%= currentActiveGroup === group.key ? 'active' : '' %>" href="<%= group.href %>">
+                        <span><%= group.label %></span>
+                        <span class="order-management-menu__count"><%= currentOrderGroupCounts[group.key] || 0 %></span>
+                    </a>
+                <% }) %>
+            </nav>
         </div>
 
         <div class="admin-toolbar">
             <div class="admin-toolbar__info">
-                <p class="admin-toolbar__title">Tìm đơn hàng nhanh</p>
-                <p class="admin-toolbar__text">
-                    Tìm theo mã đơn, tên khách, email hoặc số điện thoại.
-                    <% if (searchQuery) { %>
-                        Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"
-                    <% } %>
-                </p>
+                <p class="admin-toolbar__title">Tìm đơn hàng</p>
+                <% if (searchQuery) { %>
+                    <p class="admin-toolbar__text">Đang lọc với từ khóa: "<strong><%= searchQuery %></strong>"</p>
+                <% } %>
             </div>
             <form action="/admin/orders" method="GET" class="admin-search-form">
+                <% if (currentActiveGroup !== 'all') { %>
+                    <input type="hidden" name="group" value="<%= currentActiveGroup %>">
+                <% } %>
                 <input
                     type="search"
                     name="search"
@@ -73,29 +58,34 @@
                 <div class="admin-search-form__actions">
                     <button type="submit" class="admin-btn admin-btn--primary">Tìm kiếm</button>
                     <% if (searchQuery) { %>
-                        <a href="/admin/orders" class="admin-btn admin-btn--ghost">Xóa lọc</a>
+                        <a href="<%= currentActiveGroup === 'all' ? '/admin/orders' : '/admin/orders?group=' + currentActiveGroup %>" class="admin-btn admin-btn--ghost">Xóa lọc</a>
                     <% } %>
                 </div>
             </form>
         </div>
 
-        <!-- Orders Table -->
         <% if (orders && orders.length > 0) { %>
             <div class="admin-table-wrapper">
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th>Mã Đơn</th>
-                            <th>Khách Hàng</th>
-                            <th class="text-right">Tổng Tiền</th>
-                            <th class="text-center">Thanh Toán</th>
-                            <th class="text-center">Trạng Thái</th>
-                            <th class="text-center">Ngày Đặt</th>
-                            <th class="text-center">Thao Tác</th>
+                            <th>Mã đơn</th>
+                            <th>Khách hàng</th>
+                            <th>Sản phẩm</th>
+                            <th class="text-right">Tổng tiền</th>
+                            <th class="text-center">Thanh toán</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-center">Ngày đặt</th>
+                            <th class="text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <% orders.forEach(order => { %>
+                        <% orders.forEach(order => {
+                            const isPaymentSettled = order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status);
+                            const paymentStatusText = isPaymentSettled ? 'Đã thanh toán' : (order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
+                            const paymentStatusClass = isPaymentSettled ? 'admin-table__badge--delivered' : (order.payment_method === 'cod' ? 'admin-table__badge--processing' : 'admin-table__badge--pending');
+                            const canShowCountdown = order.status === 'pending_payment' && order.payment_status !== 'paid' && ['vnpay', 'momo'].includes(String(order.payment_method || '').toLowerCase()) && order.payment_expires_at;
+                        %>
                             <tr data-status="<%= order.status %>">
                                 <td>
                                     <a href="/admin/orders/<%= order.id %>" class="admin-table__link">
@@ -106,7 +96,23 @@
                                     <div class="order-customer">
                                         <span class="order-customer__name"><%= order.user_name || order.recipient_name || 'N/A' %></span>
                                         <% if (order.recipient_phone) { %>
-                                            <span class="order-customer__phone"><%= order.recipient_phone %></span>
+                                            <span class="order-customer__phone"><%= privacy.maskPhone(order.recipient_phone) %></span>
+                                        <% } else if (order.user_email) { %>
+                                            <span class="order-customer__phone"><%= privacy.maskEmail(order.user_email) %></span>
+                                        <% } %>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="order-products">
+                                        <% (order.items || []).forEach((item) => { %>
+                                            <% if (item.product_slug) { %>
+                                                <a class="order-products__link" href="/products/<%= item.product_slug %>" target="_blank" rel="noopener"><%= item.product_name %></a>
+                                            <% } else { %>
+                                                <span class="order-products__link"><%= item.product_name %></span>
+                                            <% } %>
+                                        <% }) %>
+                                        <% if ((order.item_count || 0) > (order.items || []).length) { %>
+                                            <span class="order-products__more">+<%= order.item_count - (order.items || []).length %> sản phẩm khác</span>
                                         <% } %>
                                     </div>
                                 </td>
@@ -114,20 +120,26 @@
                                     <span class="admin-table__price"><%= (order.final_amount || order.total_amount || 0).toLocaleString('vi-VN') %>đ</span>
                                 </td>
                                 <td class="text-center">
-                                    <% if (order.payment_status === 'paid') { %>
-                                        <span class="admin-table__badge admin-table__badge--delivered">Đã thanh toán</span>
-                                    <% } else { %>
-                                        <span class="admin-table__badge admin-table__badge--pending">Chưa thanh toán</span>
-                                    <% } %>
+                                    <span class="admin-table__badge <%= paymentStatusClass %>"><%= paymentStatusText %></span>
                                 </td>
                                 <td class="text-center">
                                     <select data-order-id="<%= order.id %>" class="order-status-select order-status-select--<%= order.status %>">
-                                        <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Chờ xử lý</option>
+                                        <% if (order.status === 'pending_payment') { %>
+                                            <option value="pending_payment" selected>Chờ thanh toán</option>
+                                        <% } %>
+                                        <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Chờ xác nhận</option>
                                         <option value="confirmed" <%= order.status === 'confirmed' ? 'selected' : '' %>>Đã xác nhận</option>
+                                        <option value="processing" <%= order.status === 'processing' ? 'selected' : '' %>>Đang xử lý</option>
                                         <option value="shipping" <%= order.status === 'shipping' ? 'selected' : '' %>>Đang giao</option>
                                         <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Đã giao</option>
+                                        <% if (order.status === 'completed') { %>
+                                            <option value="completed" selected disabled>Đã hoàn thành</option>
+                                        <% } %>
                                         <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Đã hủy</option>
                                     </select>
+                                    <% if (canShowCountdown) { %>
+                                        <span class="payment-countdown" data-payment-countdown data-expires-at="<%= new Date(order.payment_expires_at).toISOString() %>"></span>
+                                    <% } %>
                                 </td>
                                 <td class="text-center">
                                     <span class="order-date"><%= new Date(order.created_at).toLocaleDateString('vi-VN') %></span>
@@ -140,13 +152,6 @@
                                                 <circle cx="12" cy="12" r="3"/>
                                             </svg>
                                         </a>
-                                        <button data-order-action="print" data-order-id="<%= order.id %>" class="admin-btn admin-btn--image" title="In đơn hàng">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <polyline points="6 9 6 2 18 2 18 9"/>
-                                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                                                <rect x="6" y="14" width="12" height="8"/>
-                                            </svg>
-                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -156,42 +161,14 @@
             </div>
         <% } else { %>
             <div class="admin-empty">
-                <div class="admin-empty__icon">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                        <line x1="3" y1="6" x2="21" y2="6"/>
-                        <path d="M16 10a4 4 0 0 1-8 0"/>
-                    </svg>
-                </div>
-                <h3 class="admin-empty__title">Chưa có đơn hàng nào</h3>
-                <p class="admin-empty__text">Đơn hàng mới sẽ xuất hiện tại đây khi khách hàng đặt hàng.</p>
+                <h3 class="admin-empty__title">Không có mục nào trong nhóm này</h3>
+                <p class="admin-empty__text">Khi đơn hàng chuyển sang trạng thái phù hợp, danh sách sẽ được cập nhật tại đây.</p>
             </div>
         <% } %>
     </div>
 </div>
 
-<!-- Order Detail Modal -->
-<div id="orderDetailModal" class="admin-modal">
-    <div class="admin-modal__content admin-modal__content--orders">
-        <div class="admin-modal__header">
-            <h3 class="admin-modal__title">Chi Tiết Đơn Hàng</h3>
-            <button class="admin-modal__close" data-order-modal-close>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-            </button>
-        </div>
-        <div class="admin-modal__body" id="orderDetailContent">
-            <p>Đang tải...</p>
-        </div>
-    </div>
-</div>
-
-<!-- Toast Container -->
 <div id="toastContainer"></div>
-
-
 
 <script src="/js/admin/orders.js"></script>
 

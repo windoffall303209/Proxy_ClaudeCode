@@ -100,8 +100,8 @@ function renderProductCard(product) {
             <div class="product-card__info">
                 <h3 class="product-card__name">${product.name}</h3>
                 <div class="product-card__price">
-                    ${hasDiscount ? `<span class="product-card__price-old">${price.toLocaleString('vi-VN')}đ</span>` : ''}
                     <span class="product-card__price-current">${finalPrice.toLocaleString('vi-VN')}đ</span>
+                    ${hasDiscount ? `<span class="product-card__price-old">${price.toLocaleString('vi-VN')}đ</span>` : ''}
                 </div>
             </div>
         </a>

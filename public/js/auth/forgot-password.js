@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho xác thực quên mật khẩu mật khẩu, tách khỏi template EJS.
 document.addEventListener('DOMContentLoaded', function() {
     const alertContainer = document.getElementById('alert-container');
     const stepEmail = document.getElementById('step-email');
@@ -27,8 +28,26 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
+    // Xử lý clear alert.
     function clearAlert() {
         alertContainer.innerHTML = '';
+    }
+
+    function initPasswordToggles() {
+        document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+            const input = document.getElementById(button.dataset.passwordToggle);
+            if (!input) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                const shouldShow = input.type === 'password';
+                input.type = shouldShow ? 'text' : 'password';
+                button.textContent = shouldShow ? 'Ẩn' : 'Hiện';
+                button.setAttribute('aria-pressed', shouldShow ? 'true' : 'false');
+                button.setAttribute('aria-label', shouldShow ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+            });
+        });
     }
 
     // Start resend timer
@@ -107,13 +126,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             updateFullCode();
         });
-
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && !e.target.value && index > 0) {
                 codeInputs[index - 1].focus();
             }
         });
-
         input.addEventListener('paste', (e) => {
             e.preventDefault();
             const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
@@ -130,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Cập nhật full code.
     function updateFullCode() {
         const code = Array.from(codeInputs).map(input => input.value).join('');
         fullCodeInput.value = code;
@@ -261,4 +279,6 @@ document.addEventListener('DOMContentLoaded', function() {
             btnResend.disabled = false;
         }
     });
+
+    initPasswordToggles();
 });

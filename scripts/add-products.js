@@ -133,6 +133,7 @@ const imagesByCategory = {
   ]
 };
 
+// Chạy luồng chính của script.
 async function main() {
   console.log('🚀 Bắt đầu thêm 90 sản phẩm mới...\n');
 

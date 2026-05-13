@@ -1,5 +1,8 @@
+// Service gom logic emailservice để controller không phải lặp xử lý nghiệp vụ.
 const { Resend } = require('resend');
 require('dotenv').config();
+
+const DEFAULT_ADMIN_EMAIL = 'nvuthanh4@gmail.com';
 
 class EmailService {
     constructor() {
@@ -50,6 +53,40 @@ class EmailService {
         }
 
         return false;
+    }
+
+    getAdminEmail() {
+        return process.env.ADMIN_EMAIL || process.env.RESEND_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
+    }
+
+    parseEmailList(value) {
+        return String(value || '')
+            .split(',')
+            .map((email) => email.trim())
+            .filter(Boolean);
+    }
+
+    async getAdminEmails() {
+        const configuredEmails = [
+            ...this.parseEmailList(process.env.ADMIN_EMAIL),
+            ...this.parseEmailList(process.env.RESEND_ADMIN_EMAIL)
+        ];
+        let userAdminEmails = [];
+
+        try {
+            const User = require('../models/User');
+            if (typeof User.getAdminEmails === 'function') {
+                userAdminEmails = await User.getAdminEmails();
+            }
+        } catch (error) {
+            console.error('Unable to load admin emails:', error.message || error);
+        }
+
+        return Array.from(new Set([
+            ...configuredEmails,
+            ...userAdminEmails,
+            DEFAULT_ADMIN_EMAIL
+        ].filter(Boolean)));
     }
 
     // Send welcome email on registration
@@ -151,6 +188,129 @@ class EmailService {
         `;
 
         return await this.sendEmail(order.user_email, `Xác nhận đơn hàng #${order.order_code}`, html);
+    }
+
+    // Send delivery notification email
+    async sendOrderDeliveredEmail(order) {
+        if (!order?.user_email) {
+            return false;
+        }
+
+        const itemsHtml = Array.isArray(order.items) ? order.items.map(item => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.product_name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${Number(item.subtotal || 0).toLocaleString('vi-VN')}đ</td>
+            </tr>
+        `).join('') : '';
+
+        const orderUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/orders/${order.order_code}/tracking`;
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">Đơn hàng đã được giao thành công</h2>
+                <p>Xin chào ${order.user_name || order.shipping_name || ''},</p>
+                <p>Đơn hàng <strong>#${order.order_code}</strong> đã được cập nhật trạng thái <strong>Đã giao</strong>.</p>
+
+                <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                    <p style="margin: 0 0 8px 0;"><strong>Người nhận:</strong> ${order.shipping_name}</p>
+                    <p style="margin: 0 0 8px 0;"><strong>Số điện thoại:</strong> ${order.shipping_phone}</p>
+                    <p style="margin: 0;"><strong>Địa chỉ:</strong> ${order.address_line}, ${order.ward ? order.ward + ', ' : ''}${order.district ? order.district + ', ' : ''}${order.city}</p>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f5f5f5;">
+                            <th style="padding: 10px; text-align: left;">Sản phẩm</th>
+                            <th style="padding: 10px; text-align: center;">SL</th>
+                            <th style="padding: 10px; text-align: right;">Tổng</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+
+                <p style="margin-top: 20px; text-align: right;">
+                    <strong>Tổng cộng:</strong> ${Number(order.final_amount || 0).toLocaleString('vi-VN')}đ
+                </p>
+
+                <a href="${orderUrl}"
+                   style="display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px;">
+                    Xem đơn hàng
+                </a>
+
+                <p style="color: #666; font-size: 12px; margin-top: 24px;">
+                    Nếu bạn chưa nhận được hàng hoặc có vấn đề với đơn hàng, vui lòng liên hệ hỗ trợ.
+                </p>
+            </div>
+        `;
+
+        return await this.sendEmail(order.user_email, `Đơn hàng #${order.order_code} đã được giao`, html);
+    }
+
+    async sendAdminNewOrderEmail(order) {
+        const adminEmails = await this.getAdminEmails();
+        if (!adminEmails.length || !order) {
+            return false;
+        }
+
+        const orderUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/orders/${order.id}`;
+        const itemsHtml = Array.isArray(order.items) ? order.items.map(item => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.product_name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${Number(item.subtotal || 0).toLocaleString('vi-VN')}đ</td>
+            </tr>
+        `).join('') : '';
+
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+                <h2>Người dùng đã đặt đơn #${order.order_code}</h2>
+                <p>Khách hàng: <strong>${order.user_name || order.shipping_name || 'N/A'}</strong></p>
+                <p>Email: ${order.user_email || 'N/A'}</p>
+                <p>Thanh toán: ${this.getPaymentMethodText(order.payment_method)} - ${order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}</p>
+                <p>Trạng thái: ${order.status || 'N/A'}</p>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 8px; text-align: left;">Sản phẩm</th>
+                            <th style="padding: 8px; text-align: center;">SL</th>
+                            <th style="padding: 8px; text-align: right;">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <p style="text-align: right; font-size: 18px;"><strong>Tổng:</strong> ${Number(order.final_amount || 0).toLocaleString('vi-VN')}đ</p>
+                <a href="${orderUrl}" style="display: inline-block; padding: 10px 18px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">Xem đơn hàng</a>
+            </div>
+        `;
+
+        return this.sendEmail(adminEmails, `Người dùng đã đặt đơn #${order.order_code}`, html);
+    }
+
+    async sendAdminReturnRequestEmail(returnRequest, order) {
+        const adminEmails = await this.getAdminEmails();
+        if (!adminEmails.length || !returnRequest || !order) {
+            return false;
+        }
+
+        const returnUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/returns/${returnRequest.id}`;
+        const mediaHtml = Array.isArray(returnRequest.media) && returnRequest.media.length > 0
+            ? returnRequest.media.map((media) => `<li><a href="${media.media_url}" target="_blank" rel="noopener noreferrer">${media.media_type}</a></li>`).join('')
+            : '<li>Không có tệp đính kèm</li>';
+
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+                <h2>Người dùng yêu cầu hoàn hàng</h2>
+                <p>Đơn hàng: <strong>#${order.order_code}</strong></p>
+                <p>Khách hàng: ${returnRequest.user_name || order.user_name || order.shipping_name || 'N/A'}</p>
+                <p>Lý do:</p>
+                <div style="padding: 12px; background: #f7f7f7; border-radius: 6px;">${returnRequest.reason}</div>
+                <p>Tệp minh chứng:</p>
+                <ul>${mediaHtml}</ul>
+                <a href="${returnUrl}" style="display: inline-block; padding: 10px 18px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">Mở trang quản lý hoàn hàng</a>
+            </div>
+        `;
+
+        return this.sendEmail(adminEmails, `Người dùng yêu cầu hoàn hàng #${order.order_code}`, html);
     }
 
     // Send marketing campaign email

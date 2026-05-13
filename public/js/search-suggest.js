@@ -10,10 +10,12 @@
     let debounceTimer = null;
     let currentQuery = '';
 
+    // Định dạng giá.
     function formatPrice(n) {
         return n.toLocaleString('vi-VN') + 'đ';
     }
 
+    // Hiển thị gợi ý.
     function renderSuggestions(products, query) {
         if (!products.length) {
             dropdown.innerHTML = '<div class="search-suggest__empty">Không tìm thấy sản phẩm nào</div>';
@@ -21,6 +23,7 @@
             return;
         }
 
+        // Xử lý highlight.
         const highlight = (text) => {
             const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
             return text.replace(regex, '<mark>$1</mark>');
@@ -58,6 +61,7 @@
         dropdown.classList.add('is-open');
     }
 
+    // Tải gợi ý.
     async function fetchSuggestions(query) {
         try {
             const res = await fetch(`/products/suggest?q=${encodeURIComponent(query)}`);
@@ -69,7 +73,6 @@
             dropdown.classList.remove('is-open');
         }
     }
-
     input.addEventListener('input', () => {
         const q = input.value.trim();
         currentQuery = q;
@@ -84,13 +87,11 @@
 
         debounceTimer = setTimeout(() => fetchSuggestions(q), 300);
     });
-
     input.addEventListener('focus', () => {
         if (input.value.trim().length >= 2 && dropdown.innerHTML) {
             dropdown.classList.add('is-open');
         }
     });
-
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.header-search')) {
             dropdown.classList.remove('is-open');

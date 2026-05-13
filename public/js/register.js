@@ -1,3 +1,4 @@
+// Điều phối tương tác trình duyệt cho đăng ký, tách khỏi template EJS.
 function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
     if (!input || !button) {
@@ -16,7 +17,6 @@ function togglePassword(inputId, button) {
         if (eyeClosed) eyeClosed.hidden = true;
     }
 }
-
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('registerForm');
     const fullName = document.getElementById('full_name');
@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Xử lý clear error.
     function clearError(fieldId) {
         showError(fieldId, '');
     }
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    // Kiểm tra hợp lệ email.
     function validateEmail() {
         const val = email.value.trim();
         if (!val) {
@@ -101,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    // Kiểm tra hợp lệ số điện thoại.
     function validatePhone() {
         const val = phone.value.trim();
         if (!val) {
@@ -115,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    // Kiểm tra hợp lệ mật khẩu.
     function validatePassword() {
         const val = password.value;
         if (!val) {
@@ -141,6 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    // Kiểm tra hợp lệ confirm mật khẩu.
     function validateConfirmPassword() {
         if (!confirmPassword.value) {
             showError('confirm_password', 'Xác nhận mật khẩu là bắt buộc');

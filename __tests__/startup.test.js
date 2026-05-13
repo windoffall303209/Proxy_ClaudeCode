@@ -1,3 +1,4 @@
+// Kiểm thử tự động cho tests startup.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
 const app = require('../app');
