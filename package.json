@@ -1,7 +1,7 @@
 {
   "name": "tmdt-nodejs",
   "version": "1.0.0",
-  "description": "E-commerce clothing website with Node.js, Express.js, MySQL",
+  "description": "E-commerce clothing website with Node.js, Express.js, PostgreSQL",
   "main": "server.js",
   "engines": {
     "node": ">=18"
@@ -20,7 +20,7 @@
     "fashion",
     "nodejs",
     "express",
-    "mysql"
+    "postgresql"
   ],
   "author": "",
   "license": "ISC",
@@ -41,8 +41,8 @@
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.29.4",
     "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.6.5",
     "nodemailer": "^7.0.12",
+    "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "resend": "^6.9.1",
     "sanitize-html": "^2.17.2",

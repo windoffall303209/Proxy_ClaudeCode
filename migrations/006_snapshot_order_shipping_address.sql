@@ -1,55 +1,64 @@
--- File migrations/006_snapshot_order_shipping_address.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
+-- File migrations/006_snapshot_order_shipping_address.sql
+-- PostgreSQL version.
+
 ALTER TABLE orders
-    ADD COLUMN shipping_name VARCHAR(255) NULL AFTER address_id,
-    ADD COLUMN shipping_phone VARCHAR(20) NULL AFTER shipping_name,
-    ADD COLUMN shipping_address_line VARCHAR(500) NULL AFTER shipping_phone,
-    ADD COLUMN shipping_ward VARCHAR(255) NULL AFTER shipping_address_line,
-    ADD COLUMN shipping_district VARCHAR(255) NULL AFTER shipping_ward,
-    ADD COLUMN shipping_city VARCHAR(255) NULL AFTER shipping_district;
+    ADD COLUMN IF NOT EXISTS shipping_name VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(20) NULL,
+    ADD COLUMN IF NOT EXISTS shipping_address_line VARCHAR(500) NULL,
+    ADD COLUMN IF NOT EXISTS shipping_ward VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS shipping_district VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS shipping_city VARCHAR(255) NULL;
 
 UPDATE orders o
-LEFT JOIN addresses a ON a.id = o.address_id
 SET
-    o.shipping_name = COALESCE(o.shipping_name, a.full_name),
-    o.shipping_phone = COALESCE(o.shipping_phone, a.phone),
-    o.shipping_address_line = COALESCE(o.shipping_address_line, a.address_line),
-    o.shipping_ward = COALESCE(o.shipping_ward, a.ward),
-    o.shipping_district = COALESCE(o.shipping_district, a.district),
-    o.shipping_city = COALESCE(o.shipping_city, a.city)
-WHERE
-    o.shipping_name IS NULL
-    OR o.shipping_phone IS NULL
-    OR o.shipping_address_line IS NULL
-    OR o.shipping_city IS NULL;
+    shipping_name = COALESCE(o.shipping_name, a.full_name, 'Khach hang'),
+    shipping_phone = COALESCE(o.shipping_phone, a.phone),
+    shipping_address_line = COALESCE(o.shipping_address_line, a.address_line, 'Chua cap nhat'),
+    shipping_ward = COALESCE(o.shipping_ward, a.ward),
+    shipping_district = COALESCE(o.shipping_district, a.district),
+    shipping_city = COALESCE(o.shipping_city, a.city, 'Chua cap nhat')
+FROM addresses a
+WHERE a.id = o.address_id
+  AND (
+      o.shipping_name IS NULL
+      OR o.shipping_phone IS NULL
+      OR o.shipping_address_line IS NULL
+      OR o.shipping_city IS NULL
+  );
 
-SET @orders_address_fk = (
-    SELECT CONSTRAINT_NAME
-    FROM information_schema.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'orders'
-      AND COLUMN_NAME = 'address_id'
-      AND REFERENCED_TABLE_NAME = 'addresses'
-    LIMIT 1
-);
+UPDATE orders
+SET
+    shipping_name = COALESCE(shipping_name, 'Khach hang'),
+    shipping_address_line = COALESCE(shipping_address_line, 'Chua cap nhat'),
+    shipping_city = COALESCE(shipping_city, 'Chua cap nhat')
+WHERE shipping_name IS NULL
+   OR shipping_address_line IS NULL
+   OR shipping_city IS NULL;
 
-SET @drop_orders_address_fk_sql = IF(
-    @orders_address_fk IS NULL,
-    'SELECT 1',
-    CONCAT('ALTER TABLE orders DROP FOREIGN KEY ', @orders_address_fk)
-);
-
-PREPARE orders_fk_stmt FROM @drop_orders_address_fk_sql;
-EXECUTE orders_fk_stmt;
-DEALLOCATE PREPARE orders_fk_stmt;
+DO $$
+DECLARE
+    fk_name text;
+BEGIN
+    FOR fk_name IN
+        SELECT c.conname
+        FROM pg_constraint c
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+        WHERE c.conrelid = 'orders'::regclass
+          AND c.contype = 'f'
+          AND a.attname = 'address_id'
+    LOOP
+        EXECUTE format('ALTER TABLE orders DROP CONSTRAINT %I', fk_name);
+    END LOOP;
+END $$;
 
 ALTER TABLE orders
-    MODIFY address_id INT NULL,
-    MODIFY shipping_name VARCHAR(255) NOT NULL,
-    MODIFY shipping_phone VARCHAR(20) NULL,
-    MODIFY shipping_address_line VARCHAR(500) NOT NULL,
-    MODIFY shipping_ward VARCHAR(255) NULL,
-    MODIFY shipping_district VARCHAR(255) NULL,
-    MODIFY shipping_city VARCHAR(255) NOT NULL;
+    ALTER COLUMN address_id DROP NOT NULL,
+    ALTER COLUMN shipping_name SET NOT NULL,
+    ALTER COLUMN shipping_phone DROP NOT NULL,
+    ALTER COLUMN shipping_address_line SET NOT NULL,
+    ALTER COLUMN shipping_ward DROP NOT NULL,
+    ALTER COLUMN shipping_district DROP NOT NULL,
+    ALTER COLUMN shipping_city SET NOT NULL;
 
 ALTER TABLE orders
     ADD CONSTRAINT fk_orders_address_id

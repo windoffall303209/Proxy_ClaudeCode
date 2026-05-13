@@ -72,7 +72,8 @@ class Sale {
 
         const [result] = await pool.execute(
             `INSERT INTO sales (name, description, type, value, start_date, end_date)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?)
+             RETURNING id`,
             [
                 name,
                 description || null,

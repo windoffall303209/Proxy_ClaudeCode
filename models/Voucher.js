@@ -82,7 +82,8 @@ class Voucher {
                 min_order_amount, max_discount_amount, usage_limit,
                 user_limit, start_date, end_date, is_active
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id`,
             [
                 String(code || '').toUpperCase(),
                 name,

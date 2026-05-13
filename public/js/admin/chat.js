@@ -11,7 +11,8 @@ const adminChatState = {
     currentConversation: null,
     searchTerm: '',
     detailPollInterval: null,
-    listPollInterval: null
+    listPollInterval: null,
+    attachmentPreviewUrls: []
 };
 
 // Xử lý show quản trị chat toast.
@@ -488,10 +489,62 @@ function describeSelectedAdminFiles(files = []) {
         : `${files.length} tệp: ${fileNames}`;
 }
 
+function revokeAdminAttachmentPreviewUrls() {
+    adminChatState.attachmentPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    adminChatState.attachmentPreviewUrls = [];
+}
+
+function renderAdminAttachmentMediaPreview(files, container) {
+    revokeAdminAttachmentPreviewUrls();
+
+    if (!container) return;
+    container.replaceChildren();
+
+    const previewFiles = files.slice(0, 6);
+    previewFiles.forEach((file) => {
+        const item = document.createElement('div');
+        item.className = 'admin-chat-detail__attachments-item';
+        item.title = file.name;
+
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            const url = URL.createObjectURL(file);
+            adminChatState.attachmentPreviewUrls.push(url);
+
+            const media = file.type.startsWith('video/')
+                ? document.createElement('video')
+                : document.createElement('img');
+            media.src = url;
+            media.title = file.name;
+            if (media.tagName === 'IMG') {
+                media.alt = file.name;
+            } else {
+                media.muted = true;
+                media.playsInline = true;
+                media.preload = 'metadata';
+            }
+            item.appendChild(media);
+        } else {
+            const fallback = document.createElement('span');
+            fallback.textContent = file.name.slice(0, 3).toUpperCase();
+            item.appendChild(fallback);
+        }
+
+        container.appendChild(item);
+    });
+
+    if (files.length > previewFiles.length) {
+        const more = document.createElement('div');
+        more.className = 'admin-chat-detail__attachments-item admin-chat-detail__attachments-item--more';
+        more.textContent = `+${files.length - previewFiles.length}`;
+        container.appendChild(more);
+    }
+}
+
 // Cập nhật quản trị attachment preview.
 function updateAdminAttachmentPreview() {
     const fileInput = document.getElementById('adminReplyMediaInput');
     const preview = document.getElementById('adminReplyAttachmentPreview');
+    const media = document.getElementById('adminReplyAttachmentPreviewMedia');
     const text = document.getElementById('adminReplyAttachmentPreviewText');
 
     if (!fileInput || !preview || !text) {
@@ -502,11 +555,13 @@ function updateAdminAttachmentPreview() {
     if (!files.length) {
         preview.hidden = true;
         text.textContent = '';
+        renderAdminAttachmentMediaPreview([], media);
         return;
     }
 
     preview.hidden = false;
     text.textContent = describeSelectedAdminFiles(files);
+    renderAdminAttachmentMediaPreview(files, media);
 }
 
 // Xử lý clear quản trị attachment selection.
@@ -694,6 +749,7 @@ function initAdminChat() {
     });
     document.getElementById('adminReplyMediaInput')?.addEventListener('change', updateAdminAttachmentPreview);
     document.getElementById('adminReplyAttachmentClearBtn')?.addEventListener('click', clearAdminAttachmentSelection);
+    window.addEventListener('pagehide', revokeAdminAttachmentPreviewUrls, { passive: true });
 
     renderConversationList();
     startListPolling();

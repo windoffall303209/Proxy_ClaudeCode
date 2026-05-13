@@ -1,6 +1,4 @@
--- File database/reseed_products_20_each.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
-USE tmdt_ecommerce;
-
+﻿-- File database/reseed_products_20_each.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 START TRANSACTION;
 
 -- Ensure required categories exist
@@ -17,18 +15,16 @@ SELECT 'Thoi Trang Tre Em', 'tre-em', 'Quan ao tre em', 'https://images.unsplash
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE slug = 'tre-em');
 
 -- Delete product-related data so products can be recreated cleanly
-DELETE FROM cart_items;
-DELETE FROM order_items;
-DELETE FROM voucher_products;
-DELETE FROM product_variants;
-DELETE FROM product_images;
-DELETE FROM products;
+TRUNCATE TABLE
+    cart_items,
+    order_items,
+    voucher_products,
+    product_variants,
+    product_images,
+    products
+RESTART IDENTITY CASCADE;
 
-ALTER TABLE products AUTO_INCREMENT = 1;
-ALTER TABLE product_images AUTO_INCREMENT = 1;
-ALTER TABLE product_variants AUTO_INCREMENT = 1;
-
-DROP TEMPORARY TABLE IF EXISTS tmp_numbers;
+DROP TABLE IF EXISTS tmp_numbers;
 CREATE TEMPORARY TABLE tmp_numbers (
     n INT PRIMARY KEY
 );
@@ -51,14 +47,14 @@ INSERT INTO products (
 )
 SELECT
     c.id,
-    CONCAT('Nam Urban Tee ', LPAD(t.n, 2, '0')),
-    CONCAT('nam-urban-tee-', LPAD(t.n, 2, '0')),
-    CONCAT('Nam urban style tee version ', LPAD(t.n, 2, '0'), '. Soft cotton and regular fit.'),
+    CONCAT('Nam Urban Tee ', LPAD(t.n::text, 2, '0')),
+    CONCAT('nam-urban-tee-', LPAD(t.n::text, 2, '0')),
+    CONCAT('Nam urban style tee version ', LPAD(t.n::text, 2, '0'), '. Soft cotton and regular fit.'),
     320000 + (t.n * 12000),
     0,
-    CONCAT('NEW-NAM-', LPAD(t.n, 2, '0')),
+    CONCAT('NEW-NAM-', LPAD(t.n::text, 2, '0')),
     TRUE,
-    IF(t.n <= 6, TRUE, FALSE)
+    (t.n <= 6)
 FROM tmp_numbers t
 JOIN categories c ON c.slug = 'nam';
 
@@ -76,14 +72,14 @@ INSERT INTO products (
 )
 SELECT
     c.id,
-    CONCAT('Nu Chic Dress ', LPAD(t.n, 2, '0')),
-    CONCAT('nu-chic-dress-', LPAD(t.n, 2, '0')),
-    CONCAT('Nu chic dress model ', LPAD(t.n, 2, '0'), '. Breathable fabric and elegant silhouette.'),
+    CONCAT('Nu Chic Dress ', LPAD(t.n::text, 2, '0')),
+    CONCAT('nu-chic-dress-', LPAD(t.n::text, 2, '0')),
+    CONCAT('Nu chic dress model ', LPAD(t.n::text, 2, '0'), '. Breathable fabric and elegant silhouette.'),
     390000 + (t.n * 15000),
     0,
-    CONCAT('NEW-NU-', LPAD(t.n, 2, '0')),
+    CONCAT('NEW-NU-', LPAD(t.n::text, 2, '0')),
     TRUE,
-    IF(t.n <= 6, TRUE, FALSE)
+    (t.n <= 6)
 FROM tmp_numbers t
 JOIN categories c ON c.slug = 'nu';
 
@@ -101,18 +97,18 @@ INSERT INTO products (
 )
 SELECT
     c.id,
-    CONCAT('Tre Em Active Set ', LPAD(t.n, 2, '0')),
-    CONCAT('tre-em-active-set-', LPAD(t.n, 2, '0')),
-    CONCAT('Tre em active set ', LPAD(t.n, 2, '0'), '. Lightweight and easy to move.'),
+    CONCAT('Tre Em Active Set ', LPAD(t.n::text, 2, '0')),
+    CONCAT('tre-em-active-set-', LPAD(t.n::text, 2, '0')),
+    CONCAT('Tre em active set ', LPAD(t.n::text, 2, '0'), '. Lightweight and easy to move.'),
     260000 + (t.n * 9000),
     0,
-    CONCAT('NEW-KID-', LPAD(t.n, 2, '0')),
+    CONCAT('NEW-KID-', LPAD(t.n::text, 2, '0')),
     TRUE,
-    IF(t.n <= 6, TRUE, FALSE)
+    (t.n <= 6)
 FROM tmp_numbers t
 JOIN categories c ON c.slug = 'tre-em';
 
-DROP TEMPORARY TABLE IF EXISTS tmp_colors;
+DROP TABLE IF EXISTS tmp_colors;
 CREATE TEMPORARY TABLE tmp_colors (
     category_slug VARCHAR(20) NOT NULL,
     color_name VARCHAR(50) NOT NULL,
@@ -138,14 +134,14 @@ INSERT INTO product_images (product_id, image_url, is_primary, display_order)
 SELECT
     p.id,
     CONCAT(tc.base_url, '&sig=', p.id * 10 + tc.image_order),
-    IF(tc.image_order = 0, TRUE, FALSE),
+    (tc.image_order = 0),
     tc.image_order
 FROM products p
 JOIN categories c ON c.id = p.category_id
 JOIN tmp_colors tc ON tc.category_slug = c.slug
 WHERE p.sku LIKE 'NEW-NAM-%' OR p.sku LIKE 'NEW-NU-%' OR p.sku LIKE 'NEW-KID-%';
 
-DROP TEMPORARY TABLE IF EXISTS tmp_sizes;
+DROP TABLE IF EXISTS tmp_sizes;
 CREATE TEMPORARY TABLE tmp_sizes (
     category_slug VARCHAR(20) NOT NULL,
     size_value VARCHAR(20) NOT NULL,
@@ -188,17 +184,18 @@ WHERE p.sku LIKE 'NEW-NAM-%' OR p.sku LIKE 'NEW-NU-%' OR p.sku LIKE 'NEW-KID-%';
 
 -- Product stock = sum of variant stock for consistency
 UPDATE products p
-JOIN (
+SET stock_quantity = v.total_stock
+FROM (
     SELECT product_id, SUM(stock_quantity) AS total_stock
     FROM product_variants
     GROUP BY product_id
-) v ON v.product_id = p.id
-SET p.stock_quantity = v.total_stock
-WHERE p.sku LIKE 'NEW-NAM-%' OR p.sku LIKE 'NEW-NU-%' OR p.sku LIKE 'NEW-KID-%';
+) v
+WHERE v.product_id = p.id
+  AND (p.sku LIKE 'NEW-NAM-%' OR p.sku LIKE 'NEW-NU-%' OR p.sku LIKE 'NEW-KID-%');
 
-DROP TEMPORARY TABLE IF EXISTS tmp_numbers;
-DROP TEMPORARY TABLE IF EXISTS tmp_colors;
-DROP TEMPORARY TABLE IF EXISTS tmp_sizes;
+DROP TABLE IF EXISTS tmp_numbers;
+DROP TABLE IF EXISTS tmp_colors;
+DROP TABLE IF EXISTS tmp_sizes;
 
 COMMIT;
 

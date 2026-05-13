@@ -58,14 +58,14 @@ function validateVariants(variants) {
 
         const comboKey = `${(variant.size || '').toLowerCase()}::${(variant.color || '').toLowerCase()}`;
         if (comboKeys.has(comboKey)) {
-            throw new Error(`Duplicate variant combination detected at row #${index + 1}`);
+            throw new Error(`Biến thể bị trùng Size/Màu sắc tại dòng #${index + 1}. Mỗi tổ hợp Size và Màu sắc chỉ được xuất hiện một lần.`);
         }
         comboKeys.add(comboKey);
 
         if (variant.sku) {
             const skuKey = variant.sku.toLowerCase();
             if (skuKeys.has(skuKey)) {
-                throw new Error(`Duplicate variant SKU detected at row #${index + 1}`);
+                throw new Error(`Biến thể bị trùng SKU tại dòng #${index + 1}. Mỗi SKU biến thể chỉ được xuất hiện một lần.`);
             }
             skuKeys.add(skuKey);
         }

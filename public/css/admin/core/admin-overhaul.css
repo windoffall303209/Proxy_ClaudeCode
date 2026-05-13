@@ -723,11 +723,15 @@ body.admin-body .container {
 }
 
 .admin-table__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 32px;
     padding: 0 12px;
     border-radius: 999px;
     font-size: 11px;
     font-weight: 700;
+    line-height: 1;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }

@@ -416,7 +416,8 @@ class Order {
         `INSERT INTO shipments (
                     order_id, carrier, tracking_code, tracking_url, current_status,
                     current_location_text, current_lat, current_lng, estimated_delivery_at, last_event_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id`,
         [
           orderId,
           initialShipment.carrier,
@@ -648,7 +649,7 @@ class Order {
         `SELECT o.id
                  FROM orders o
                  WHERE o.status = 'delivered'
-                   AND o.updated_at <= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                   AND o.updated_at <= (NOW() - INTERVAL '7 DAY')
                    AND NOT EXISTS (
                        SELECT 1
                        FROM order_return_requests rr
@@ -673,7 +674,7 @@ class Order {
                      FROM orders
                      WHERE id = ?
                        AND status = 'delivered'
-                       AND updated_at <= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                       AND updated_at <= (NOW() - INTERVAL '7 DAY')
                      LIMIT 1
                      FOR UPDATE`,
           [row.id],
@@ -796,7 +797,8 @@ class Order {
                     user_id, address_id, shipping_name, shipping_phone, shipping_address_line,
                     shipping_ward, shipping_district, shipping_city, voucher_id, order_code,
                     total_amount, discount_amount, shipping_fee, final_amount, payment_method, status, payment_expires_at, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id`,
         [
           userId,
           addressId,
@@ -954,7 +956,8 @@ class Order {
                     user_id, address_id, shipping_name, shipping_phone, shipping_address_line,
                     shipping_ward, shipping_district, shipping_city, voucher_id, order_code,
                     total_amount, discount_amount, shipping_fee, final_amount, payment_method, status, payment_expires_at, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id`,
         [
           userId,
           addressId,
@@ -1560,8 +1563,8 @@ class Order {
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_orders,
                 SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders,
                 SUM(CASE WHEN status = 'completed' THEN final_amount ELSE 0 END) AS total_revenue,
-                SUM(CASE WHEN status = 'completed' AND DATE(created_at) = CURDATE() THEN final_amount ELSE 0 END) AS today_revenue,
-                SUM(CASE WHEN status = 'completed' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) THEN final_amount ELSE 0 END) AS month_revenue
+                SUM(CASE WHEN status = 'completed' AND DATE(created_at) = CURRENT_DATE THEN final_amount ELSE 0 END) AS today_revenue,
+                SUM(CASE WHEN status = 'completed' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE) THEN final_amount ELSE 0 END) AS month_revenue
             FROM orders
         `);
 

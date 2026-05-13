@@ -1,7 +1,20 @@
 -- Migration: add rich content support to chat messages
--- Run manually:
--- mysql -u root -p tmdt_ecommerce < migrations/007_add_rich_media_to_chat_messages.sql
+-- PostgreSQL version.
 
 ALTER TABLE chat_messages
-    ADD COLUMN message_type ENUM('text', 'media', 'product_cards') NOT NULL DEFAULT 'text' AFTER message,
-    ADD COLUMN message_metadata LONGTEXT NULL AFTER message_type;
+    ADD COLUMN IF NOT EXISTS message_type VARCHAR(30) NOT NULL DEFAULT 'text',
+    ADD COLUMN IF NOT EXISTS message_metadata TEXT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'chat_messages'::regclass
+          AND conname = 'chat_messages_message_type_check'
+    ) THEN
+        ALTER TABLE chat_messages
+            ADD CONSTRAINT chat_messages_message_type_check
+            CHECK (message_type IN ('text', 'media', 'product_cards'));
+    END IF;
+END $$;

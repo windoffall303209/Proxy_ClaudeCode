@@ -602,7 +602,7 @@ async function importSingleProduct(productRow, groupedImages, groupedVariants, c
 }
 
 // Nhập sản phẩm từ workbook.
-async function importProductsFromWorkbook({ workbookPath, zipPath }) {
+async function importProductsFromWorkbook({ workbookPath, zipPath, onProgress, yieldEvery = 10 }) {
     const workbookData = parseWorkbook(workbookPath);
     validateWorkbookLinks(workbookData.products, workbookData.images, workbookData.variants);
 
@@ -616,6 +616,17 @@ async function importProductsFromWorkbook({ workbookPath, zipPath }) {
     try {
         const createdProducts = [];
         const errors = [];
+        const totalProducts = workbookData.products.length;
+        const emitProgress = typeof onProgress === 'function' ? onProgress : null;
+
+        if (emitProgress) {
+            emitProgress({
+                totalProducts,
+                processedCount: 0,
+                createdCount: 0,
+                failedCount: 0
+            });
+        }
 
         for (const productRow of workbookData.products) {
             const result = await importSingleProduct(
@@ -632,10 +643,24 @@ async function importProductsFromWorkbook({ workbookPath, zipPath }) {
             } else {
                 errors.push(result);
             }
+
+            if (emitProgress) {
+                emitProgress({
+                    totalProducts,
+                    processedCount: createdProducts.length + errors.length,
+                    createdCount: createdProducts.length,
+                    failedCount: errors.length,
+                    latestResult: result
+                });
+            }
+
+            if (yieldEvery > 0 && (createdProducts.length + errors.length) % yieldEvery === 0) {
+                await new Promise((resolve) => setImmediate(resolve));
+            }
         }
 
         return {
-            totalProducts: workbookData.products.length,
+            totalProducts,
             createdCount: createdProducts.length,
             failedCount: errors.length,
             createdProducts,

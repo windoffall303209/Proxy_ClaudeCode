@@ -79,7 +79,7 @@
 
         clearTimeout(debounceTimer);
 
-        if (q.length < 2) {
+        if (q.length < 1) {
             dropdown.classList.remove('is-open');
             dropdown.innerHTML = '';
             return;
@@ -88,7 +88,7 @@
         debounceTimer = setTimeout(() => fetchSuggestions(q), 300);
     });
     input.addEventListener('focus', () => {
-        if (input.value.trim().length >= 2 && dropdown.innerHTML) {
+        if (input.value.trim().length >= 1 && dropdown.innerHTML) {
             dropdown.classList.add('is-open');
         }
     });

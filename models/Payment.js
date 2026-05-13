@@ -44,7 +44,8 @@ class Payment {
 
         const [result] = await pool.execute(
             `INSERT INTO payments (order_id, payment_method, amount, status, payment_data)
-             VALUES (?, ?, ?, 'pending', ?)`,
+             VALUES (?, ?, ?, 'pending', ?)
+             RETURNING id`,
             [orderId, paymentMethod, amount, serializedPaymentData]
         );
 
@@ -97,7 +98,8 @@ class Payment {
 
         const [result] = await pool.execute(
             `INSERT INTO payments (order_id, payment_method, transaction_id, amount, status, payment_data, processed_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             RETURNING id`,
             [orderId, paymentMethod, transactionId, amount, status, serializedPaymentData, processedAt]
         );
 

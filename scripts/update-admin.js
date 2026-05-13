@@ -1,19 +1,11 @@
 // Script to create/update admin user with correct password
 const bcrypt = require('bcryptjs');
-const mysql = require('mysql2/promise');
+const pool = require('../config/database');
 require('dotenv').config();
 
 // Cập nhật quản trị mật khẩu.
 async function updateAdminPassword() {
     try {
-        // Create database connection
-        const connection = await mysql.createConnection({
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME
-        });
-
         console.log('✅ Connected to database');
 
         // Hash password
@@ -23,28 +15,28 @@ async function updateAdminPassword() {
         console.log('Password hash:', passwordHash);
 
         // Update or insert admin user
-        await connection.execute(`
+        await pool.execute(`
             INSERT INTO users (email, password_hash, full_name, phone, role, email_verified)
             VALUES ('admin@fashionstore.vn', ?, 'Admin', '0123456789', 'admin', TRUE)
-            ON DUPLICATE KEY UPDATE 
-                password_hash = ?,
+            ON CONFLICT (email) DO UPDATE SET
+                password_hash = EXCLUDED.password_hash,
                 role = 'admin',
                 email_verified = TRUE
-        `, [passwordHash, passwordHash]);
+        `, [passwordHash]);
 
         console.log('✅ Admin password updated successfully!');
         console.log('Email: admin@fashionstore.vn');
         console.log('Password: admin123');
 
         // Verify
-        const [rows] = await connection.execute(
+        const [rows] = await pool.execute(
             'SELECT email, role, email_verified FROM users WHERE email = ?',
             ['admin@fashionstore.vn']
         );
         
         console.log('\nAdmin user:', rows[0]);
 
-        await connection.end();
+        await pool.end();
     } catch (error) {
         console.error('❌ Error:', error.message);
         process.exit(1);

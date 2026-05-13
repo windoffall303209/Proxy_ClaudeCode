@@ -55,7 +55,7 @@ class Cart {
         }
 
         // Tạo giỏ hàng mới nếu chưa có
-        const insertQuery = 'INSERT INTO cart (user_id, session_id) VALUES (?, ?)';
+        const insertQuery = 'INSERT INTO cart (user_id, session_id) VALUES (?, ?) RETURNING id';
         const [result] = await pool.execute(insertQuery, [userId || null, sessionId || null]);
 
         return { id: result.insertId, user_id: userId, session_id: sessionId };
@@ -181,6 +181,7 @@ class Cart {
             const insertQuery = `
                 INSERT INTO cart_items (cart_id, product_id, variant_id, quantity)
                 VALUES (?, ?, ?, ?)
+                RETURNING id
             `;
             const [result] = await pool.execute(insertQuery, [cartId, productId, variantId ?? null, quantityNumber]);
 

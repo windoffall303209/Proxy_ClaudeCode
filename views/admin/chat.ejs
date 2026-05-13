@@ -1,5 +1,5 @@
 <%# Template admin render màn quản trị chat với dữ liệu từ controller quản trị. %>
-<%- include('../partials/admin-header', { currentPage: 'chat', pageStyles: ['/css/chat-rich-message.css', '/css/admin/chat.css'] }) %>
+<%- include('../partials/admin-header', { currentPage: 'chat', pageStyles: ['/css/chat-rich-message.css', '/css/admin/chat.css?v=image-preview-20260514'] }) %>
 
 
 
@@ -84,8 +84,11 @@
                         <button type="submit" class="admin-btn admin-btn--primary" id="adminReplySendBtn">Gửi</button>
                     </form>
                     <div class="admin-chat-detail__attachments" id="adminReplyAttachmentPreview" hidden>
-                        <span class="admin-chat-detail__attachments-text" id="adminReplyAttachmentPreviewText"></span>
-                        <button type="button" class="admin-chat-detail__attachments-clear" id="adminReplyAttachmentClearBtn">Bỏ chọn</button>
+                        <div class="admin-chat-detail__attachments-media" id="adminReplyAttachmentPreviewMedia"></div>
+                        <div class="admin-chat-detail__attachments-meta">
+                            <span class="admin-chat-detail__attachments-text" id="adminReplyAttachmentPreviewText"></span>
+                            <button type="button" class="admin-chat-detail__attachments-clear" id="adminReplyAttachmentClearBtn">Bỏ chọn</button>
+                        </div>
                     </div>
                     <p class="admin-chat-detail__hint" id="adminReplyHint">
                         Gửi tin nhắn từ đây sẽ tự chuyển cuộc trò chuyện sang chế độ admin tiếp quản.
@@ -106,6 +109,6 @@
 
 
 <script src="/js/chat-rich-message.js"></script>
-<script src="/js/admin/chat.js"></script>
+<script src="/js/admin/chat.js?v=image-preview-20260514"></script>
 
 <%- include('../partials/admin-footer', { hideAdminFooter: true }) %>

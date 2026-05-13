@@ -42,7 +42,8 @@ class ReturnRequest {
             await connection.beginTransaction();
             const [result] = await connection.execute(
                 `INSERT INTO order_return_requests (order_id, user_id, reason, status)
-                 VALUES (?, ?, ?, 'pending')`,
+                 VALUES (?, ?, ?, 'pending')
+                 RETURNING id`,
                 [orderId, userId, reason]
             );
 

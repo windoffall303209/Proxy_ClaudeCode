@@ -467,10 +467,11 @@ class StorefrontSetting {
                 await connection.execute(
                     `INSERT INTO storefront_settings (setting_key, setting_value, draft_value, value_type, updated_by)
                      VALUES (?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE
-                        draft_value = VALUES(draft_value),
-                        value_type = VALUES(value_type),
-                        updated_by = VALUES(updated_by)`,
+                     ON CONFLICT (setting_key) DO UPDATE SET
+                        draft_value = EXCLUDED.draft_value,
+                        value_type = EXCLUDED.value_type,
+                        updated_by = EXCLUDED.updated_by,
+                        updated_at = CURRENT_TIMESTAMP`,
                     [key, defaultValue, draftValue, definition.type || 'string', userId || null]
                 );
             }
@@ -550,10 +551,10 @@ class StorefrontSetting {
                 await connection.execute(
                     `INSERT INTO storefront_settings (setting_key, setting_value, draft_value, value_type, published_at)
                      VALUES (?, ?, NULL, ?, CURRENT_TIMESTAMP)
-                     ON DUPLICATE KEY UPDATE
-                        setting_value = VALUES(setting_value),
+                     ON CONFLICT (setting_key) DO UPDATE SET
+                        setting_value = EXCLUDED.setting_value,
                         draft_value = NULL,
-                        value_type = VALUES(value_type),
+                        value_type = EXCLUDED.value_type,
                         published_at = CURRENT_TIMESTAMP`,
                     [key, settingValue, definition.type || 'string']
                 );

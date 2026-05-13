@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * PRODUCT MODEL - Model Sản phẩm
  * =============================================================================
@@ -246,12 +246,12 @@ ${this.getVariantAggregateSelect(productAlias)}`;
     static getVariantAggregateSelect(productAlias = 'p') {
         return `
                    (
-                       SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.color), '') ORDER BY pv.color SEPARATOR ', ')
+                       SELECT string_agg(DISTINCT NULLIF(TRIM(pv.color), ''), ', ' ORDER BY NULLIF(TRIM(pv.color), ''))
                        FROM product_variants pv
                        WHERE pv.product_id = ${productAlias}.id
                    ) as variant_colors,
                    (
-                       SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.size), '') ORDER BY pv.size SEPARATOR ', ')
+                       SELECT string_agg(DISTINCT NULLIF(TRIM(pv.size), ''), ', ' ORDER BY NULLIF(TRIM(pv.size), ''))
                        FROM product_variants pv
                        WHERE pv.product_id = ${productAlias}.id
                    ) as variant_sizes`;
@@ -264,22 +264,18 @@ ${this.getVariantAggregateSelect(productAlias)}`;
             return '';
         }
 
-        // accentSensitive (default true): dùng BINARY LOWER() phân biệt dấu tiếng Việt
-        // Tắt khi caller đã strip dấu (ví dụ chatbot intent search)
-        const accentSensitive = options.accentSensitive !== false;
-
-        const searchBase = accentSensitive ? normalizedSearch.toLowerCase() : normalizedSearch;
+        // accentSensitive is kept for compatibility with older callers; PostgreSQL search uses LOWER().
+        // Callers that strip accents can still pass accentSensitive: false without changing this SQL.
+        const searchBase = normalizedSearch.toLowerCase();
         const exactSearchTerm = `%${searchBase}%`;
         const terms = Array.from(new Set(
             searchBase
                 .split(/\s+/)
                 .map((term) => term.trim())
-                .filter((term) => term.length >= 2)
+                .filter((term) => term.length >= 1)
         )).slice(0, 8);
 
-        const safeLike = accentSensitive
-            ? (field) => `BINARY LOWER(${field}) LIKE ?`
-            : (field) => `${field} LIKE ?`;
+        const safeLike = (field) => `LOWER(${field}) LIKE ?`;
 
         const productFieldClause = `(
             ${safeLike(`${productAlias}.name`)}
@@ -736,7 +732,9 @@ ${this.getVariantAggregateSelect('p')}
         }
 
         if (filters.search) {
-            query += this.buildSearchFilterClause(filters.search, params, 'p');
+            query += this.buildSearchFilterClause(filters.search, params, 'p', {
+                accentSensitive: filters.accent_sensitive !== false
+            });
         }
 
         if (filters.is_featured) {
@@ -1012,7 +1010,8 @@ ${this.getVariantAggregateSelect('p')}
 
             const [result] = await connection.execute(
                 `INSERT INTO reviews (product_id, user_id, order_id, rating, comment, is_verified, is_approved)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 RETURNING id`,
                 [
                     productId,
                     userId,
@@ -1145,7 +1144,9 @@ ${this.getVariantAggregateSelect('p')}
     static async search(searchQuery, limit = 20) {
         const limitNum = parseInt(limit) || 20;
         const params = [];
-        const searchClause = this.buildSearchFilterClause(searchQuery, params, 'p');
+        const searchClause = this.buildSearchFilterClause(searchQuery, params, 'p', {
+            accentSensitive: false
+        });
         const lowerSearch = String(searchQuery || '').trim().toLowerCase();
         const exactPrefixTerm = `${lowerSearch}%`;
         const looseSearchTerm = `%${lowerSearch}%`;
@@ -1157,8 +1158,8 @@ ${this.getVariantAggregateSelect('p')}
                 .filter((t) => t.length >= 2)
         )).slice(0, 8);
 
-        const safeName = 'BINARY LOWER(p.name)';
-        const safeDesc = 'BINARY LOWER(p.description)';
+        const safeName = 'LOWER(p.name)';
+        const safeDesc = 'LOWER(p.description)';
 
         const nameMatchScore = terms.length > 0
             ? terms.map(() => `(CASE WHEN ${safeName} LIKE ? THEN 1 ELSE 0 END)`).join(' + ')
@@ -1239,7 +1240,7 @@ ${this.getVariantAggregateSelect('p')}
         }
 
         // Xử lý an toàn like.
-        const safeLike = (field) => `BINARY LOWER(${field}) LIKE ?`;
+        const safeLike = (field) => `LOWER(${field}) LIKE ?`;
 
         // Tạo dữ liệu biến thể exists clause.
         const buildVariantExistsClause = () => `EXISTS (
@@ -1324,7 +1325,7 @@ ${this.getVariantAggregateSelect('p')}
                 LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
                     AND NOW() BETWEEN s.start_date AND s.end_date
                 WHERE p.is_active = TRUE
-                  AND SOUNDEX(p.name) = SOUNDEX(?)
+                  AND LOWER(p.name) LIKE ?
                 ORDER BY ${this.buildOrderByClause(['p.sold_count DESC'], {
                     prioritizeInStock: true,
                     productAlias: 'p'
@@ -1332,7 +1333,7 @@ ${this.getVariantAggregateSelect('p')}
                 LIMIT ${limitNum}
             `;
 
-            [rows] = await pool.query(soundexQuery, [searchQuery]);
+            [rows] = await pool.query(soundexQuery, [`%${lowerQuery}%`]);
         }
 
         // Nếu vẫn không có, trả về sản phẩm bán chạy làm gợi ý
@@ -1647,6 +1648,7 @@ ${this.getVariantAggregateSelect('p')}
         const query = `
             INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, sale_id, is_featured)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
         `;
 
         const [result] = await pool.execute(query, [
@@ -1749,13 +1751,12 @@ ${this.getVariantAggregateSelect('p')}
             `);
 
             const [deleteResult] = await connection.query(`
-                DELETE p
-                FROM products p
-                LEFT JOIN (
-                    SELECT DISTINCT product_id
-                    FROM order_items
-                ) order_refs ON order_refs.product_id = p.id
-                WHERE order_refs.product_id IS NULL
+                DELETE FROM products p
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM order_items oi
+                    WHERE oi.product_id = p.id
+                )
             `);
 
             await connection.commit();
@@ -1805,6 +1806,7 @@ ${this.getVariantAggregateSelect('p')}
         const query = `
             INSERT INTO product_images (product_id, image_url, is_primary, display_order)
             VALUES (?, ?, ?, ?)
+            RETURNING id
         `;
 
         const [result] = await pool.execute(query, [productId, imageUrl, isPrimary, displayOrder]);
@@ -1871,6 +1873,7 @@ ${this.getVariantAggregateSelect('p')}
         const query = `
             INSERT INTO product_variants (product_id, size, color, additional_price, stock_quantity, sku, image_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
         `;
         const [result] = await pool.execute(query, [
             productId,
@@ -2025,7 +2028,9 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
         query += this.buildPriceFilterClause(filters, params, priceCol);
 
         if (filters.search) {
-            query += this.buildSearchFilterClause(filters.search, params, 'p');
+            query += this.buildSearchFilterClause(filters.search, params, 'p', {
+                accentSensitive: filters.accent_sensitive !== false
+            });
         }
 
         if (filters.is_featured) {
@@ -2166,7 +2171,9 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
     static async search(searchQuery, limit = 20) {
         const limitNum = parseInt(limit, 10) || 20;
         const params = [];
-        const searchClause = this.buildSearchFilterClause(searchQuery, params, 'p');
+        const searchClause = this.buildSearchFilterClause(searchQuery, params, 'p', {
+            accentSensitive: false
+        });
         const lowerSearch = String(searchQuery || '').trim().toLowerCase();
         const exactPrefixTerm = `${lowerSearch}%`;
         const looseSearchTerm = `%${lowerSearch}%`;
@@ -2175,11 +2182,11 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
             lowerSearch
                 .split(/\s+/)
                 .map((term) => term.trim())
-                .filter((term) => term.length >= 2)
+                .filter((term) => term.length >= 1)
         )).slice(0, 8);
 
-        const safeName = 'BINARY LOWER(p.name)';
-        const safeDesc = 'BINARY LOWER(p.description)';
+        const safeName = 'LOWER(p.name)';
+        const safeDesc = 'LOWER(p.description)';
         const nameMatchScore = terms.length > 0
             ? terms.map(() => `(CASE WHEN ${safeName} LIKE ? THEN 1 ELSE 0 END)`).join(' + ')
             : '0';
@@ -2211,10 +2218,10 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
 
         let [rows] = await pool.query(query, [
             ...params,
-            ...nameMatchParams,
             exactPrefixTerm,
             looseSearchTerm,
-            looseSearchTerm
+            looseSearchTerm,
+            ...nameMatchParams
         ]);
 
         if (rows.length === 0) {
@@ -2228,14 +2235,14 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
     static async fuzzySearch(searchQuery, limit = 20) {
         const limitNum = parseInt(limit, 10) || 20;
         const lowerQuery = String(searchQuery || '').trim().toLowerCase();
-        const words = lowerQuery.split(/\s+/).filter((word) => word.length >= 2);
+        const words = lowerQuery.split(/\s+/).filter((word) => word.length >= 1);
 
         if (words.length === 0) {
             return await this.getBestSellers(limitNum);
         }
 
         // Xử lý an toàn like.
-        const safeLike = (field) => `BINARY LOWER(${field}) LIKE ?`;
+        const safeLike = (field) => `LOWER(${field}) LIKE ?`;
         // Tạo dữ liệu biến thể exists clause.
         const buildVariantExistsClause = () => `EXISTS (
             SELECT 1
@@ -2304,7 +2311,7 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
                 LEFT JOIN categories c ON p.category_id = c.id
                 LEFT JOIN sales sale_ref ON p.sale_id = sale_ref.id
                 WHERE p.is_active = TRUE
-                  AND SOUNDEX(p.name) = SOUNDEX(?)
+                  AND LOWER(p.name) LIKE ?
                 ORDER BY ${this.buildOrderByClause(['p.sold_count DESC'], {
                     prioritizeInStock: true,
                     productAlias: 'p'
@@ -2312,7 +2319,7 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
                 LIMIT ${limitNum}
             `;
 
-            [rows] = await pool.query(soundexQuery, [searchQuery]);
+            [rows] = await pool.query(soundexQuery, [`%${lowerQuery}%`]);
         }
 
         if (rows.length === 0) {

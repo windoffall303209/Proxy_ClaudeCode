@@ -8,6 +8,38 @@ const upload = require('../middleware/upload');
 const productImportUpload = require('../middleware/productImportUpload');
 const { uploadToCloud } = require('../middleware/upload');
 
+function formatUploadLimit(bytes) {
+    const value = Number(bytes || 0);
+    if (!Number.isFinite(value) || value <= 0) {
+        return 'không xác định';
+    }
+
+    return `${Math.round(value / (1024 * 1024))}MB`;
+}
+
+function buildAdminNoticeRedirect(path, message, type = 'error') {
+    const separator = path.includes('?') ? '&' : '?';
+    const params = new URLSearchParams();
+    params.set('notice', message);
+    params.set('notice_type', type);
+    return `${path}${separator}${params.toString()}`;
+}
+
+function redirectImportUploadError(targetPath) {
+    return (error, req, res, next) => {
+        if (!error) {
+            return next();
+        }
+
+        const limitLabel = formatUploadLimit(productImportUpload.fileSizeLimit);
+        const message = error.code === 'LIMIT_FILE_SIZE'
+            ? `File import quá lớn. Giới hạn hiện tại là ${limitLabel}. Nếu cần import file lớn hơn, hãy tăng MAX_IMPORT_FILE_SIZE trong .env.`
+            : (error.message || 'Không thể tải file import.');
+
+        return res.redirect(buildAdminNoticeRedirect(targetPath, message, 'error'));
+    };
+}
+
 router.get('/login', adminAuthController.showLogin);
 router.post('/login', adminAuthController.login);
 router.get('/auth/login', adminAuthController.showLogin);
@@ -37,7 +69,7 @@ router.post('/bulk-actions/verification-code', adminController.requestBulkDelete
 router.get('/categories', adminController.getCategories);
 router.get('/categories/export', adminController.exportCategories);
 router.get('/categories/import-template', adminController.downloadCategoryImportTemplate);
-router.post('/categories/import', productImportUpload.single('import_file'), adminController.importCategories);
+router.post('/categories/import', productImportUpload.single('import_file'), redirectImportUploadError('/admin/categories'), adminController.importCategories);
 router.post('/categories/delete-all', adminController.deleteAllCategories);
 router.post('/categories', upload.single('image'), uploadToCloud, adminController.createCategory);
 router.put('/categories/:id', upload.single('image'), uploadToCloud, adminController.updateCategory);
@@ -51,7 +83,8 @@ router.post('/products/delete-all', adminController.deleteAllProducts);
 router.post('/products/import', productImportUpload.fields([
     { name: 'import_file', maxCount: 1 },
     { name: 'images_zip', maxCount: 1 }
-]), adminController.importProducts);
+]), redirectImportUploadError('/admin/products'), adminController.importProducts);
+router.get('/products/import-jobs/:jobId', adminController.getProductImportJob);
 router.post('/products', upload.any(), uploadToCloud, adminController.createProduct);
 router.put('/products/:id', upload.any(), uploadToCloud, adminController.updateProduct);
 router.delete('/products/:id', adminController.deleteProduct);

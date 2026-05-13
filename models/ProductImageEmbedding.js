@@ -44,13 +44,13 @@ class ProductImageEmbedding {
                 product_id, product_image_id, image_url, content_hash,
                 embedding_model, embedding_dim, embedding_vector
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                product_image_id = VALUES(product_image_id),
-                image_url = VALUES(image_url),
-                content_hash = VALUES(content_hash),
-                embedding_model = VALUES(embedding_model),
-                embedding_dim = VALUES(embedding_dim),
-                embedding_vector = VALUES(embedding_vector),
+            ON CONFLICT (product_id) DO UPDATE SET
+                product_image_id = EXCLUDED.product_image_id,
+                image_url = EXCLUDED.image_url,
+                content_hash = EXCLUDED.content_hash,
+                embedding_model = EXCLUDED.embedding_model,
+                embedding_dim = EXCLUDED.embedding_dim,
+                embedding_vector = EXCLUDED.embedding_vector,
                 updated_at = CURRENT_TIMESTAMP`,
             [
                 productId,

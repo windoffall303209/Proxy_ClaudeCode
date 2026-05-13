@@ -1,5 +1,5 @@
 <%# Template admin render màn quản trị banner với dữ liệu từ controller quản trị. %>
-<%- include('../partials/admin-header', { currentPage: 'banners', pageStyles: ['/css/admin/banners.css'] }) %>
+<%- include('../partials/admin-header', { currentPage: 'banners', pageStyles: ['/css/admin/banners.css?v=image-preview-20260514'] }) %>
 
 <div class="admin-page">
     <div class="container">
@@ -41,7 +41,8 @@
                     </div>
                     <div class="admin-form__group">
                         <label class="admin-form__label">Hình ảnh</label>
-                        <input type="file" name="image" accept="image/*" class="admin-form__input">
+                        <input type="file" id="createBannerImage" name="image" accept="image/*" class="admin-form__input">
+                        <div class="banner-upload-preview" id="createBannerImagePreview" hidden></div>
                     </div>
                 </div>
                 <div class="admin-form__actions">
@@ -195,6 +196,7 @@
             <div class="admin-form__group admin-form__group--modal">
                 <label class="admin-form__label">Thay đổi hình ảnh</label>
                 <input type="file" id="editBannerImage" accept="image/*" class="admin-form__input">
+                <div class="banner-upload-preview banner-upload-preview--modal" id="editBannerImagePreview" hidden></div>
                 <p class="admin-form__hint admin-form__hint--compact">Để trống nếu không muốn đổi ảnh.</p>
             </div>
             <div class="admin-modal__buttons">
@@ -210,6 +212,6 @@
     (banners || []).map(b => ({ id: b.id, title: b.title || '', subtitle: b.subtitle || '', link_url: b.link_url || '', image_url: b.image_url || '' }))
 ).replace(/</g, '\u003c') %></script>
 
-<script src="/js/admin/banners.js"></script>
+<script src="/js/admin/banners.js?v=image-preview-20260514"></script>
 
 <%- include('../partials/admin-footer') %>

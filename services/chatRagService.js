@@ -222,8 +222,8 @@ async function fetchRagProducts() {
                s.type AS sale_type,
                s.value AS sale_value,
                s.name AS sale_name,
-               GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.color), '') ORDER BY pv.color SEPARATOR ', ') AS variant_colors,
-               GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.size), '') ORDER BY pv.size SEPARATOR ', ') AS variant_sizes
+               string_agg(DISTINCT NULLIF(TRIM(pv.color), ''), ', ' ORDER BY NULLIF(TRIM(pv.color), '')) AS variant_colors,
+               string_agg(DISTINCT NULLIF(TRIM(pv.size), ''), ', ' ORDER BY NULLIF(TRIM(pv.size), '')) AS variant_sizes
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN sales s ON p.sale_id = s.id

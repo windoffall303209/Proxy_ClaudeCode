@@ -5,6 +5,146 @@ function showToast(message, type = 'success') {
 }
 
 const BULK_DELETE_VERIFICATION_EMAIL = 'nvuthanh4@gmail.com';
+const PRODUCT_IMPORT_TERMINAL_STATUSES = new Set(['completed', 'completed_with_errors', 'failed']);
+
+function getProductImportStatusLabel(status) {
+    const labels = {
+        queued: 'Đang chờ',
+        running: 'Đang import',
+        completed: 'Hoàn tất',
+        completed_with_errors: 'Hoàn tất có lỗi',
+        failed: 'Thất bại'
+    };
+
+    return labels[status] || 'Đang xử lý';
+}
+
+function createProductImportResultList(title, items = []) {
+    const fragment = document.createDocumentFragment();
+    const heading = document.createElement('strong');
+    const list = document.createElement('ul');
+
+    heading.textContent = title;
+    fragment.appendChild(heading);
+
+    items.slice(0, 8).forEach((item) => {
+        const row = document.createElement('li');
+        const name = item?.name || item?.productKey || 'Dòng import';
+        const message = item?.message || item?.productId || '';
+        row.textContent = message ? `${name}: ${message}` : String(name);
+        list.appendChild(row);
+    });
+
+    fragment.appendChild(list);
+    return fragment;
+}
+
+function renderProductImportJob(root, job) {
+    const status = job?.status || 'queued';
+    const totalProducts = Number(job?.totalProducts || 0);
+    const processedCount = Number(job?.processedCount || 0);
+    const createdCount = Number(job?.createdCount || 0);
+    const failedCount = Number(job?.failedCount || 0);
+    const progress = Math.max(0, Math.min(100, Number(job?.progress || 0)));
+
+    const statusElement = root.querySelector('[data-import-job-status]');
+    const messageElement = root.querySelector('[data-import-job-message]');
+    const counterElement = root.querySelector('[data-import-job-counter]');
+    const createdElement = root.querySelector('[data-import-job-created]');
+    const failedElement = root.querySelector('[data-import-job-failed]');
+    const progressBar = root.querySelector('[data-import-job-progress-bar]');
+    const resultElement = root.querySelector('[data-import-job-result]');
+
+    if (statusElement) {
+        statusElement.textContent = getProductImportStatusLabel(status);
+        statusElement.dataset.status = status;
+    }
+
+    if (messageElement) {
+        messageElement.textContent = job?.message || 'Đang xử lý import sản phẩm...';
+    }
+
+    if (counterElement) {
+        counterElement.textContent = totalProducts > 0 ? `${processedCount}/${totalProducts}` : 'Đang đọc file';
+    }
+
+    if (createdElement) {
+        createdElement.textContent = String(createdCount);
+    }
+
+    if (failedElement) {
+        failedElement.textContent = String(failedCount);
+    }
+
+    if (progressBar) {
+        progressBar.style.width = `${progress}%`;
+    }
+
+    if (!resultElement || !PRODUCT_IMPORT_TERMINAL_STATUSES.has(status)) {
+        return;
+    }
+
+    resultElement.hidden = false;
+    resultElement.replaceChildren();
+
+    const summary = document.createElement('p');
+    summary.textContent = job?.message || 'Tiến trình import đã kết thúc.';
+    resultElement.appendChild(summary);
+
+    if (job?.result?.errors?.length) {
+        resultElement.appendChild(createProductImportResultList('Một số lỗi cần kiểm tra:', job.result.errors));
+    }
+
+    const reloadLink = document.createElement('a');
+    reloadLink.href = '/admin/products';
+    reloadLink.className = 'admin-btn admin-btn--ghost';
+    reloadLink.textContent = 'Tải lại danh sách sản phẩm';
+    resultElement.appendChild(reloadLink);
+}
+
+function initProductImportJobPolling() {
+    const root = document.querySelector('[data-product-import-job]');
+    const jobId = root?.dataset.productImportJob;
+
+    if (!root || !jobId) {
+        return;
+    }
+
+    let stopped = false;
+
+    const poll = async () => {
+        if (stopped) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/admin/products/import-jobs/${encodeURIComponent(jobId)}`, {
+                headers: { Accept: 'application/json' }
+            });
+            const payload = await response.json();
+
+            if (!response.ok || !payload.success || !payload.job) {
+                throw new Error(payload.message || 'Không thể đọc tiến trình import.');
+            }
+
+            renderProductImportJob(root, payload.job);
+
+            if (PRODUCT_IMPORT_TERMINAL_STATUSES.has(payload.job.status)) {
+                stopped = true;
+                showToast(payload.job.message || 'Import sản phẩm đã hoàn tất.', payload.job.status === 'failed' ? 'error' : 'success');
+                return;
+            }
+        } catch (error) {
+            stopped = true;
+            showToast(error.message || 'Không thể theo dõi tiến trình import.', 'error');
+            return;
+        }
+
+        window.setTimeout(poll, 2500);
+    };
+
+    poll();
+}
 
 // Xử lý show confirm.
 function showConfirm(message, title = 'Xác nhận', yesText = 'Xác nhận', yesColor = '#f44336', options = {}) {
@@ -134,6 +274,7 @@ const variantMediaState = {
     create: { images: [], uploadCounter: 0, productId: null, mainUploads: [] },
     edit: { images: [], uploadCounter: 0, productId: null }
 };
+let imageModalPreviewUrls = [];
 
 // Lấy mode state.
 function getModeState(mode) {
@@ -165,9 +306,28 @@ const VARIANT_COLOR_SUGGESTIONS = [
     'Be',
     'Kem'
 ];
+const VARIANT_SIZE_SUGGESTIONS = [
+    'XS',
+    'S',
+    'M',
+    'L',
+    'XL',
+    'XXL',
+    '3XL',
+    'Free Size'
+];
 
-// Đảm bảo biến thể color datalist.
-function ensureVariantColorDatalist() {
+// Đảm bảo biến thể datalist.
+function ensureVariantDatalists() {
+    if (!document.getElementById('variantSizeOptions')) {
+        const sizeDatalist = document.createElement('datalist');
+        sizeDatalist.id = 'variantSizeOptions';
+        sizeDatalist.innerHTML = VARIANT_SIZE_SUGGESTIONS
+            .map((size) => `<option value="${escapeHtml(size)}"></option>`)
+            .join('');
+        document.body.appendChild(sizeDatalist);
+    }
+
     if (document.getElementById('variantColorOptions')) {
         return;
     }
@@ -178,34 +338,6 @@ function ensureVariantColorDatalist() {
         .map((color) => `<option value="${escapeHtml(color)}"></option>`)
         .join('');
     document.body.appendChild(datalist);
-}
-
-// Lấy biến thể color tùy chọn html.
-function getVariantColorOptionsHtml(selectedValue = '') {
-    const normalizedSelected = String(selectedValue || '').trim().toLowerCase();
-    const baseOption = '<option value="">Chọn màu có sẵn</option>';
-    const options = VARIANT_COLOR_SUGGESTIONS.map((color) => {
-        const selected = color.toLowerCase() === normalizedSelected ? 'selected' : '';
-        return `<option value="${escapeHtml(color)}" ${selected}>${escapeHtml(color)}</option>`;
-    });
-
-    return [baseOption, ...options].join('');
-}
-
-// Đồng bộ biến thể color select.
-function syncVariantColorSelect(row) {
-    const input = row.querySelector('.variant-color');
-    const select = row.querySelector('.variant-color-select');
-    if (!input || !select) {
-        return;
-    }
-
-    const normalizedValue = input.value.trim().toLowerCase();
-    const matchedOption = Array.from(select.options).find((option) => (
-        option.value && option.value.toLowerCase() === normalizedValue
-    ));
-
-    select.value = matchedOption ? matchedOption.value : '';
 }
 
 // Xử lý revoke preview url.
@@ -389,6 +521,79 @@ function renderCreateImagesPreview() {
     });
 }
 
+function clearImageModalUploadPreview() {
+    imageModalPreviewUrls.forEach(url => revokePreviewUrl(url));
+    imageModalPreviewUrls = [];
+
+    const preview = document.getElementById('imageModalUploadPreview');
+    if (!preview) return;
+
+    preview.replaceChildren();
+    preview.hidden = true;
+}
+
+function setImageModalInputFiles(files) {
+    const input = document.getElementById('newImageFile');
+    if (!input) return;
+
+    try {
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => dataTransfer.items.add(file));
+        input.files = dataTransfer.files;
+    } catch (error) {
+        console.warn('Cannot update selected modal images:', error);
+        input.value = '';
+    }
+}
+
+function renderImageModalUploadPreview() {
+    const input = document.getElementById('newImageFile');
+    const preview = document.getElementById('imageModalUploadPreview');
+    if (!input || !preview) return;
+
+    clearImageModalUploadPreview();
+
+    const files = Array.from(input.files || []);
+    if (!files.length) {
+        return;
+    }
+
+    preview.hidden = false;
+    files.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'product-upload-preview__item';
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'product-upload-preview__remove';
+        removeButton.title = 'Xóa ảnh này';
+        removeButton.setAttribute('aria-label', `Xóa ${file.name}`);
+        removeButton.textContent = 'x';
+        removeButton.addEventListener('click', () => {
+            const nextFiles = Array.from(input.files || []).filter((_, fileIndex) => fileIndex !== index);
+            setImageModalInputFiles(nextFiles);
+            renderImageModalUploadPreview();
+        });
+
+        const thumb = document.createElement('div');
+        thumb.className = 'product-upload-preview__thumb';
+
+        const image = document.createElement('img');
+        const previewUrl = URL.createObjectURL(file);
+        imageModalPreviewUrls.push(previewUrl);
+        image.src = previewUrl;
+        image.alt = file.name;
+        thumb.appendChild(image);
+
+        const name = document.createElement('span');
+        name.className = 'product-upload-preview__name';
+        name.textContent = file.name;
+
+        item.append(removeButton, thumb, name);
+        preview.appendChild(item);
+    });
+}
+
 // Thêm create main uploads.
 async function addCreateMainUploads(files) {
     const state = getModeState('create');
@@ -473,8 +678,8 @@ function updateVariantImagePreview(row, mode) {
     const selectedImage = state.images.find(image => image.value === selectedValue);
 
     if (!selectedImage) {
-        preview.innerHTML = '';
-        preview.classList.remove('is-visible');
+        preview.innerHTML = '<span class="variant-image-preview__empty">Gắn ảnh</span>';
+        preview.classList.add('is-visible', 'is-empty');
         return;
     }
 
@@ -488,6 +693,7 @@ function updateVariantImagePreview(row, mode) {
 
     preview.replaceChildren(thumb);
     preview.classList.add('is-visible');
+    preview.classList.remove('is-empty');
 }
 
 // Xử lý refresh biến thể ảnh selects.
@@ -590,6 +796,156 @@ function removeVariantRow(button, mode) {
     row.remove();
     refreshVariantImageSelects(mode);
     collectVariants(mode);
+}
+
+function getVariantSkuPrefix(mode) {
+    let prefix = '';
+    if (mode === 'create') {
+        prefix = document.getElementById('createSkuInput')?.value?.trim() || '';
+    }
+    if (prefix) {
+        return prefix;
+    }
+
+    const catSelect = mode === 'create'
+        ? document.querySelector('#createProductForm select[name="category_id"]')
+        : document.getElementById('editCategoryId');
+    const catName = catSelect?.options[catSelect.selectedIndex]?.text || '';
+    const base = catName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'PRD';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let rand = '';
+    for (let i = 0; i < 4; i += 1) {
+        rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `${base}-${rand}`;
+}
+
+function generateVariantSkuForRow(row, mode) {
+    const skuInput = row.querySelector('.variant-sku');
+    if (!skuInput) return;
+
+    const size = row.querySelector('.variant-size')?.value || '';
+    const color = row.querySelector('.variant-color')?.value || '';
+    const sizePart = size ? size.replace(/\s/g, '').substring(0, 3).toUpperCase() : '';
+    const colorPart = color
+        ? color.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase()
+        : '';
+    const parts = [getVariantSkuPrefix(mode), sizePart, colorPart].filter(Boolean);
+    skuInput.value = parts.join('-');
+}
+
+function autoGenerateVariantSkus(mode) {
+    const container = document.getElementById(`${mode}VariantsList`);
+    if (!container) return;
+
+    container.querySelectorAll('.variant-row').forEach((row) => {
+        const size = row.querySelector('.variant-size')?.value.trim();
+        const color = row.querySelector('.variant-color')?.value.trim();
+        if (size || color) {
+            generateVariantSkuForRow(row, mode);
+        }
+    });
+    collectVariants(mode);
+}
+
+function setVariantFeedback(mode, message = '') {
+    const feedback = document.getElementById(`${mode}VariantFeedback`);
+    if (!feedback) return;
+
+    feedback.hidden = !message;
+    feedback.textContent = message;
+}
+
+function normalizeVariantKeyPart(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function validateVariantRows(mode) {
+    const container = document.getElementById(`${mode}VariantsList`);
+    const rows = Array.from(container?.querySelectorAll('.variant-row') || []);
+    const comboMap = new Map();
+    const skuMap = new Map();
+    const duplicateRows = new Set();
+    const messages = [];
+
+    rows.forEach((row) => {
+        row.classList.remove('variant-row--duplicate');
+        row.querySelector('.variant-row__error')?.replaceChildren();
+    });
+
+    rows.forEach((row, index) => {
+        const rowNumber = index + 1;
+        const size = row.querySelector('.variant-size')?.value.trim() || '';
+        const color = row.querySelector('.variant-color')?.value.trim() || '';
+        const sku = row.querySelector('.variant-sku')?.value.trim() || '';
+        const hasVariantData = size || color || sku || row.querySelector('.variant-image-select')?.value;
+
+        if (!hasVariantData) {
+            return;
+        }
+
+        if (size || color) {
+            const comboKey = `${normalizeVariantKeyPart(size)}::${normalizeVariantKeyPart(color)}`;
+            if (comboMap.has(comboKey)) {
+                duplicateRows.add(comboMap.get(comboKey));
+                duplicateRows.add(rowNumber);
+            } else {
+                comboMap.set(comboKey, rowNumber);
+            }
+        }
+
+        if (sku) {
+            const skuKey = normalizeVariantKeyPart(sku);
+            if (skuMap.has(skuKey)) {
+                duplicateRows.add(skuMap.get(skuKey));
+                duplicateRows.add(rowNumber);
+            } else {
+                skuMap.set(skuKey, rowNumber);
+            }
+        }
+    });
+
+    if (duplicateRows.size > 0) {
+        const duplicateList = [...duplicateRows].sort((a, b) => a - b);
+        duplicateList.forEach((rowNumber) => {
+            const row = rows[rowNumber - 1];
+            row?.classList.add('variant-row--duplicate');
+            const error = row?.querySelector('.variant-row__error');
+            if (error) {
+                error.textContent = 'Dòng này bị trùng Size/Màu hoặc SKU với dòng khác.';
+            }
+        });
+        messages.push(`Có biến thể bị trùng ở dòng ${duplicateList.map((rowNumber) => `#${rowNumber}`).join(', ')}. Mỗi tổ hợp Size/Màu sắc và mỗi SKU chỉ được xuất hiện một lần.`);
+    }
+
+    const message = messages.join(' ');
+    setVariantFeedback(mode, message);
+
+    return {
+        valid: duplicateRows.size === 0,
+        message
+    };
+}
+
+function markVariantServerError(mode, message = '') {
+    const rowMatch = String(message).match(/(?:row|dòng)\s*#(\d+)/i);
+    if (!rowMatch) {
+        return;
+    }
+
+    const rowNumber = Number.parseInt(rowMatch[1], 10);
+    const rows = Array.from(document.querySelectorAll(`#${mode}VariantsList .variant-row`));
+    const row = rows[rowNumber - 1];
+    if (!row) {
+        return;
+    }
+
+    row.classList.add('variant-row--duplicate');
+    const error = row.querySelector('.variant-row__error');
+    if (error) {
+        error.textContent = 'Dòng này bị trùng thông tin biến thể. Hãy đổi Size, Màu sắc hoặc SKU.';
+    }
+    setVariantFeedback(mode, 'Có dòng biến thể bị trùng thông tin. Dòng bị lỗi đã được bôi đỏ để kiểm tra lại.');
 }
 
 // Mở edit modal.
@@ -771,6 +1127,13 @@ async function deleteAllProducts(totalProductCount = 0) {
 async function openImageModal(productId, productName) {
     document.getElementById('imageModalProductId').value = productId;
     document.getElementById('imageModalProductName').textContent = productName;
+    const imageInput = document.getElementById('newImageFile');
+    if (imageInput) imageInput.value = '';
+    const urlInput = document.getElementById('newImageUrl');
+    if (urlInput) urlInput.value = '';
+    const primaryInput = document.getElementById('isPrimaryImage');
+    if (primaryInput) primaryInput.checked = false;
+    clearImageModalUploadPreview();
     document.getElementById('imageModal').style.display = 'flex';
     await loadProductImages(productId);
 }
@@ -778,6 +1141,9 @@ async function openImageModal(productId, productName) {
 // Đóng ảnh modal.
 function closeImageModal() {
     document.getElementById('imageModal').style.display = 'none';
+    const imageInput = document.getElementById('newImageFile');
+    if (imageInput) imageInput.value = '';
+    clearImageModalUploadPreview();
 }
 
 // Nạp sản phẩm ảnh.
@@ -894,31 +1260,39 @@ async function addImageByUrl() {
 // Thêm biến thể row.
 function addVariantRow(mode, data = {}) {
     const container = document.getElementById(`${mode}VariantsList`);
-    ensureVariantColorDatalist();
+    ensureVariantDatalists();
     const row = document.createElement('div');
     row.className = 'variant-row';
     row.innerHTML = `
         <input type="hidden" class="variant-id" value="${data.id || ''}">
+        <div class="variant-row__field variant-row__field--preview">
+            <span class="variant-row__label">Ảnh</span>
+            <div class="variant-image-cell">
+                <div class="variant-image-preview"></div>
+                <details class="variant-image-menu">
+                    <summary class="variant-image-menu__button" title="Đổi ảnh biến thể" aria-label="Đổi ảnh biến thể">
+                        <span>Ảnh</span>
+                    </summary>
+                    <div class="variant-image-menu__panel">
+                        <label class="variant-image-menu__label">Đổi ảnh biến thể</label>
+                        <select class="variant-image-select">
+                            ${getImageOptionsHtml(mode, data.image_id ? `existing:${data.image_id}` : '')}
+                        </select>
+                        <label class="variant-image-upload-label">
+                            Tải ảnh mới
+                            <input type="file" class="variant-image-file" accept="image/*">
+                        </label>
+                    </div>
+                </details>
+            </div>
+        </div>
         <div class="variant-row__field variant-row__field--size">
             <span class="variant-row__label">Size</span>
-            <select class="variant-size">
-                <option value="" ${!data.size ? 'selected' : ''}>Chọn size</option>
-                <option value="S" ${data.size === 'S' ? 'selected' : ''}>S</option>
-                <option value="M" ${data.size === 'M' ? 'selected' : ''}>M</option>
-                <option value="L" ${data.size === 'L' ? 'selected' : ''}>L</option>
-                <option value="XL" ${data.size === 'XL' ? 'selected' : ''}>XL</option>
-                <option value="XXL" ${data.size === 'XXL' ? 'selected' : ''}>XXL</option>
-                <option value="Free Size" ${data.size === 'Free Size' ? 'selected' : ''}>Free Size</option>
-            </select>
+            <input type="text" class="variant-size" list="variantSizeOptions" value="${escapeHtml(data.size || '')}" placeholder="S, M, L...">
         </div>
         <div class="variant-row__field variant-row__field--color">
             <span class="variant-row__label">Màu sắc</span>
-            <div class="variant-color-control">
-                <input type="text" class="variant-color" list="variantColorOptions" value="${escapeHtml(data.color || '')}" placeholder="VD: Xanh navy, Ghi khói">
-                <select class="variant-color-select" aria-label="Chọn màu có sẵn">
-                    ${getVariantColorOptionsHtml(data.color || '')}
-                </select>
-            </div>
+            <input type="text" class="variant-color" list="variantColorOptions" value="${escapeHtml(data.color || '')}" placeholder="Be, Xanh navy...">
         </div>
         <div class="variant-row__field variant-row__field--price">
             <span class="variant-row__label">Giá cộng thêm</span>
@@ -930,28 +1304,15 @@ function addVariantRow(mode, data = {}) {
         </div>
         <div class="variant-row__field variant-row__field--sku">
             <span class="variant-row__label">SKU</span>
-            <div style="display:flex; gap:4px; align-items:center;">
-                <input type="text" placeholder="Mã SKU" value="${data.sku || ''}" class="variant-sku" style="flex:1;">
-                <button type="button" class="variant-auto-sku-btn" title="Tự động tạo mã SKU" style="min-width:32px; height:32px; border:1px solid #ccc; border-radius:8px; background:#f8f8f8; cursor:pointer; font-size:14px;">⚡</button>
+            <div class="variant-sku-control">
+                <input type="text" placeholder="Mã SKU" value="${escapeHtml(data.sku || '')}" class="variant-sku">
+                <button type="button" class="variant-auto-sku-btn" title="Tự động tạo mã SKU" aria-label="Tự động tạo mã SKU">SKU</button>
             </div>
-        </div>
-        <div class="variant-row__field variant-row__field--image">
-            <span class="variant-row__label">Ảnh biến thể</span>
-            <select class="variant-image-select">
-                ${getImageOptionsHtml(mode, data.image_id ? `existing:${data.image_id}` : '')}
-            </select>
-        </div>
-        <div class="variant-row__field variant-row__field--upload">
-            <span class="variant-row__label">Tải ảnh mới</span>
-            <input type="file" class="variant-image-file" accept="image/*">
-        </div>
-        <div class="variant-row__field variant-row__field--preview">
-            <span class="variant-row__label">Xem nhanh</span>
-            <div class="variant-image-preview"></div>
         </div>
         <div class="variant-row__action">
             <button type="button" class="variant-remove-btn" title="Xóa biến thể" aria-label="Xóa biến thể">x</button>
         </div>
+        <div class="variant-row__error"></div>
     `;
 
     container.appendChild(row);
@@ -960,52 +1321,9 @@ function addVariantRow(mode, data = {}) {
         removeVariantRow(this, mode);
     });
 
-    row.querySelector('.variant-color-select')?.addEventListener('change', function () {
-        const input = row.querySelector('.variant-color');
-        if (input && this.value) {
-            input.value = this.value;
-            collectVariants(mode);
-        }
-    });
-
-    row.querySelector('.variant-color')?.addEventListener('input', function () {
-        syncVariantColorSelect(row);
-        collectVariants(mode);
-    });
-
     // Auto-gen variant SKU
     row.querySelector('.variant-auto-sku-btn')?.addEventListener('click', function() {
-        const skuInput = row.querySelector('.variant-sku');
-        const size = row.querySelector('.variant-size')?.value || '';
-        const color = row.querySelector('.variant-color')?.value || '';
-
-        // Lấy SKU sản phẩm chính hoặc tạo prefix từ danh mục
-        let prefix = '';
-        if (mode === 'create') {
-            prefix = document.getElementById('createSkuInput')?.value?.trim() || '';
-        }
-        if (!prefix) {
-            // Fallback: lấy từ danh mục
-            const catSelect = mode === 'create'
-                ? document.querySelector('#createProductForm select[name="category_id"]')
-                : document.getElementById('editCategoryId');
-            const catName = catSelect?.options[catSelect.selectedIndex]?.text || '';
-            prefix = catName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'PRD';
-            // Thêm random
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let rand = '';
-            for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
-            prefix = prefix + '-' + rand;
-        }
-
-        // Tạo suffix từ size + color
-        const sizePart = size ? size.replace(/\s/g, '').substring(0, 3).toUpperCase() : '';
-        const colorPart = color
-            ? color.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase()
-            : '';
-
-        const parts = [prefix, sizePart, colorPart].filter(Boolean);
-        skuInput.value = parts.join('-');
+        generateVariantSkuForRow(row, mode);
         collectVariants(mode);
     });
 
@@ -1071,10 +1389,13 @@ function collectVariants(mode) {
 
     document.getElementById(`${mode}VariantsJson`).value = JSON.stringify(variants);
     syncVariantUploadInputNames(mode);
+    return validateVariantRows(mode);
 }
 
 // Khởi tạo quản trị sản phẩm.
 function initAdminProducts() {
+    initProductImportJobPolling();
+
     const createForm = getCreateForm();
     const createImagesInput = getCreateImagesInput();
     const addImageForm = document.getElementById('addImageForm');
@@ -1084,6 +1405,7 @@ function initAdminProducts() {
     if (imageModalFileInput) {
         imageModalFileInput.multiple = true;
     }
+    imageModalFileInput?.addEventListener('change', renderImageModalUploadPreview);
 
     createImagesInput?.addEventListener('change', () => {
         handleCreateImagesSelection().catch(error => {
@@ -1091,16 +1413,26 @@ function initAdminProducts() {
         });
     });
 
-    createForm?.addEventListener('submit', function () {
+    createForm?.addEventListener('submit', function (event) {
         syncCreateImagesInputFromState();
         syncCreateMainImageOptions();
-        collectVariants('create');
+        const validation = collectVariants('create');
+        if (!validation.valid) {
+            event.preventDefault();
+            showToast(validation.message || 'Có biến thể bị trùng thông tin. Vui lòng kiểm tra các dòng đã bôi đỏ.', 'error');
+            document.getElementById('createVariantFeedback')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     });
 
     editForm?.addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        collectVariants('edit');
+        const validation = collectVariants('edit');
+        if (!validation.valid) {
+            showToast(validation.message || 'Có biến thể bị trùng thông tin. Vui lòng kiểm tra các dòng đã bôi đỏ.', 'error');
+            document.getElementById('editVariantFeedback')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
         const id = document.getElementById('editProductId').value;
         const formData = new FormData(editForm);
         formData.set('name', document.getElementById('editName').value);
@@ -1122,9 +1454,11 @@ function initAdminProducts() {
                 showToast('Cập nhật sản phẩm thành công.', 'success');
                 setTimeout(() => location.reload(), 1500);
             } else {
+                markVariantServerError('edit', result.message || '');
                 showToast(`Lỗi: ${result.message || 'Không thể cập nhật sản phẩm.'}`, 'error');
             }
         } catch (error) {
+            markVariantServerError('edit', error.message || '');
             showToast(`Lỗi: ${error.message}`, 'error');
         }
     });
@@ -1159,6 +1493,7 @@ function initAdminProducts() {
             if (response.ok) {
                 showGlobalToast(result.message || 'Đã tải lên ảnh.', 'success');
                 imageModalFileInput.value = '';
+                clearImageModalUploadPreview();
                 await loadProductImages(productId);
             } else {
                 showGlobalToast(result.message || 'Lỗi tải lên ảnh.', 'error');
@@ -1191,6 +1526,11 @@ function initAdminProducts() {
 
             if (action === 'add-variant') {
                 addVariantRow(actionButton.dataset.productMode);
+                return;
+            }
+
+            if (action === 'auto-variant-skus') {
+                autoGenerateVariantSkus(actionButton.dataset.productMode);
                 return;
             }
 

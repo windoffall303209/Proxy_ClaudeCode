@@ -20,7 +20,8 @@ class Address {
             const [result] = await connection.execute(
                 `INSERT INTO addresses (
                     user_id, full_name, phone, address_line, ward, district, city, is_default
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id`,
                 [
                     userId,
                     full_name,

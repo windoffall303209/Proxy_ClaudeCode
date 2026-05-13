@@ -1,5 +1,6 @@
 // Điều phối tương tác trình duyệt cho màn quản trị danh mục trong khu vực admin.
 let adminCategoriesBootstrap = null;
+let editCategoryExistingImageUrl = '';
 
 // Xử lý show danh mục toast.
 function showCategoryToast(message, type = 'success') {
@@ -51,6 +52,78 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function revokeCategoryPreviewUrl(preview) {
+    const objectUrl = preview?.dataset?.previewObjectUrl;
+    if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        delete preview.dataset.previewObjectUrl;
+    }
+}
+
+function clearCategoryUploadPreview(previewId) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+
+    revokeCategoryPreviewUrl(preview);
+    preview.replaceChildren();
+    preview.hidden = true;
+}
+
+function renderCategoryUploadPreview(input, previewId, fallback = {}) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+
+    revokeCategoryPreviewUrl(preview);
+    preview.replaceChildren();
+
+    const file = input?.files?.[0] || null;
+    const source = file ? URL.createObjectURL(file) : String(fallback.src || '').trim();
+    if (!source) {
+        preview.hidden = true;
+        return;
+    }
+
+    if (file) {
+        preview.dataset.previewObjectUrl = source;
+    }
+
+    const thumb = document.createElement('div');
+    thumb.className = 'category-upload-preview__thumb';
+
+    const image = document.createElement('img');
+    image.src = source;
+    image.alt = file?.name || fallback.label || 'Ảnh danh mục';
+    thumb.appendChild(image);
+
+    const meta = document.createElement('div');
+    meta.className = 'category-upload-preview__meta';
+
+    const badge = document.createElement('span');
+    badge.className = 'category-upload-preview__badge';
+    badge.textContent = file ? 'Ảnh đã chọn' : (fallback.badge || 'Ảnh hiện tại');
+    meta.appendChild(badge);
+
+    const name = document.createElement('span');
+    name.className = 'category-upload-preview__name';
+    name.textContent = file?.name || fallback.label || source;
+    meta.appendChild(name);
+
+    if (file) {
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'category-upload-preview__clear';
+        clearButton.textContent = 'Bỏ chọn';
+        clearButton.addEventListener('click', () => {
+            input.value = '';
+            renderCategoryUploadPreview(input, previewId, fallback);
+        });
+        meta.appendChild(clearButton);
+    }
+
+    preview.append(thumb, meta);
+    preview.hidden = false;
 }
 
 // Xử lý show danh mục confirm.
@@ -177,11 +250,16 @@ function renderParentSelectOptions(selectElement, currentCategoryId = null, sele
         '<option value="">-- Danh mục gốc --</option>',
         ...categories
             .filter((category) => Number(category.id) !== currentId)
-            .map((category) => `
-                <option value="${category.id}" ${Number(category.id) === selectedId ? 'selected' : ''}>
-                    ${escapeHtml(category.name)}
-                </option>
-            `)
+            .map((category) => {
+                const depth = Math.min(Number(category.tree_depth || 0), 6);
+                const prefix = depth > 0 ? `${'-- '.repeat(depth)}` : '';
+
+                return `
+                    <option value="${category.id}" ${Number(category.id) === selectedId ? 'selected' : ''}>
+                        ${escapeHtml(`${prefix}${category.name}`)}
+                    </option>
+                `;
+            })
     ];
 
     selectElement.innerHTML = optionsHtml.join('');
@@ -207,6 +285,13 @@ function closeCategoryModal(modalId) {
 
     modal.style.display = 'none';
     document.body.style.overflow = '';
+
+    if (modalId === 'editCategoryModal') {
+        const imageInput = document.getElementById('editCategoryImage');
+        if (imageInput) imageInput.value = '';
+        editCategoryExistingImageUrl = '';
+        clearCategoryUploadPreview('editCategoryImagePreview');
+    }
 }
 
 // Xử lý populate edit danh mục form.
@@ -226,6 +311,12 @@ function populateEditCategoryForm(categoryId) {
     if (imageInput) {
         imageInput.value = '';
     }
+    editCategoryExistingImageUrl = category.image_url || '';
+    renderCategoryUploadPreview(imageInput, 'editCategoryImagePreview', {
+        src: editCategoryExistingImageUrl,
+        label: 'Ảnh hiện tại',
+        badge: 'Ảnh hiện tại'
+    });
     document.getElementById('editCategoryDescription').value = category.description || '';
 
     renderParentSelectOptions(
@@ -393,6 +484,34 @@ function initAdminCategoriesPage() {
         document.getElementById('editCategoryName'),
         document.getElementById('editCategorySlug')
     );
+
+    const createCategoryImageInput = document.getElementById('createCategoryImage');
+    const createCategoryImageUrlInput = document.getElementById('createCategoryImageUrl');
+    const renderCreateCategoryPreview = () => renderCategoryUploadPreview(
+        createCategoryImageInput,
+        'createCategoryImagePreview',
+        {
+            src: createCategoryImageUrlInput?.value,
+            label: 'Ảnh từ URL',
+            badge: 'Ảnh từ URL'
+        }
+    );
+    createCategoryImageInput?.addEventListener('change', renderCreateCategoryPreview);
+    createCategoryImageUrlInput?.addEventListener('input', renderCreateCategoryPreview);
+
+    const editCategoryImageInput = document.getElementById('editCategoryImage');
+    const editCategoryImageUrlInput = document.getElementById('editCategoryImageUrl');
+    const renderEditCategoryPreview = () => renderCategoryUploadPreview(
+        editCategoryImageInput,
+        'editCategoryImagePreview',
+        {
+            src: editCategoryImageUrlInput?.value || editCategoryExistingImageUrl,
+            label: editCategoryImageUrlInput?.value ? 'Ảnh từ URL' : 'Ảnh hiện tại',
+            badge: editCategoryImageUrlInput?.value ? 'Ảnh từ URL' : 'Ảnh hiện tại'
+        }
+    );
+    editCategoryImageInput?.addEventListener('change', renderEditCategoryPreview);
+    editCategoryImageUrlInput?.addEventListener('input', renderEditCategoryPreview);
 
     document.querySelectorAll('[data-category-action="open-edit-modal"]').forEach((button) => {
         button.addEventListener('click', () => populateEditCategoryForm(button.dataset.categoryId));

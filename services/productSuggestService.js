@@ -80,7 +80,7 @@ function buildSuggestedProductResult(product) {
 // Lấy danh sách sản phẩm gợi ý cho autocomplete tìm kiếm sản phẩm.
 async function getProductSuggestions(query, limit = 6) {
     const q = String(query || '').trim();
-    if (q.length < 2) return [];
+    if (q.length < 1) return [];
 
     const [allRows] = await pool.execute(`
         SELECT p.id, p.name, p.slug, p.price,

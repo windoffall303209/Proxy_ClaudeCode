@@ -341,3 +341,69 @@
     color: var(--admin-text-secondary);
     font-size: 12px;
 }
+
+.banner-upload-preview[hidden] {
+    display: none !important;
+}
+
+.banner-upload-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.banner-upload-preview__thumb {
+    width: 132px;
+    aspect-ratio: 16 / 9;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.banner-upload-preview__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.banner-upload-preview__meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.banner-upload-preview__badge {
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--admin-accent);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.banner-upload-preview__name {
+    color: var(--admin-text-secondary);
+    font-size: 12px;
+    word-break: break-word;
+}
+
+.banner-upload-preview__clear {
+    width: fit-content;
+    border: none;
+    background: transparent;
+    color: var(--admin-danger);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 0;
+}

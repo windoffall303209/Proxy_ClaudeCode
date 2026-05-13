@@ -1,5 +1,6 @@
 <%# Template admin render màn quản trị sản phẩm với dữ liệu từ controller quản trị. %>
-<%- include('../partials/admin-header', { currentPage: 'products', pageStyles: ['/css/admin/products.css'] }) %>
+<%- include('../partials/admin-header', { currentPage: 'products', pageStyles: ['/css/admin/products.css?v=image-preview-20260514'] }) %>
+<% const activeImportJobId = typeof productImportJobId !== 'undefined' && productImportJobId ? productImportJobId : ''; %>
 
 <div class="admin-page">
     <div class="container">
@@ -71,7 +72,7 @@
             </form>
         </div>
 
-        <div class="admin-section admin-section--collapsible<%= bulkImportResult ? ' is-open' : '' %>">
+        <div class="admin-section admin-section--collapsible<%= (bulkImportResult || activeImportJobId) ? ' is-open' : '' %>">
             <h3 class="admin-section__title admin-section__title--toggle" data-admin-toggle="section">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -120,6 +121,34 @@
                         </button>
                     </div>
                 </form>
+
+                <% if (activeImportJobId) { %>
+                    <div
+                        class="product-import-job"
+                        data-product-import-job="<%= activeImportJobId %>"
+                        aria-live="polite"
+                    >
+                        <div class="product-import-job__header">
+                            <div>
+                                <p class="product-import-job__eyebrow">Import n&#7873;n</p>
+                                <h4 class="product-import-job__title">Ti&#7871;n tr&igrave;nh import s&#7843;n ph&#7849;m</h4>
+                            </div>
+                            <span class="product-import-job__badge" data-import-job-status>&#272;ang kh&#7903;i t&#7841;o</span>
+                        </div>
+                        <div class="product-import-job__progress">
+                            <span data-import-job-progress-bar style="width: 0%;"></span>
+                        </div>
+                        <div class="product-import-job__meta">
+                            <span data-import-job-message>&#272;ang k&#7871;t n&#7889;i ti&#7871;n tr&igrave;nh import...</span>
+                            <span data-import-job-counter>0/0</span>
+                        </div>
+                        <div class="product-import-job__stats">
+                            <span>Th&agrave;nh c&ocirc;ng: <strong data-import-job-created>0</strong></span>
+                            <span>L&#7895;i: <strong data-import-job-failed>0</strong></span>
+                        </div>
+                        <div class="product-import-job__result" data-import-job-result hidden></div>
+                    </div>
+                <% } %>
 
                 <div class="admin-form__hint admin-form__hint--import-rules">
                     <strong>Quy &#432;&#7899;c nhanh:</strong><br>
@@ -270,10 +299,24 @@
                 <div class="admin-form__group product-edit-form__variants">
                     <label class="admin-form__label product-edit-form__variants-title">Biến thể sản phẩm (Size / Màu sắc)</label>
                     <small class="admin-form__hint product-edit-form__variants-hint">Thêm các biến thể nếu sản phẩm có nhiều size hoặc màu sắc</small>
-                    <div id="createVariantsList"></div>
-                    <button type="button" data-product-action="add-variant" data-product-mode="create" class="product-edit-form__add-variant">
-                        + Thêm biến thể
-                    </button>
+                    <div class="variant-feedback" id="createVariantFeedback" hidden></div>
+                    <div class="variant-table">
+                        <div class="variant-table__head">
+                            <span>Ảnh</span>
+                            <span>Size</span>
+                            <span>Màu sắc</span>
+                            <span>Giá cộng thêm (+)</span>
+                            <span>Tồn kho</span>
+                            <span>SKU</span>
+                            <span>Hành động</span>
+                        </div>
+                        <div id="createVariantsList" class="variant-table__body"></div>
+                        <div class="variant-table__footer">
+                            <button type="button" data-product-action="add-variant" data-product-mode="create" class="product-edit-form__add-variant">
+                                + Thêm biến thể mới
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="admin-form__actions">
@@ -460,10 +503,24 @@
             <div class="admin-form__group product-edit-form__variants">
                 <label class="admin-form__label product-edit-form__variants-title">Biến thể sản phẩm (Size / Màu sắc)</label>
                 <small class="admin-form__hint product-edit-form__variants-hint">Thêm các biến thể nếu sản phẩm có nhiều size hoặc màu sắc</small>
-                <div id="editVariantsList"></div>
-                <button type="button" data-product-action="add-variant" data-product-mode="edit" class="product-edit-form__add-variant">
-                    + Thêm biến thể
-                </button>
+                <div class="variant-feedback" id="editVariantFeedback" hidden></div>
+                <div class="variant-table">
+                    <div class="variant-table__head">
+                        <span>Ảnh</span>
+                        <span>Size</span>
+                        <span>Màu sắc</span>
+                        <span>Giá cộng thêm (+)</span>
+                        <span>Tồn kho</span>
+                        <span>SKU</span>
+                        <span>Hành động</span>
+                    </div>
+                    <div id="editVariantsList" class="variant-table__body"></div>
+                    <div class="variant-table__footer">
+                        <button type="button" data-product-action="add-variant" data-product-mode="edit" class="product-edit-form__add-variant">
+                            + Thêm biến thể mới
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="admin-modal__buttons">
@@ -507,6 +564,7 @@
             <form id="addImageForm" enctype="multipart/form-data" class="image-upload">
                 <div class="image-upload__file">
                     <input type="file" id="newImageFile" name="images" accept="image/*" multiple class="admin-form__input">
+                    <div id="imageModalUploadPreview" class="product-upload-preview product-upload-preview--modal" hidden></div>
                     <small class="admin-form__hint">Có thể chọn nhiều ảnh cùng lúc</small>
                     <label class="image-upload__checkbox">
                         <input type="checkbox" id="isPrimaryImage"> Đặt làm ảnh chính
@@ -568,6 +626,6 @@
 
 
 
-<script src="/js/admin/products.js?v=otp-modal-20260513"></script>
+<script src="/js/admin/products.js?v=image-preview-20260514"></script>
 
 <%- include('../partials/admin-footer') %>

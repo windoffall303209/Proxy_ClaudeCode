@@ -130,11 +130,12 @@ class ChatRag {
         await pool.execute(
             `INSERT INTO chat_rag_sync_state (source_type, source_count, status, last_synced_at, detail)
              VALUES (?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE
-                 source_count = VALUES(source_count),
-                 status = VALUES(status),
-                 last_synced_at = VALUES(last_synced_at),
-                 detail = VALUES(detail)`,
+             ON CONFLICT (source_type) DO UPDATE SET
+                 source_count = EXCLUDED.source_count,
+                 status = EXCLUDED.status,
+                 last_synced_at = EXCLUDED.last_synced_at,
+                 detail = EXCLUDED.detail,
+                 updated_at = CURRENT_TIMESTAMP`,
             [
                 sourceType,
                 Number(payload.sourceCount || 0),

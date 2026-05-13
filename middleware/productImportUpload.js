@@ -20,6 +20,7 @@ const storage = multer.diskStorage({
 });
 
 const allowedExtensions = new Set(['.xlsx', '.xls', '.zip']);
+const importFileSizeLimit = parseInt(process.env.MAX_IMPORT_FILE_SIZE, 10) || 200 * 1024 * 1024;
 
 // Xử lý tệp filter.
 function fileFilter(req, file, cb) {
@@ -32,10 +33,14 @@ function fileFilter(req, file, cb) {
     cb(new Error('Only .xlsx, .xls, and .zip files are allowed for product import'));
 }
 
-module.exports = multer({
+const productImportUpload = multer({
     storage,
     limits: {
-        fileSize: parseInt(process.env.MAX_IMPORT_FILE_SIZE, 10) || 20 * 1024 * 1024
+        fileSize: importFileSizeLimit
     },
     fileFilter
 });
+
+productImportUpload.fileSizeLimit = importFileSizeLimit;
+
+module.exports = productImportUpload;

@@ -54,6 +54,7 @@ class User {
         const query = `
             INSERT INTO users (email, password_hash, full_name, phone, marketing_consent)
             VALUES (?, ?, ?, ?, ?)
+            RETURNING id
         `;
 
         try {
@@ -114,7 +115,8 @@ class User {
                 email_verified_at,
                 marketing_consent
             )
-            VALUES (?, ?, ?, ?, TRUE, NOW(), FALSE)`,
+            VALUES (?, ?, ?, ?, TRUE, NOW(), FALSE)
+            RETURNING id`,
             [email, password_hash, full_name, avatar_url]
         );
 

@@ -35,7 +35,7 @@ class Banner {
             WHERE is_active = TRUE
               AND (start_date IS NULL OR NOW() >= start_date)
               AND (end_date IS NULL OR NOW() <= end_date)
-            ORDER BY display_order ASC
+            ORDER BY display_order ASC, created_at DESC, id DESC
         `;
         const [rows] = await pool.execute(query);
         return rows;
@@ -55,7 +55,7 @@ class Banner {
      * @returns {Promise<Array>} Mảng tất cả banner
      */
     static async findAll() {
-        const query = 'SELECT * FROM banners ORDER BY display_order ASC, created_at DESC';
+        const query = 'SELECT * FROM banners ORDER BY display_order ASC, created_at DESC, id DESC';
         const [rows] = await pool.execute(query);
         return rows;
     }
@@ -108,6 +108,7 @@ class Banner {
         const query = `
             INSERT INTO banners (title, subtitle, description, image_url, link_url, button_text, display_order, start_date, end_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
         `;
 
         const [result] = await pool.execute(query, [

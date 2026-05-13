@@ -9,8 +9,10 @@ const chatState = window.__tmdtChatWidgetState || (window.__tmdtChatWidgetState 
     conversation: null,
     initialized: false,
     badgeRequest: null,
-    expanded: false
+    expanded: false,
+    attachmentPreviewUrls: []
 });
+chatState.attachmentPreviewUrls = chatState.attachmentPreviewUrls || [];
 
 // Lấy chat elements.
 function getChatElements() {
@@ -24,6 +26,7 @@ function getChatElements() {
         attachButton: document.getElementById('chatAttachBtn'),
         fileInput: document.getElementById('chatMediaInput'),
         attachmentPreview: document.getElementById('chatAttachmentPreview'),
+        attachmentPreviewMedia: document.getElementById('chatAttachmentPreviewMedia'),
         attachmentPreviewText: document.getElementById('chatAttachmentPreviewText'),
         attachmentClearButton: document.getElementById('chatAttachmentClearBtn'),
         expandButton: document.getElementById('chatExpandBtn'),
@@ -336,9 +339,60 @@ function describeSelectedFiles(files = []) {
         : `${files.length} tệp: ${fileNames}`;
 }
 
+function revokeAttachmentPreviewUrls() {
+    chatState.attachmentPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    chatState.attachmentPreviewUrls = [];
+}
+
+function renderAttachmentMediaPreview(files, container) {
+    revokeAttachmentPreviewUrls();
+
+    if (!container) return;
+    container.replaceChildren();
+
+    const previewFiles = files.slice(0, 6);
+    previewFiles.forEach((file) => {
+        const item = document.createElement('div');
+        item.className = 'chat-widget__attachments-item';
+        item.title = file.name;
+
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            const url = URL.createObjectURL(file);
+            chatState.attachmentPreviewUrls.push(url);
+
+            const media = file.type.startsWith('video/')
+                ? document.createElement('video')
+                : document.createElement('img');
+            media.src = url;
+            media.title = file.name;
+            if (media.tagName === 'IMG') {
+                media.alt = file.name;
+            } else {
+                media.muted = true;
+                media.playsInline = true;
+                media.preload = 'metadata';
+            }
+            item.appendChild(media);
+        } else {
+            const fallback = document.createElement('span');
+            fallback.textContent = file.name.slice(0, 3).toUpperCase();
+            item.appendChild(fallback);
+        }
+
+        container.appendChild(item);
+    });
+
+    if (files.length > previewFiles.length) {
+        const more = document.createElement('div');
+        more.className = 'chat-widget__attachments-item chat-widget__attachments-item--more';
+        more.textContent = `+${files.length - previewFiles.length}`;
+        container.appendChild(more);
+    }
+}
+
 // Cập nhật attachment preview.
 function updateAttachmentPreview() {
-    const { fileInput, attachmentPreview, attachmentPreviewText } = getChatElements();
+    const { fileInput, attachmentPreview, attachmentPreviewMedia, attachmentPreviewText } = getChatElements();
     if (!fileInput || !attachmentPreview || !attachmentPreviewText) {
         return;
     }
@@ -347,11 +401,13 @@ function updateAttachmentPreview() {
     if (!files.length) {
         attachmentPreview.hidden = true;
         attachmentPreviewText.textContent = '';
+        renderAttachmentMediaPreview([], attachmentPreviewMedia);
         return;
     }
 
     attachmentPreview.hidden = false;
     attachmentPreviewText.textContent = describeSelectedFiles(files);
+    renderAttachmentMediaPreview(files, attachmentPreviewMedia);
 }
 
 // Xử lý clear attachment selection.
@@ -653,6 +709,7 @@ function initChatWidget() {
     attachmentClearButton?.addEventListener('click', clearAttachmentSelection);
     expandButton?.addEventListener('click', toggleChatExpand);
     document.addEventListener('visibilitychange', syncChatAfterFocus);
+    window.addEventListener('pagehide', revokeAttachmentPreviewUrls, { passive: true });
     window.addEventListener('pagehide', stopChatPolling, { passive: true });
 }
 document.addEventListener('DOMContentLoaded', initChatWidget);

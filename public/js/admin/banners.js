@@ -162,6 +162,80 @@ try {
     if (el) bannersData = JSON.parse(el.textContent);
 } catch (_) { /* ignore */ }
 
+let editBannerExistingImageUrl = '';
+
+function revokeBannerPreviewUrl(preview) {
+    const objectUrl = preview?.dataset?.previewObjectUrl;
+    if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        delete preview.dataset.previewObjectUrl;
+    }
+}
+
+function clearBannerUploadPreview(previewId) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+
+    revokeBannerPreviewUrl(preview);
+    preview.replaceChildren();
+    preview.hidden = true;
+}
+
+function renderBannerUploadPreview(input, previewId, fallback = {}) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+
+    revokeBannerPreviewUrl(preview);
+    preview.replaceChildren();
+
+    const file = input?.files?.[0] || null;
+    const source = file ? URL.createObjectURL(file) : fallback.src;
+    if (!source) {
+        preview.hidden = true;
+        return;
+    }
+
+    if (file) {
+        preview.dataset.previewObjectUrl = source;
+    }
+
+    const thumb = document.createElement('div');
+    thumb.className = 'banner-upload-preview__thumb';
+
+    const image = document.createElement('img');
+    image.src = source;
+    image.alt = file?.name || fallback.label || 'Ảnh banner';
+    thumb.appendChild(image);
+
+    const meta = document.createElement('div');
+    meta.className = 'banner-upload-preview__meta';
+
+    const badge = document.createElement('span');
+    badge.className = 'banner-upload-preview__badge';
+    badge.textContent = file ? 'Ảnh đã chọn' : 'Ảnh hiện tại';
+    meta.appendChild(badge);
+
+    const name = document.createElement('span');
+    name.className = 'banner-upload-preview__name';
+    name.textContent = file?.name || fallback.label || 'Banner image';
+    meta.appendChild(name);
+
+    if (file) {
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'banner-upload-preview__clear';
+        clearButton.textContent = 'Bỏ chọn';
+        clearButton.addEventListener('click', () => {
+            input.value = '';
+            renderBannerUploadPreview(input, previewId, fallback);
+        });
+        meta.appendChild(clearButton);
+    }
+
+    preview.append(thumb, meta);
+    preview.hidden = false;
+}
+
 // Nạp dữ liệu banner vào modal chỉnh sửa.
 function openEditModal(bannerId) {
     const banner = bannersData.find(b => b.id === parseInt(bannerId, 10));
@@ -171,7 +245,13 @@ function openEditModal(bannerId) {
     document.getElementById('editBannerTitle').value = banner.title;
     document.getElementById('editBannerSubtitle').value = banner.subtitle;
     document.getElementById('editBannerLinkUrl').value = banner.link_url;
-    document.getElementById('editBannerImage').value = '';
+    const imageInput = document.getElementById('editBannerImage');
+    imageInput.value = '';
+    editBannerExistingImageUrl = banner.image_url || '';
+    renderBannerUploadPreview(imageInput, 'editBannerImagePreview', {
+        src: editBannerExistingImageUrl,
+        label: 'Ảnh hiện tại'
+    });
 
     document.getElementById('editBannerModal').style.display = 'flex';
 }
@@ -179,6 +259,9 @@ function openEditModal(bannerId) {
 // Đóng modal chỉnh sửa banner.
 function closeEditModal() {
     document.getElementById('editBannerModal').style.display = 'none';
+    document.getElementById('editBannerImage').value = '';
+    editBannerExistingImageUrl = '';
+    clearBannerUploadPreview('editBannerImagePreview');
 }
 
 // Gửi form cập nhật banner bằng FormData để hỗ trợ cả ảnh upload và URL ảnh.
@@ -237,6 +320,24 @@ function initAdminBannersPage() {
     document.getElementById('editBannerClose')?.addEventListener('click', closeEditModal);
     document.getElementById('editBannerCancel')?.addEventListener('click', closeEditModal);
     document.getElementById('editBannerForm')?.addEventListener('submit', submitEditBanner);
+
+    const createBannerImageInput = document.getElementById('createBannerImage');
+    createBannerImageInput?.addEventListener('change', () => {
+        renderBannerUploadPreview(createBannerImageInput, 'createBannerImagePreview');
+    });
+
+    const editBannerImageInput = document.getElementById('editBannerImage');
+    editBannerImageInput?.addEventListener('change', () => {
+        renderBannerUploadPreview(editBannerImageInput, 'editBannerImagePreview', {
+            src: editBannerExistingImageUrl,
+            label: 'Ảnh hiện tại'
+        });
+    });
+
+    window.addEventListener('pagehide', () => {
+        clearBannerUploadPreview('createBannerImagePreview');
+        clearBannerUploadPreview('editBannerImagePreview');
+    });
 
     initDragAndDrop();
 }

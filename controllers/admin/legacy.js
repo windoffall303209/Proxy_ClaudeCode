@@ -15,9 +15,12 @@ const emailService = require('../../services/emailService');
 const { attachUploadedImagesToProduct, parseVariantsPayload, syncVariants, validateVariants } = require('../../services/adminProductVariantService');
 const {
     createProductImportTemplateBuffer,
-    exportProductsToWorkbookBuffer,
-    importProductsFromWorkbook
+    exportProductsToWorkbookBuffer
 } = require('../../services/productBulkImportService');
+const {
+    startProductImportJob,
+    getProductImportJob
+} = require('../../services/productImportJobService');
 const {
     createCategoryImportTemplateBuffer,
     exportCategoriesToWorkbookBuffer,
@@ -679,6 +682,7 @@ exports.requestBulkDeleteVerification = async (req, res) => {
 exports.getCategories = async (req, res) => {
     try {
         const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        await Category.resequenceDisplayOrders();
         const [categories, parentCategories, allCategoriesForStats] = await Promise.all([
             Category.findAllForAdmin(searchQuery ? { search: searchQuery } : {}),
             Category.findRootCategories(),
@@ -893,6 +897,9 @@ exports.getProducts = async (req, res) => {
         let totalProductCount = 0;
         let productStats = { total: 0, inStock: 0, outOfStock: 0, categories: 0 };
         const bulkImportResult = req.session?.adminProductImportResult || null;
+        const productImportJobId = typeof req.query.importJob === 'string' && req.query.importJob.trim()
+            ? req.query.importJob.trim()
+            : (req.session?.adminProductImportJobId || null);
 
         if (req.session?.adminProductImportResult) {
             delete req.session.adminProductImportResult;
@@ -907,6 +914,7 @@ exports.getProducts = async (req, res) => {
             const productFilters = {
                 limit,
                 offset,
+                accent_sensitive: false,
                 ...(searchQuery ? { search: searchQuery } : {})
             };
 
@@ -934,6 +942,7 @@ exports.getProducts = async (req, res) => {
             searchQuery,
             pagination: { totalItems, totalPages, currentPage: page, limit, searchQuery },
             bulkImportResult,
+            productImportJobId,
             totalProductCount,
             productStats
         });
@@ -972,6 +981,8 @@ exports.exportProducts = async (req, res) => {
 
 // Nhập sản phẩm.
 exports.importProducts = async (req, res) => {
+    let shouldCleanupUploadedFiles = true;
+
     try {
         req.session = req.session || {};
         const workbookFile = req.files?.import_file?.[0] || null;
@@ -988,18 +999,18 @@ exports.importProducts = async (req, res) => {
             return res.redirect('/admin/products');
         }
 
-        const result = await importProductsFromWorkbook({
+        const job = startProductImportJob({
             workbookPath: workbookFile.path,
-            zipPath: zipFile?.path || null
+            zipPath: zipFile?.path || null,
+            requestedBy: req.user?.id || null
         });
 
-        req.session.adminProductImportResult = result;
-        res.redirect(buildAdminNoticeRedirect(
-            '/admin/products',
-            result.failedCount > 0
-                ? `Đã import ${result.createdCount}/${result.totalProducts} sản phẩm. Có ${result.failedCount} dòng bị lỗi.`
-                : `Đã import thành công ${result.createdCount} sản phẩm.`,
-            result.failedCount > 0 ? 'warning' : 'success'
+        shouldCleanupUploadedFiles = false;
+        req.session.adminProductImportJobId = job.id;
+        return res.redirect(buildAdminNoticeRedirect(
+            `/admin/products?importJob=${encodeURIComponent(job.id)}`,
+            'Đã bắt đầu import sản phẩm ở chế độ nền. Bạn có thể theo dõi tiến trình ngay tại trang này.',
+            'info'
         ));
     } catch (error) {
         req.session.adminProductImportResult = {
@@ -1011,8 +1022,30 @@ exports.importProducts = async (req, res) => {
         };
         res.redirect(buildAdminNoticeRedirect('/admin/products', 'Import sản phẩm thất bại.', 'error'));
     } finally {
-        cleanupImportUploadFiles(req.files);
+        if (shouldCleanupUploadedFiles) {
+            cleanupImportUploadFiles(req.files);
+        }
     }
+};
+
+exports.getProductImportJob = async (req, res) => {
+    const job = getProductImportJob(req.params.jobId);
+
+    if (!job) {
+        return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy tiến trình import sản phẩm.'
+        });
+    }
+
+    if (req.session?.adminProductImportJobId === job.id && ['completed', 'completed_with_errors', 'failed'].includes(job.status)) {
+        delete req.session.adminProductImportJobId;
+    }
+
+    return res.json({
+        success: true,
+        job
+    });
 };
 
 

@@ -1,20 +1,14 @@
 /**
  * Script để seed banners và verify data
  */
-const mysql = require('mysql2/promise');
+const pool = require('../config/database');
 require('dotenv').config();
 
 // Xử lý seed dữ liệu.
 async function seedData() {
     console.log('🔧 Seed banners và verify data...\n');
 
-    const connection = await mysql.createConnection({
-        host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'tmdt_ecommerce',
-        port: process.env.DB_PORT || 3306
-    });
+    const connection = pool;
 
     try {
         // Check and add banners

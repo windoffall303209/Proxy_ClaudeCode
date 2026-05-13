@@ -37,7 +37,7 @@ class Newsletter {
         }
 
         // Thêm email mới
-        const query = 'INSERT INTO newsletter_subscribers (email, user_id) VALUES (?, ?)';
+        const query = 'INSERT INTO newsletter_subscribers (email, user_id) VALUES (?, ?) RETURNING id';
         const [result] = await pool.execute(query, [email, userId]);
 
         return {

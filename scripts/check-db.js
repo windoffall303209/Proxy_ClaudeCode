@@ -3,21 +3,14 @@
  * Chạy: node scripts/check-db.js
  */
 
-const mysql = require('mysql2/promise');
+const pool = require('../config/database');
 require('dotenv').config();
 
 // Xử lý check and seed.
 async function checkAndSeed() {
     console.log('🔍 Kiểm tra database...\n');
 
-    const connection = await mysql.createConnection({
-        host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'tmdt_ecommerce',
-        port: process.env.DB_PORT || 3306,
-        multipleStatements: true
-    });
+    const connection = pool;
 
     try {
         // Check categories

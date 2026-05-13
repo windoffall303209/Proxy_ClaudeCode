@@ -7,6 +7,7 @@ module.exports = {
     downloadProductImportTemplate: legacy.downloadProductImportTemplate,
     exportProducts: legacy.exportProducts,
     importProducts: legacy.importProducts,
+    getProductImportJob: legacy.getProductImportJob,
     createProduct: legacy.createProduct,
     updateProduct: legacy.updateProduct,
     deleteProduct: legacy.deleteProduct,

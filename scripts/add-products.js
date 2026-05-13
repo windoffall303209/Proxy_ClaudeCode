@@ -3,7 +3,7 @@
  * Mỗi sản phẩm có 5-6 ảnh từ Unsplash (miễn phí)
  * Chạy: node scripts/add-products.js
  */
-const mysql = require('mysql2/promise');
+const pool = require('../config/database');
 require('dotenv').config();
 
 const productsData = {
@@ -137,13 +137,7 @@ const imagesByCategory = {
 async function main() {
   console.log('🚀 Bắt đầu thêm 90 sản phẩm mới...\n');
 
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'tmdt_ecommerce',
-    port: process.env.DB_PORT || 3306
-  });
+  const connection = pool;
 
   try {
     const categoryMap = { nam: 1, nu: 2, 'tre-em': 3 };
@@ -162,7 +156,8 @@ async function main() {
         // Insert product
         const [result] = await connection.execute(
           `INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, is_featured, is_active)
-           VALUES (?, ?, ?, ?, ?, 100, ?, TRUE, TRUE)`,
+           VALUES (?, ?, ?, ?, ?, 100, ?, TRUE, TRUE)
+           RETURNING id`,
           [categoryId, product.name, slug, product.desc, product.price, sku]
         );
 
@@ -175,7 +170,7 @@ async function main() {
           await connection.execute(
             `INSERT INTO product_images (product_id, image_url, is_primary, display_order)
              VALUES (?, ?, ?, ?)`,
-            [productId, imageUrl, j === 0 ? 1 : 0, j]
+            [productId, imageUrl, j === 0, j]
           );
         }
 
