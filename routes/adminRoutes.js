@@ -10,6 +10,8 @@ const { uploadToCloud } = require('../middleware/upload');
 
 router.get('/login', adminAuthController.showLogin);
 router.post('/login', adminAuthController.login);
+router.get('/auth/login', adminAuthController.showLogin);
+router.post('/auth/login', adminAuthController.login);
 router.get('/google', adminAuthController.startGoogleLogin);
 router.get('/google/callback', adminAuthController.handleGoogleCallback);
 router.post('/logout', adminAuthController.logout);

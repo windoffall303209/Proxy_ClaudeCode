@@ -160,7 +160,7 @@
                     <% if (canCancelOrder) { %>
                         <div class="tracking-map-preview">
                             <p>Bạn có thể hủy đơn trước khi đơn chuyển sang xử lý giao hàng.</p>
-                            <form action="/orders/<%= order.order_code %>/cancel" method="POST" data-confirm-submit data-confirm-message="Ban chac chan muon huy don hang nay?">
+                            <form action="/orders/<%= order.order_code %>/cancel" method="POST" data-confirm-submit data-confirm-message="Bạn chắc chắn muốn hủy đơn hàng này?">
                                 <button type="submit" class="btn btn-danger">Hủy đơn hàng</button>
                             </form>
                         </div>
@@ -264,7 +264,7 @@
             <a href="/orders/history" class="btn btn-secondary">Quay lại lịch sử đơn</a>
             <a href="/orders/<%= order.order_code %>/confirmation" class="btn btn-primary">Xem chi tiết đơn</a>
             <% if (canCancelOrder) { %>
-                <form action="/orders/<%= order.order_code %>/cancel" method="POST" data-confirm-submit data-confirm-message="Ban chac chan muon huy don hang nay?">
+                <form action="/orders/<%= order.order_code %>/cancel" method="POST" data-confirm-submit data-confirm-message="Bạn chắc chắn muốn hủy đơn hàng này?">
                     <button type="submit" class="btn btn-danger">Hủy đơn hàng</button>
                 </form>
             <% } %>

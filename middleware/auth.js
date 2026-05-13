@@ -58,7 +58,7 @@ function buildLoginRedirect(req) {
  */
 function buildVerifyEmailRedirect(req) {
     if (isAdminAreaRequest(req)) {
-        return buildAdminLoginRedirect(req, 'Tai khoan quan tri chua xac thuc email.');
+        return buildAdminLoginRedirect(req, 'Tài khoản quản trị chưa xác thực email.');
     }
 
     const redirectTarget = req.originalUrl || req.path || '/';
@@ -173,7 +173,7 @@ const isAdmin = (req, res, next) => {
         next();
     } else {
         if (req.accepts('html') && isAdminAreaRequest(req)) {
-            return res.redirect(buildAdminLoginRedirect(req, 'Tai khoan nay khong co quyen truy cap admin.'));
+            return res.redirect(buildAdminLoginRedirect(req, 'Tài khoản này không có quyền truy cập admin.'));
         }
 
         res.status(403).json({ message: 'Access denied. Admin only.' });

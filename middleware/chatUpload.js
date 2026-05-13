@@ -68,7 +68,7 @@ function detectChatMediaType(file) {
     return null;
 }
 
-// Xử lý map l?i upload tin nhắn.
+// Xử lý map lỗi upload tin nhắn.
 function mapUploadErrorMessage(error) {
     if (!error) {
         return 'Không thể tải media lên lúc này.';
@@ -170,7 +170,7 @@ async function uploadChatMediaFiles(files = []) {
     }
 }
 
-// Xử lý chat media t?i l?n.
+// Xử lý chat media tải lên.
 function handleChatMediaUpload(req, res, next) {
     chatUpload.array('messageMedia', MAX_CHAT_FILES)(req, res, async (error) => {
         if (error) {
@@ -187,7 +187,7 @@ function handleChatMediaUpload(req, res, next) {
                 : [];
             return next();
         } catch (uploadError) {
-            console.error('Chat media l?i upload:', uploadError);
+            console.error('Chat media lỗi upload:', uploadError);
             return res.status(500).json({
                 success: false,
                 message: 'Không thể tải media lên lúc này. Vui lòng thử lại.'

@@ -86,14 +86,14 @@
             <div class="admin-section__content">
                 <div class="admin-toolbar admin-toolbar--import">
                     <div class="admin-toolbar__info">
-                        <p class="admin-toolbar__title">Workbook + ZIP &#7843;nh</p>
+                        <p class="admin-toolbar__title">Workbook + ZIP ảnh</p>
                         <p class="admin-toolbar__text">
-                            D&ugrave;ng 3 sheet <strong>Products</strong>, <strong>Images</strong>, <strong>Variants</strong>.
-                            Excel ch&#7881; c&#7847;n ghi t&ecirc;n file &#7843;nh; &#7843;nh th&#7853;t &#273;i k&egrave;m trong file <strong>.zip</strong> &#273;&#7875; g&#7855;n cho s&#7843;n ph&#7849;m v&agrave; bi&#7871;n th&#7875;.
+                            Dùng 3 sheet <strong>Products</strong>, <strong>Images</strong>, <strong>Variants</strong>.
+                            Excel chỉ cần ghi tên file ảnh; ảnh thật đi kèm trong file <strong>.zip</strong> để gắn cho sản phẩm và biến thể.
                         </p>
                     </div>
                     <div class="admin-search-form__actions">
-                        <a href="/admin/products/import-template" class="admin-btn admin-btn--ghost">T&#7843;i file m&#7851;u</a>
+                        <a href="/admin/products/import-template" class="admin-btn admin-btn--ghost">Tải file mẫu</a>
                     </div>
                 </div>
                 <form action="/admin/products/import" method="POST" enctype="multipart/form-data" class="admin-form">
@@ -101,12 +101,12 @@
                         <div class="admin-form__group">
                             <label class="admin-form__label">File Excel <span>*</span></label>
                             <input type="file" name="import_file" accept=".xlsx,.xls" required class="admin-form__input">
-                            <small class="admin-form__hint">H&#7895; tr&#7907; `.xlsx` v&agrave; `.xls`.</small>
+                            <small class="admin-form__hint">Hỗ trợ `.xlsx` và `.xls`.</small>
                         </div>
                         <div class="admin-form__group">
-                            <label class="admin-form__label">ZIP &#7843;nh</label>
+                            <label class="admin-form__label">ZIP ảnh</label>
                             <input type="file" name="images_zip" accept=".zip" class="admin-form__input">
-                            <small class="admin-form__hint">D&ugrave;ng khi workbook tham chi&#7871;u t&#7899;i `image_file`. N&#7871;u d&ugrave;ng `image_url` th&igrave; c&oacute; th&#7875; b&#7887; tr&#7889;ng.</small>
+                            <small class="admin-form__hint">Dùng khi workbook tham chiếu tới `image_file`. Nếu dùng `image_url` thì có thể bỏ trống.</small>
                         </div>
                     </div>
                     <div class="admin-form__actions">
@@ -568,6 +568,6 @@
 
 
 
-<script src="/js/admin/products.js?v=otp-20260426"></script>
+<script src="/js/admin/products.js?v=otp-modal-20260513"></script>
 
 <%- include('../partials/admin-footer') %>

@@ -694,7 +694,12 @@ async function confirmExportProducts(targetUrl) {
         const verification = await requestBulkDeleteVerificationCode('export_products');
         const email = verification.email || BULK_DELETE_VERIFICATION_EMAIL;
         showToast(`Mã xác thực đã được gửi tới ${email}.`, 'success');
-        const verificationCode = window.prompt(`Nhập mã OTP vừa gửi tới ${email} để xuất sản phẩm:`);
+        const verificationCode = await window.showAdminOtpModal({
+            title: 'Xác thực xuất sản phẩm',
+            message: 'Vui lòng nhập mã xác thực để tải file xuất sản phẩm.',
+            email,
+            confirmText: 'Xuất sản phẩm'
+        });
 
         if (!verificationCode || !verificationCode.trim()) {
             showToast('Đã hủy vì chưa nhập mã OTP.', 'warning');
@@ -726,8 +731,14 @@ async function deleteAllProducts(totalProductCount = 0) {
 
     try {
         const verification = await requestBulkDeleteVerificationCode('delete_all_products');
-        showToast(`Mã xác thực đã được gửi tới ${verification.email || BULK_DELETE_VERIFICATION_EMAIL}.`, 'success');
-        const verificationCode = window.prompt(`Nhập mã xác thực vừa gửi tới ${verification.email || BULK_DELETE_VERIFICATION_EMAIL}:`);
+        const email = verification.email || BULK_DELETE_VERIFICATION_EMAIL;
+        showToast(`Mã xác thực đã được gửi tới ${email}.`, 'success');
+        const verificationCode = await window.showAdminOtpModal({
+            title: 'Xác thực xóa sản phẩm',
+            message: 'Thao tác xóa vĩnh viễn cần mã xác thực qua email để tiếp tục.',
+            email,
+            confirmText: 'Xác nhận xóa'
+        });
 
         if (!verificationCode || !verificationCode.trim()) {
             showToast('Đã hủy vì chưa nhập mã xác thực.', 'warning');

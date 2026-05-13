@@ -46,7 +46,7 @@ const uploadToCloudinary = async (filePath, options = {}) => {
             bytes: result.bytes
         };
     } catch (error) {
-        console.error('Cloudinary l?i upload:', error);
+        console.error('Cloudinary lỗi upload:', error);
         return {
             success: false,
             error: error.message

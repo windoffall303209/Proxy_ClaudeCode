@@ -72,7 +72,13 @@ function getSafeAdminRedirectPath(value, fallback = ADMIN_HOME_PATH) {
         return fallback;
     }
 
-    if (trimmed === ADMIN_LOGIN_PATH || trimmed.startsWith(`${ADMIN_LOGIN_PATH}?`) || trimmed === '/admin/logout') {
+    const adminAuthPath = trimmed.split('?')[0];
+    const isLoginOrLogoutPath = adminAuthPath === ADMIN_LOGIN_PATH
+        || adminAuthPath === '/admin/auth/login'
+        || adminAuthPath === '/admin/logout'
+        || adminAuthPath === '/admin/auth/logout';
+
+    if (isLoginOrLogoutPath) {
         return fallback;
     }
 

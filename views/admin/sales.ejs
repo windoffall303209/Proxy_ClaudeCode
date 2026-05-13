@@ -411,7 +411,7 @@
 
 
 
-<%# Bootstrap du lieu JSON cho script phia client. %>
+<%# Bootstrap dữ liệu JSON cho script phía client. %>
 <script type="application/json" id="adminSalesBootstrap"><%- JSON.stringify({
     products: (products || []).map(product => ({ id: product.id, name: product.name, sku: product.sku || '', sale_name: product.sale_name || '' })),
     subscriberCount: Number(subscriberCount || 0),

@@ -63,7 +63,7 @@ function detectReturnMediaType(file) {
     return null;
 }
 
-// Xử lý map l?i upload vào feedback code.
+// Xử lý map lỗi upload vào feedback code.
 function mapUploadErrorToFeedbackCode(error) {
     if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
         return 'file-too-large';
@@ -173,7 +173,7 @@ async function uploadReturnMediaFiles(files = []) {
     }
 }
 
-// Xử lý hoàn hàng media t?i l?n.
+// Xử lý hoàn hàng media tải lên.
 function handleReturnMediaUpload(req, res, next) {
     returnUpload.array('returnMedia', MAX_RETURN_FILES)(req, res, async (error) => {
         if (error) {
@@ -187,7 +187,7 @@ function handleReturnMediaUpload(req, res, next) {
                 : [];
             return next();
         } catch (uploadError) {
-            console.error('Return media l?i upload:', uploadError);
+            console.error('Return media lỗi upload:', uploadError);
             return res.redirect(buildReturnRedirect(req.params.orderCode, 'upload-failed'));
         }
     });

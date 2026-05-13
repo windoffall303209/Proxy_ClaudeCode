@@ -136,7 +136,7 @@ class User {
         return this.findById(userId);
     }
 
-    // TìT?m ho?c t?o google người dùng.
+    // Tìm hoặc tạo google người dùng.
     static async findOrCreateGoogleUser(profile = {}) {
         const email = String(profile.email || '').trim().toLowerCase();
         const fullName = String(profile.name || profile.full_name || '').trim() || email.split('@')[0] || 'Google User';
@@ -421,7 +421,7 @@ class User {
         // Sắp xếp theo ngày đăng ký mới nhất
         query += ' ORDER BY created_at DESC';
 
-        // Phuong thuc trang
+        // Phân trang
         if (filters.limit) {
             const limit = parseInt(filters.limit) || 50;
             const offset = parseInt(filters.offset) || 0;

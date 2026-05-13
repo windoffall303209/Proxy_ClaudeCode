@@ -194,7 +194,7 @@
                                 <a href="/orders/<%= order.order_code %>/pay" class="btn btn-primary">Thanh toán ngay</a>
                             <% } %>
                             <% if (canCancelOrder) { %>
-                                <form action="/orders/<%= order.order_code %>/cancel" method="POST" class="order-card__action-form" data-confirm-submit data-confirm-message="Ban chac chan muon huy don hang nay?">
+                                <form action="/orders/<%= order.order_code %>/cancel" method="POST" class="order-card__action-form" data-confirm-submit data-confirm-message="Bạn chắc chắn muốn hủy đơn hàng này?">
                                     <button type="submit" class="btn btn-danger">Hủy đơn hàng</button>
                                 </form>
                             <% } %>

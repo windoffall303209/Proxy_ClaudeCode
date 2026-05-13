@@ -8,9 +8,9 @@ class Chat {
                     SELECT COALESCE(
                         NULLIF(TRIM(cm.message), ''),
                         CASE
-                            WHEN cm.message_type = 'media' THEN '[Da gui media]'
-                            WHEN cm.message_type = 'product_cards' THEN '[Goi y san pham]'
-                            ELSE '[Tin nhan]'
+                            WHEN cm.message_type = 'media' THEN '[Đã gửi media]'
+                            WHEN cm.message_type = 'product_cards' THEN '[Gợi ý sản phẩm]'
+                            ELSE '[Tin nhắn]'
                         END
                     )
                     FROM chat_messages cm
@@ -120,8 +120,8 @@ class Chat {
         return rows[0] || null;
     }
 
-    // TìT?m ho?c t?o conversation.
-    static async findOrCreateConversation(userId, sessionId, guestName = 'Khach') {
+    // Tìm hoặc tạo conversation.
+    static async findOrCreateConversation(userId, sessionId, guestName = 'Khách') {
         const existingConversation = await this.getActiveConversationForCustomer(userId, sessionId);
         if (existingConversation) {
             return existingConversation;

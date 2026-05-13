@@ -1102,14 +1102,14 @@ exports.vnpayReturn = async (req, res) => {
         // Xac minh chu ky va ket qua thanh toan
         const result = await paymentService.verifyVNPayPayment(req.query);
         if (!result.isValidSignature) {
-            return renderPaymentFailure(res, req, 'Chu ky tra ve tu VNPay khong hop le');
+            return renderPaymentFailure(res, req, 'Chữ ký trả về từ VNPay không hợp lệ');
         }
         const order = await Order.findByOrderCode(result.orderId);
         if (!order) {
-            return renderPaymentFailure(res, req, 'Khong tim thay don hang thanh toan', 404);
+            return renderPaymentFailure(res, req, 'Không tìm thấy đơn hàng thanh toán', 404);
         }
         if (Number(result.amount) !== Number(order.final_amount)) {
-            return renderPaymentFailure(res, req, 'So tien VNPay tra ve khong khop voi don hang');
+            return renderPaymentFailure(res, req, 'Số tiền VNPay trả về không khớp với đơn hàng');
         }
         // Return URL la duong hien thi cho khach, nhung van sync fallback o day
         // de ho tro test sandbox khi IPN chua di xuyen mang.
@@ -1173,7 +1173,7 @@ exports.momoReturn = async (req, res) => {
         const result = await paymentService.verifyMoMoPayment(momoPayload);
 
         if (!result.isValidSignature) {
-            return renderPaymentFailure(res, req, 'Chu ky tra ve tu MoMo khong hop le');
+            return renderPaymentFailure(res, req, 'Chữ ký trả về từ MoMo không hợp lệ');
         }
 
         if (!result.success) {
@@ -1183,7 +1183,7 @@ exports.momoReturn = async (req, res) => {
                 return res.redirect(`/orders/${result.orderId}/confirmation?payment=failed`);
             }
 
-            return renderPaymentFailure(res, req, 'Thanh toan MoMo khong thanh cong. Vui long thu lai.');
+            return renderPaymentFailure(res, req, 'Thanh toán MoMo không thành công. Vui lòng thử lại.');
         }
 
         if (result.success) {
@@ -1205,7 +1205,7 @@ exports.momoReturn = async (req, res) => {
             return res.redirect(`/orders/${result.orderId}/confirmation`);
         } else {
             // Thanh toán thất bại
-            return renderPaymentFailure(res, req, 'Thanh toan MoMo khong thanh cong. Vui long thu lai.');
+            return renderPaymentFailure(res, req, 'Thanh toán MoMo không thành công. Vui lòng thử lại.');
         }
     } catch (error) {
         console.error('MoMo callback error:', error);

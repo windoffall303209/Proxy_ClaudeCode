@@ -105,7 +105,12 @@ async function confirmExportCategories(targetUrl) {
         const verification = await requestCategoryBulkDeleteVerificationCode('export_categories');
         const email = verification.email || 'nvuthanh4@gmail.com';
         showCategoryToast(`Mã xác thực đã được gửi tới ${email}.`, 'success');
-        const verificationCode = window.prompt(`Nhập mã OTP vừa gửi tới ${email} để xuất danh mục:`);
+        const verificationCode = await window.showAdminOtpModal({
+            title: 'Xác thực xuất danh mục',
+            message: 'Vui lòng nhập mã xác thực để tải file xuất danh mục.',
+            email,
+            confirmText: 'Xuất danh mục'
+        });
 
         if (!verificationCode || !verificationCode.trim()) {
             showCategoryToast('Đã hủy vì chưa nhập mã OTP.', 'warning');
@@ -276,8 +281,14 @@ async function deleteAllCategories() {
 
     try {
         const verification = await requestCategoryBulkDeleteVerificationCode('delete_all_categories');
-        showCategoryToast(`Mã xác thực đã được gửi tới ${verification.email || 'nvuthanh4@gmail.com'}.`, 'success');
-        const verificationCode = window.prompt(`Nhập mã xác thực vừa gửi tới ${verification.email || 'nvuthanh4@gmail.com'}:`);
+        const email = verification.email || 'nvuthanh4@gmail.com';
+        showCategoryToast(`Mã xác thực đã được gửi tới ${email}.`, 'success');
+        const verificationCode = await window.showAdminOtpModal({
+            title: 'Xác thực xóa danh mục',
+            message: 'Thao tác xóa vĩnh viễn cần mã xác thực qua email để tiếp tục.',
+            email,
+            confirmText: 'Xác nhận xóa'
+        });
 
         if (!verificationCode || !verificationCode.trim()) {
             showCategoryToast('Đã hủy vì chưa nhập mã xác thực.', 'warning');

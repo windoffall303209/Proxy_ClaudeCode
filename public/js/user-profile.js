@@ -89,7 +89,7 @@ function initAvatarUpload() {
                 showProfileAlert(result.message || 'Lỗi upload ảnh', 'error');
             }
         } catch (error) {
-            console.error('Avatar l?i upload:', error);
+            console.error('Avatar lỗi upload:', error);
             showProfileAlert('Lỗi kết nối server', 'error');
         }
     });

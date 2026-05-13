@@ -705,7 +705,7 @@ ${this.getVariantAggregateSelect('p')}
             productAlias: 'p'
         })}`;
 
-        // Phuong thuc trang
+        // Phân trang
         const limit = parseInt(filters.limit) || 12;
         const offset = parseInt(filters.offset) || 0;
         query += ` LIMIT ${limit} OFFSET ${offset}`;

@@ -153,13 +153,13 @@ const uploadToCloud = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.error('❌ Cloud l?i upload:', error);
+        console.error('❌ Cloud lỗi upload:', error);
         next(error);
     }
 };
 
 /**
- * Lấy URL Cloudinary đã gắn vào ??i t??ng file sau khi upload.
+ * Lấy URL Cloudinary đã gắn vào đối tượng file sau khi upload.
  */
 const getFileUrl = (file) => {
     if (file.cloudinaryUrl) {

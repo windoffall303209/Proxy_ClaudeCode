@@ -209,6 +209,113 @@ body.admin-body .admin-empty__text {
     line-height: 1.4;
 }
 
+body.admin-modal-open {
+    overflow: hidden;
+}
+
+.admin-otp-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(24, 25, 28, 0.5);
+    backdrop-filter: blur(8px);
+}
+
+.admin-otp-modal.is-open {
+    display: flex;
+}
+
+.admin-otp-modal__content {
+    width: min(100%, 500px);
+    padding: 40px 36px 32px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 250, 242, 0.96));
+    border: 1px solid rgba(204, 191, 167, 0.85);
+    box-shadow: 0 28px 80px rgba(24, 21, 15, 0.22);
+    text-align: center;
+}
+
+.admin-otp-modal__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 68px;
+    height: 68px;
+    margin-bottom: 18px;
+    border-radius: 50%;
+    background: rgba(197, 79, 53, 0.12);
+    color: var(--admin-danger);
+}
+
+.admin-otp-modal__text h3 {
+    margin: 0 0 10px;
+    color: var(--admin-text-primary);
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.admin-otp-modal__text p {
+    margin: 0 0 18px;
+    color: var(--admin-text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.admin-otp-modal__label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--admin-text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+}
+
+.admin-otp-modal__input {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 14px;
+    border: 1px solid rgba(204, 191, 167, 0.9);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--admin-text-primary);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.12em;
+}
+
+.admin-otp-modal__input:focus {
+    outline: none;
+    border-color: rgba(226, 184, 75, 0.96);
+    box-shadow: 0 0 0 4px rgba(226, 184, 75, 0.14);
+}
+
+.admin-otp-modal__hint {
+    display: block;
+    min-height: 18px;
+    margin-top: 6px;
+    color: var(--admin-danger);
+    font-size: 12px;
+    text-align: left;
+}
+
+.admin-otp-modal__buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.admin-otp-modal__buttons .admin-btn {
+    min-width: 118px;
+}
+
 @media (max-width: 768px) {
     body.admin-body .admin-table th {
         padding: 7px 8px;
@@ -240,5 +347,22 @@ body.admin-body .admin-empty__text {
         min-width: 32px;
         height: 32px;
         min-height: 32px;
+    }
+
+    .admin-otp-modal {
+        padding: 14px;
+    }
+
+    .admin-otp-modal__content {
+        padding: 30px 20px 24px;
+        border-radius: 18px;
+    }
+
+    .admin-otp-modal__buttons {
+        flex-direction: column-reverse;
+    }
+
+    .admin-otp-modal__buttons .admin-btn {
+        width: 100%;
     }
 }
