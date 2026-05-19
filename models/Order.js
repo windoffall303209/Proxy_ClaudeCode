@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu đơn hàng trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu đơn hàng trong PostgreSQL.
 const crypto = require("crypto");
 const pool = require("../config/database");
 const StorefrontSetting = require("./StorefrontSetting");
@@ -416,8 +416,7 @@ class Order {
         `INSERT INTO shipments (
                     order_id, carrier, tracking_code, tracking_url, current_status,
                     current_location_text, current_lat, current_lng, estimated_delivery_at, last_event_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                RETURNING id`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           orderId,
           initialShipment.carrier,
@@ -527,17 +526,25 @@ class Order {
   // Tự hủy đơn thanh toán online quá hạn và hoàn lại tồn kho/voucher.
   static async expireOverduePendingPayments() {
     let orders = [];
+    const paymentWindowHours = await this.getPaymentWindowHours();
+    const legacyPaymentCutoff = new Date(
+      Date.now() - paymentWindowHours * 60 * 60 * 1000,
+    );
+
     try {
       [orders] = await pool.execute(
         `SELECT id
          FROM orders
-         WHERE status = 'pending_payment'
+         WHERE status IN ('pending_payment', 'pending')
            AND payment_method IN ('vnpay', 'momo')
-           AND payment_status <> 'paid'
-           AND payment_expires_at IS NOT NULL
-           AND payment_expires_at <= NOW()
-         ORDER BY payment_expires_at ASC
+           AND (payment_status IS NULL OR payment_status <> 'paid')
+           AND (
+             (payment_expires_at IS NOT NULL AND payment_expires_at <= NOW())
+             OR (payment_expires_at IS NULL AND created_at <= ?)
+           )
+         ORDER BY COALESCE(payment_expires_at, created_at) ASC
          LIMIT 100`,
+        [legacyPaymentCutoff],
       );
     } catch (error) {
       if (["ER_BAD_FIELD_ERROR", "ER_NO_SUCH_TABLE"].includes(error?.code)) {
@@ -555,13 +562,16 @@ class Order {
           `SELECT id, status, payment_status, voucher_id
            FROM orders
            WHERE id = ?
-             AND status = 'pending_payment'
+             AND status IN ('pending_payment', 'pending')
              AND payment_method IN ('vnpay', 'momo')
-             AND payment_status <> 'paid'
-             AND payment_expires_at <= NOW()
+             AND (payment_status IS NULL OR payment_status <> 'paid')
+             AND (
+               (payment_expires_at IS NOT NULL AND payment_expires_at <= NOW())
+               OR (payment_expires_at IS NULL AND created_at <= ?)
+             )
            LIMIT 1
            FOR UPDATE`,
-          [row.id],
+          [row.id, legacyPaymentCutoff],
         );
         const order = lockedOrders[0];
 
@@ -649,7 +659,7 @@ class Order {
         `SELECT o.id
                  FROM orders o
                  WHERE o.status = 'delivered'
-                   AND o.updated_at <= (NOW() - INTERVAL '7 DAY')
+                   AND o.updated_at <= NOW() - INTERVAL '7 days'
                    AND NOT EXISTS (
                        SELECT 1
                        FROM order_return_requests rr
@@ -674,7 +684,7 @@ class Order {
                      FROM orders
                      WHERE id = ?
                        AND status = 'delivered'
-                       AND updated_at <= (NOW() - INTERVAL '7 DAY')
+                       AND updated_at <= NOW() - INTERVAL '7 days'
                      LIMIT 1
                      FOR UPDATE`,
           [row.id],
@@ -797,8 +807,7 @@ class Order {
                     user_id, address_id, shipping_name, shipping_phone, shipping_address_line,
                     shipping_ward, shipping_district, shipping_city, voucher_id, order_code,
                     total_amount, discount_amount, shipping_fee, final_amount, payment_method, status, payment_expires_at, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                RETURNING id`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           addressId,
@@ -956,8 +965,7 @@ class Order {
                     user_id, address_id, shipping_name, shipping_phone, shipping_address_line,
                     shipping_ward, shipping_district, shipping_city, voucher_id, order_code,
                     total_amount, discount_amount, shipping_fee, final_amount, payment_method, status, payment_expires_at, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                RETURNING id`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           addressId,
@@ -1297,7 +1305,7 @@ class Order {
       }
 
       const currentStatus = this.normalizeStatus(order.status);
-      if (!["pending", "confirmed"].includes(currentStatus)) {
+      if (!["pending_payment", "pending", "confirmed"].includes(currentStatus)) {
         throw new Error("Order cannot be cancelled at this status");
       }
 
@@ -1564,7 +1572,7 @@ class Order {
                 SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders,
                 SUM(CASE WHEN status = 'completed' THEN final_amount ELSE 0 END) AS total_revenue,
                 SUM(CASE WHEN status = 'completed' AND DATE(created_at) = CURRENT_DATE THEN final_amount ELSE 0 END) AS today_revenue,
-                SUM(CASE WHEN status = 'completed' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE) THEN final_amount ELSE 0 END) AS month_revenue
+                SUM(CASE WHEN status = 'completed' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE::timestamp) THEN final_amount ELSE 0 END) AS month_revenue
             FROM orders
         `);
 

@@ -4,6 +4,25 @@
     const logoUrl = activeSettings.logo_url || activeSettings.favicon_url || '/favicon.png';
     const faviconUrl = activeSettings.favicon_url || '/favicon.png';
     const message = activeSettings.maintenance_message || 'Website đang bảo trì, vui lòng quay lại sau.';
+    const cssGuards = (typeof privacy !== 'undefined' && privacy && typeof privacy.safeCssValue === 'function')
+        ? privacy
+        : {
+            safeCssValue(value, fallback = '') {
+                const raw = String(value == null ? '' : value).trim();
+                if (!raw) return fallback;
+                return /^[A-Za-z0-9 _,'"\-.]+$/.test(raw) ? raw : fallback;
+            },
+            safeCssColor(value, fallback = '') {
+                const raw = String(value == null ? '' : value).trim();
+                if (!raw) return fallback;
+                if (/^#[0-9a-fA-F]{3,8}$/.test(raw)) return raw;
+                if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(raw)) return raw;
+                return fallback;
+            }
+        };
+    const maintenanceFontFamily = cssGuards.safeCssValue(activeSettings.site_font_family, "'Be Vietnam Pro', sans-serif");
+    const maintenanceBackground = cssGuards.safeCssColor(activeSettings.background_color, '#fcfaf4');
+    const maintenanceTextColor = cssGuards.safeCssColor(activeSettings.text_color, '#18140d');
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -20,9 +39,9 @@
             display: grid;
             place-items: center;
             margin: 0;
-            background: <%= activeSettings.background_color || '#fcfaf4' %>;
-            color: <%= activeSettings.text_color || '#18140d' %>;
-            font-family: <%- activeSettings.site_font_family || "'Be Vietnam Pro', sans-serif" %>;
+            background: <%= maintenanceBackground %>;
+            color: <%= maintenanceTextColor %>;
+            font-family: <%- maintenanceFontFamily %>;
         }
 
         .maintenance-page {

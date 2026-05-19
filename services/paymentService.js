@@ -125,10 +125,14 @@ class PaymentService {
 
         const orderId = order.order_code;
         const requestId = orderId;
-        const amount = order.final_amount.toString();
+        const amount = Math.round(Number(order.final_amount) || 0).toString();
         const orderInfo = `Thanh toán đơn hàng ${orderId}`;
         const requestType = 'captureWallet';
         const extraData = '';
+
+        if (Number(amount) <= 0) {
+            throw new Error('So tien thanh toan MoMo khong hop le');
+        }
 
         // Create signature
         const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${notifyUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${returnUrl}&requestId=${requestId}&requestType=${requestType}`;

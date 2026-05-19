@@ -38,7 +38,7 @@ function isGoogleAuthConfigured() {
 }
 
 /**
- * Kiểm tra trạng thái tài khoản theo cả giá trị boolean và số từ MySQL.
+ * Kiểm tra trạng thái tài khoản theo cả giá trị boolean và số từ PostgreSQL.
  */
 function isActiveUser(user) {
     return user && user.is_active !== false && user.is_active !== 0;

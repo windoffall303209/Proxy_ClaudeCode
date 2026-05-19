@@ -100,6 +100,33 @@ function validateBulkDeleteVerification(req, action, code) {
     delete req.session.adminBulkDeleteVerification;
 }
 
+// Chuẩn hóa URL ảnh sản phẩm để chặn javascript:/data: và scheme nguy hiểm.
+function sanitizeImageUrl(rawUrl) {
+    const value = String(rawUrl || '').trim();
+    if (!value) {
+        return '';
+    }
+
+    if (value.startsWith('/')) {
+        // Đường dẫn nội bộ (vd /uploads/...) chấp nhận, nhưng chặn dạng `//host` và `/\host`.
+        if (value.startsWith('//') || /^\/\\/.test(value)) {
+            return '';
+        }
+        return value;
+    }
+
+    try {
+        const parsed = new URL(value);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return parsed.toString();
+        }
+    } catch (error) {
+        return '';
+    }
+
+    return '';
+}
+
 // Phân tích selected sản phẩm ids.
 function parseSelectedProductIds(body) {
     const rawValues = body.product_ids ?? body['product_ids[]'] ?? [];
@@ -640,7 +667,11 @@ exports.requestBulkDeleteVerification = async (req, res) => {
 
         const meta = BULK_DELETE_ACTIONS[action];
         const code = String(crypto.randomInt(100000, 1000000));
-        const email = await getDefaultWebEmail();
+        // Ưu tiên gửi mã đến chính email admin đang đăng nhập để bulk-delete chỉ hợp lệ
+        // khi attacker kiểm soát được hộp thư của admin đó. Nếu không có thì rơi về email mặc định.
+        const adminEmail = String(req.user?.email || '').trim();
+        const fallbackEmail = await getDefaultWebEmail();
+        const email = adminEmail || fallbackEmail;
         const ttlMs = await getSensitiveOtpTtlMs();
         const ttlMinutes = Math.max(1, Math.round(ttlMs / 60000));
 
@@ -720,6 +751,9 @@ exports.createCategory = async (req, res) => {
     try {
         const { name, description, parent_id, image_url, display_order } = req.body;
         const uploadedImageUrl = req.file?.cloudinaryUrl || null;
+        const safeImageUrl = uploadedImageUrl
+            ? sanitizeImageUrl(uploadedImageUrl)
+            : sanitizeImageUrl(image_url);
         let slug = req.body.slug;
         if (!slug || slug.trim() === '') {
             slug = name
@@ -736,7 +770,7 @@ exports.createCategory = async (req, res) => {
             slug,
             description,
             parent_id: parent_id || null,
-            image_url: uploadedImageUrl || image_url || null,
+            image_url: safeImageUrl || null,
             display_order: parseInt(display_order) || 0
         });
         res.redirect('/admin/categories');
@@ -831,12 +865,18 @@ exports.updateCategory = async (req, res) => {
         if (parent_id && await Category.createsCircularReference(id, parent_id)) {
             return res.status(400).json({ success: false, message: 'Không thể tạo vòng lặp danh mục cha-con' });
         }
+        let nextImageUrl = existing.image_url;
+        if (uploadedImageUrl) {
+            nextImageUrl = sanitizeImageUrl(uploadedImageUrl) || existing.image_url;
+        } else if (image_url !== undefined) {
+            nextImageUrl = sanitizeImageUrl(image_url) || null;
+        }
         await Category.update(id, {
             name: name || existing.name,
             slug: slug || existing.slug,
             description: description !== undefined ? description : existing.description,
             parent_id: parent_id !== undefined ? (parent_id || null) : existing.parent_id,
-            image_url: uploadedImageUrl || (image_url !== undefined ? (image_url || null) : existing.image_url),
+            image_url: nextImageUrl,
             display_order: display_order !== undefined ? (parseInt(display_order) || 0) : existing.display_order
         });
         res.json({ success: true, message: 'Cập nhật danh mục thành công' });
@@ -1268,9 +1308,9 @@ exports.getUsers = async (req, res) => {
             const [statsResult] = await pool.execute(`
                 SELECT
                     COUNT(*) AS total,
-                    COALESCE(SUM(role = 'admin'), 0) AS admin,
-                    COALESCE(SUM(is_active = TRUE), 0) AS active,
-                    COALESCE(SUM(is_active = FALSE), 0) AS inactive
+                    COALESCE(SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END), 0) AS admin,
+                    COALESCE(SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END), 0) AS active,
+                    COALESCE(SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END), 0) AS inactive
                 FROM users
             `);
             const statsRow = statsResult[0] || {};
@@ -1368,14 +1408,16 @@ exports.createBanner = async (req, res) => {
         const { title, subtitle, description, link_url, button_text, display_order, start_date, end_date } = req.body;
         let image_url = '';
         if (req.file) {
-            image_url = req.file.cloudinaryUrl || `/uploads/${req.file.filename}`;
+            const candidate = req.file.cloudinaryUrl || `/uploads/${req.file.filename}`;
+            image_url = sanitizeImageUrl(candidate);
         }
+        const safeLinkUrl = sanitizeImageUrl(link_url);
         await Banner.create({
             title,
             subtitle,
             description,
             image_url,
-            link_url,
+            link_url: safeLinkUrl || null,
             button_text,
             display_order: parseInt(display_order) || 0,
             start_date: start_date || null,
@@ -1625,6 +1667,12 @@ exports.addProductImageUrl = async (req, res) => {
         const pool = require('../../config/database');
         const { image_url, is_primary } = req.body;
         const productId = req.params.id;
+
+        const safeImageUrl = sanitizeImageUrl(image_url);
+        if (!safeImageUrl) {
+            return res.status(400).json({ success: false, message: 'URL ảnh không hợp lệ. Vui lòng dùng đường dẫn http(s) hoặc đường dẫn nội bộ.' });
+        }
+
         if (is_primary) {
             await pool.execute(
                 'UPDATE product_images SET is_primary = FALSE WHERE product_id = ?',
@@ -1633,7 +1681,7 @@ exports.addProductImageUrl = async (req, res) => {
         }
         await pool.execute(
             'INSERT INTO product_images (product_id, image_url, is_primary) VALUES (?, ?, ?)',
-            [productId, image_url, is_primary || false]
+            [productId, safeImageUrl, is_primary || false]
         );
 
         scheduleProductVisualEmbeddingSync(productId);
@@ -2137,7 +2185,13 @@ exports.updateBanner = async (req, res) => {
 
         let image_url = existing.image_url;
         if (req.file) {
-            image_url = req.file.cloudinaryUrl || `/uploads/${req.file.filename}`;
+            const candidate = req.file.cloudinaryUrl || `/uploads/${req.file.filename}`;
+            image_url = sanitizeImageUrl(candidate) || existing.image_url;
+        }
+
+        let safeLinkUrl = existing.link_url;
+        if (link_url !== undefined) {
+            safeLinkUrl = sanitizeImageUrl(link_url) || null;
         }
 
         const updated = await Banner.update(id, {
@@ -2145,7 +2199,7 @@ exports.updateBanner = async (req, res) => {
             subtitle: subtitle !== undefined ? subtitle : existing.subtitle,
             description: existing.description,
             image_url,
-            link_url: link_url !== undefined ? link_url : existing.link_url,
+            link_url: safeLinkUrl,
             button_text: existing.button_text,
             display_order: existing.display_order,
             is_active: existing.is_active,

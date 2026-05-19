@@ -8,7 +8,7 @@ require('dotenv').config();
 async function seedData() {
     console.log('🔧 Seed banners và verify data...\n');
 
-    const connection = pool;
+    const connection = await pool.getConnection();
 
     try {
         // Check and add banners
@@ -49,7 +49,8 @@ async function seedData() {
     } catch (error) {
         console.error('❌ Lỗi:', error.message);
     } finally {
-        await connection.end();
+        connection.release();
+        await pool.end();
     }
 }
 

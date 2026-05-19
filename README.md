@@ -1,4 +1,4 @@
-﻿# WIND OF FALL - Fashion E-commerce
+# WIND OF FALL - Fashion E-commerce
 
 Website thương mại điện tử thời trang xây bằng Node.js, Express, EJS và PostgreSQL.
 
@@ -21,7 +21,7 @@ README này dùng như bản đồ project: mỗi thư mục làm gì, route ch�
 Yêu cầu:
 
 - Node.js >= 18
-- PostgreSQL >= 14
+- PostgreSQL >= 13
 - npm
 
 Cài dependency:
@@ -33,35 +33,30 @@ npm install
 Tạo database:
 
 ```bash
-createdb -U postgres tmdt_ecommerce
-psql -U postgres -d tmdt_ecommerce -f database/schema.sql
+createdb tmdt_ecommerce
+psql -d tmdt_ecommerce -f database/schema.sql
 ```
 
 Import dữ liệu mẫu nếu cần:
 
 ```bash
-psql -U postgres -d tmdt_ecommerce -f database/seed.sql
+psql -d tmdt_ecommerce -f database/seed.sql
 ```
 
 Chạy migration bổ sung theo thứ tự số nếu database chưa có các bảng/cột mới:
 
 ```bash
-psql -U postgres -d tmdt_ecommerce -f migrations/001_add_image_id_to_variants.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/002_add_handling_mode_to_chat_conversations.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/003_create_voucher_products.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/004_create_review_media.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/005_create_order_tracking_tables.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/006_snapshot_order_shipping_address.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/007_add_rich_media_to_chat_messages.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/008_create_chat_rag_tables.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/009_create_product_image_embeddings.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/010_create_storefront_settings.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/011_add_payment_completion_and_returns.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/012_add_order_payment_expiry.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/013_add_website_management_settings.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/014_expand_storefront_settings_management.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/015_fix_storefront_settings_vietnamese_accents.sql
-psql -U postgres -d tmdt_ecommerce -f migrations/016_add_shipping_fee_setting.sql
+psql -d tmdt_ecommerce -f migrations/001_add_image_id_to_variants.sql
+psql -d tmdt_ecommerce -f migrations/002_add_handling_mode_to_chat_conversations.sql
+psql -d tmdt_ecommerce -f migrations/003_create_voucher_products.sql
+psql -d tmdt_ecommerce -f migrations/004_create_review_media.sql
+psql -d tmdt_ecommerce -f migrations/005_create_order_tracking_tables.sql
+psql -d tmdt_ecommerce -f migrations/006_snapshot_order_shipping_address.sql
+psql -d tmdt_ecommerce -f migrations/007_add_rich_media_to_chat_messages.sql
+psql -d tmdt_ecommerce -f migrations/008_create_chat_rag_tables.sql
+psql -d tmdt_ecommerce -f migrations/009_create_product_image_embeddings.sql
+psql -d tmdt_ecommerce -f migrations/010_create_storefront_settings.sql
+psql -d tmdt_ecommerce -f migrations/011_add_payment_completion_and_returns.sql
 ```
 
 Tạo `.env`:
@@ -129,7 +124,7 @@ TMDT_nodejs/
 |   |-- cartController.js
 |   |-- orderController.js
 |   |-- productController.js
-|-- models/                        # Query SQL/PostgreSQL và chuẩn hóa dữ liệu
+|-- models/                        # Query PostgreSQL và chuẩn hóa dữ liệu
 |-- routes/                        # Khai báo URL -> controller
 |-- services/                      # Logic ngoài controller: email, payment, AI, import
 |-- middleware/                    # Auth, upload, dữ liệu header/storefront
@@ -255,7 +250,7 @@ TMDT_nodejs/
 | Nút hủy/xác nhận nhận hàng | `public/js/order-actions.js` |
 | Auto hoàn thành sau khi giao quá N ngày | `models/Order.js`, hàm `autoCompleteDeliveredOrders()` |
 
-Ghi chú: thời gian tự động chuyển `delivered` sang `completed` đang nằm trong `models/Order.js` tại 2 câu SQL `INTERVAL '7 DAY'`. Nếu đổi số ngày, đổi cả nội dung tracking event gần đó để text hiển thị đúng.
+Ghi chú: thời gian tự động chuyển `delivered` sang `completed` đang nằm trong `models/Order.js` tại 2 câu SQL `INTERVAL 7 DAY`. Nếu đổi số ngày, đổi cả nội dung tracking event gần đó để text hiển thị đúng.
 
 ### Đổi trả/hoàn hàng
 
@@ -387,6 +382,7 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 DB_NAME=tmdt_ecommerce
 DB_PORT=5432
+# DATABASE_URL=postgres://postgres:your_password@localhost:5432/tmdt_ecommerce
 ```
 
 Nhóm auth/session:

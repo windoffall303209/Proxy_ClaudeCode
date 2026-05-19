@@ -471,6 +471,7 @@
         const cancelButton = root.querySelector('[data-dialog-action="cancel"]');
         const confirmButton = root.querySelector('[data-dialog-action="confirm"]');
         const tone = CONFIRM_TONES.has(options.tone) ? options.tone : 'default';
+        const hideCancel = options.hideCancel === true;
 
         dialog.dataset.tone = tone;
         icon.innerHTML = getIconMarkup(tone === 'danger' ? 'warning' : 'info');

@@ -14,11 +14,14 @@
             { label: 'Thanh toán', url: '/policy/payment' },
             { label: 'Bảo mật thông tin', url: '/policy/privacy' }
         ];
+    const shouldShowNewsletter = (typeof hideNewsletter === 'undefined' || hideNewsletter !== true)
+        && footerSettings.newsletter_enabled !== false;
 %>
 
 <!-- ===== Footer: newsletter, dải dịch vụ, liên kết, scripts ===== -->
 <footer class="footer">
     <!-- Khối đăng ký nhận newsletter -->
+    <% if (shouldShowNewsletter) { %>
     <section class="footer-newsletter" id="newsletter-section">
         <div class="container footer-newsletter__inner">
             <div class="newsletter-content">
@@ -40,6 +43,7 @@
             </div>
         </div>
     </section>
+    <% } %>
     <section class="footer-service-strip">
         <div class="container footer-service-strip__grid">
             <div class="footer-service-card">

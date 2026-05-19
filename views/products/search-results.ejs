@@ -46,6 +46,13 @@
             }) %>
 
             <div class="catalog-results">
+                <% if (searchFallback) { %>
+                    <div class="empty-panel search-empty search-empty--fallback">
+                        <h3><%= searchFallback.title %></h3>
+                        <p><%= searchFallback.message %></p>
+                    </div>
+                <% } %>
+
                 <%- include('../partials/catalog-toolbar', {
                     paginationPath,
                     paginationQuery,
@@ -53,7 +60,16 @@
                     perPage,
                     perPageOptions,
                     currentSort,
-                    resultsLabel: 'kết quả phù hợp'
+                    sortOptions: [
+                        { value: 'relevance', label: 'Phù hợp nhất' },
+                        { value: 'newest', label: 'Mới nhất' },
+                        { value: 'best-selling', label: 'Bán chạy' },
+                        { value: 'price-asc', label: 'Giá tăng dần' },
+                        { value: 'price-desc', label: 'Giá giảm dần' },
+                        { value: 'name-asc', label: 'Tên A-Z' },
+                        { value: 'name-desc', label: 'Tên Z-A' }
+                    ],
+                    resultsLabel: searchFallback ? 'sản phẩm bán chạy' : 'kết quả phù hợp'
                 }) %>
 
                 <% if (products && products.length > 0) { %>

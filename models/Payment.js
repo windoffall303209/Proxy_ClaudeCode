@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu thanh toán trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu thanh toán trong PostgreSQL.
 const pool = require('../config/database');
 
 class Payment {
@@ -44,8 +44,7 @@ class Payment {
 
         const [result] = await pool.execute(
             `INSERT INTO payments (order_id, payment_method, amount, status, payment_data)
-             VALUES (?, ?, ?, 'pending', ?)
-             RETURNING id`,
+             VALUES (?, ?, ?, 'pending', ?)`,
             [orderId, paymentMethod, amount, serializedPaymentData]
         );
 
@@ -98,8 +97,7 @@ class Payment {
 
         const [result] = await pool.execute(
             `INSERT INTO payments (order_id, payment_method, transaction_id, amount, status, payment_data, processed_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)
-             RETURNING id`,
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [orderId, paymentMethod, transactionId, amount, status, serializedPaymentData, processedAt]
         );
 

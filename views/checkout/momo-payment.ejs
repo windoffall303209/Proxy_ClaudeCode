@@ -1,0 +1,61 @@
+<%# Template EJS render QR thanh toan MoMo. %>
+<%- include('../partials/header') %>
+
+<link rel="stylesheet" href="/css/orders.css">
+
+<%
+    const formatMoney = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')}đ`;
+    const paymentUrl = payment && payment.paymentUrl ? payment.paymentUrl : '';
+    const deeplink = payment && payment.deeplink ? payment.deeplink : paymentUrl;
+%>
+
+<div class="momo-payment-page page-shell">
+    <div class="container momo-payment-page__container">
+        <section class="momo-payment-panel">
+            <div class="momo-payment-panel__intro">
+                <div class="momo-payment-panel__mark">MM</div>
+                <div>
+                    <p class="momo-payment-panel__eyebrow">Thanh toán MoMo</p>
+                    <h1 class="momo-payment-panel__title">Quét QR để hoàn tất đơn hàng</h1>
+                </div>
+            </div>
+
+            <div class="momo-payment-layout">
+                <div class="momo-payment-qr">
+                    <% if (payment && payment.qrCodeDataUrl) { %>
+                        <img src="<%= payment.qrCodeDataUrl %>" alt="Mã QR thanh toán MoMo cho đơn <%= order.order_code %>">
+                    <% } else { %>
+                        <div class="momo-payment-qr__fallback">QR</div>
+                    <% } %>
+                </div>
+
+                <div class="momo-payment-details">
+                    <div class="momo-payment-summary">
+                        <div>
+                            <span>Mã đơn hàng</span>
+                            <strong><%= order.order_code %></strong>
+                        </div>
+                        <div>
+                            <span>Số tiền</span>
+                            <strong class="order-money-amount"><%= formatMoney(order.final_amount) %></strong>
+                        </div>
+                    </div>
+
+                    <p class="momo-payment-details__copy">Sau khi thanh toán thành công, MoMo sẽ chuyển bạn về trang xác nhận đơn hàng.</p>
+
+                    <div class="momo-payment-actions">
+                        <% if (deeplink) { %>
+                            <a class="btn btn-primary" href="<%= deeplink %>">Mở ứng dụng MoMo</a>
+                        <% } %>
+                        <% if (paymentUrl) { %>
+                            <a class="btn btn-secondary" href="<%= paymentUrl %>">Mở trang thanh toán</a>
+                        <% } %>
+                        <a class="btn btn-secondary" href="/orders/<%= order.order_code %>/confirmation">Xem đơn hàng</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

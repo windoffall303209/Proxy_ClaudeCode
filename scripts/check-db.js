@@ -10,7 +10,7 @@ require('dotenv').config();
 async function checkAndSeed() {
     console.log('🔍 Kiểm tra database...\n');
 
-    const connection = pool;
+    const connection = await pool.getConnection();
 
     try {
         // Check categories
@@ -80,7 +80,8 @@ async function checkAndSeed() {
     } catch (error) {
         console.error('❌ Lỗi:', error.message);
     } finally {
-        await connection.end();
+        connection.release();
+        await pool.end();
     }
 }
 

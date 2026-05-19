@@ -10,6 +10,7 @@ const bodyParser = require("body-parser");
 const { optionalAuth } = require("./middleware/auth");
 const headerCategories = require("./middleware/headerCategories");
 const { storefrontSettings } = require("./middleware/storefrontSettings");
+const { sameOrigin } = require("./middleware/sameOrigin");
 const privacy = require("./utils/privacy");
 
 const FORM_PARAMETER_LIMIT = 20000;
@@ -28,6 +29,7 @@ function createApp() {
   // Security middleware
   app.use(
     helmet({
+      referrerPolicy: { policy: "same-origin" },
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -94,8 +96,22 @@ function createApp() {
   // Phục vụ static assets từ thư mục public.
   app.use(express.static(path.join(__dirname, "public")));
 
+  // Webhook gateway thanh toán không cùng origin nên phải đăng ký trước CSRF guard.
+  const orderController = require("./controllers/orderController");
+  app.post("/orders/payment/momo/callback", orderController.momoReturn);
+
+  // Chặn CSRF cho mọi request thay đổi state còn lại bằng cách bắt buộc same-origin.
+  app.use(sameOrigin);
+
   // Nạp user từ JWT nếu có để mọi route/view dùng được trạng thái đăng nhập.
   app.use(optionalAuth);
+
+  // Đảm bảo helper privacy có sẵn trên res.locals trước khi storefrontSettings có thể render maintenance.
+  app.use((req, res, next) => {
+    res.locals.privacy = privacy;
+    next();
+  });
+
   app.use(storefrontSettings);
   app.use(headerCategories);
 
@@ -103,7 +119,6 @@ function createApp() {
   app.use((req, res, next) => {
     res.locals.user = req.user || null;
     res.locals.path = req.originalUrl || req.path;
-    res.locals.privacy = privacy;
     next();
   });
 

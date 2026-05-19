@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu chat trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu chat trong PostgreSQL.
 const pool = require('../config/database');
 
 class Chat {
@@ -128,9 +128,7 @@ class Chat {
         }
 
         const [result] = await pool.execute(
-            `INSERT INTO chat_conversations (user_id, session_id, guest_name, status, handling_mode)
-             VALUES (?, ?, ?, 'active', 'ai')
-             RETURNING id`,
+            'INSERT INTO chat_conversations (user_id, session_id, guest_name, status, handling_mode) VALUES (?, ?, ?, "active", "ai")',
             [userId || null, sessionId || null, guestName]
         );
 
@@ -197,8 +195,7 @@ class Chat {
         const messageMetadata = this.serializeMessageMetadata(options.metadata);
         const [result] = await pool.execute(
             `INSERT INTO chat_messages (conversation_id, sender_type, sender_id, message, message_type, message_metadata)
-             VALUES (?, ?, ?, ?, ?, ?)
-             RETURNING id`,
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [conversationId, senderType, senderId || null, safeMessage, messageType, messageMetadata]
         );
 
@@ -327,7 +324,7 @@ class Chat {
     // Đóng conversation.
     static async closeConversation(conversationId) {
         await pool.execute(
-            "UPDATE chat_conversations SET status = 'closed', updated_at = NOW() WHERE id = ?",
+            'UPDATE chat_conversations SET status = "closed", updated_at = NOW() WHERE id = ?',
             [conversationId]
         );
     }
@@ -335,7 +332,7 @@ class Chat {
     // Thao tác với reopen conversation.
     static async reopenConversation(conversationId) {
         await pool.execute(
-            "UPDATE chat_conversations SET status = 'active', updated_at = NOW() WHERE id = ?",
+            'UPDATE chat_conversations SET status = "active", updated_at = NOW() WHERE id = ?',
             [conversationId]
         );
     }

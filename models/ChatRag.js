@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu chatrag trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu chatrag trong PostgreSQL.
 const pool = require('../config/database');
 
 class ChatRag {
@@ -134,8 +134,7 @@ class ChatRag {
                  source_count = EXCLUDED.source_count,
                  status = EXCLUDED.status,
                  last_synced_at = EXCLUDED.last_synced_at,
-                 detail = EXCLUDED.detail,
-                 updated_at = CURRENT_TIMESTAMP`,
+                 detail = EXCLUDED.detail`,
             [
                 sourceType,
                 Number(payload.sourceCount || 0),

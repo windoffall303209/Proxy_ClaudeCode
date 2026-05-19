@@ -29,7 +29,7 @@
             </div>
         <% } else if (currentCancelFeedback === 'invalid-status') { %>
             <div class="tracking-action-card tracking-action-card--warning order-feedback">
-                <p>Chỉ có thể hủy đơn ở trạng thái Chờ xác nhận hoặc Đã xác nhận.</p>
+                <p>Chỉ có thể hủy đơn ở trạng thái Chờ thanh toán, Chờ xác nhận hoặc Đã xác nhận.</p>
             </div>
         <% } %>
 
@@ -93,7 +93,7 @@
                         const hasActiveReturnRequest = ['pending', 'approved'].includes(order.return_request_status || '');
                         const isPaymentSettled = order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status);
                         const paymentStatusLabel = isPaymentSettled ? 'Đã thanh toán' : (order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
-                        const canCancelOrder = ['pending', 'confirmed'].includes(order.status);
+                        const canCancelOrder = ['pending_payment', 'pending', 'confirmed'].includes(order.status);
                         const showPaymentCountdown = order.status === 'pending_payment' && order.payment_status !== 'paid' && ['vnpay', 'momo'].includes(String(order.payment_method || '').toLowerCase()) && order.payment_expires_at;
                     %>
                     <article class="order-card">

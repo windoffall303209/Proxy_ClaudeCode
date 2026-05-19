@@ -17,6 +17,7 @@ jest.mock('../controllers/authController', () => ({
     updateFullProfile: jest.fn(),
     changePassword: jest.fn(),
     handleAvatarUpload: jest.fn(),
+    requestAccountDeletion: jest.fn(),
     showVerifyEmail: jest.fn(),
     sendVerificationCode: jest.fn(),
     verifyEmailCode: jest.fn(),
@@ -76,6 +77,7 @@ const productController = require('../controllers/productController');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
 const { handleReviewMediaUpload } = require('../middleware/reviewUpload');
 const { handleReturnMediaUpload } = require('../middleware/returnUpload');
+const { sameOrigin } = require('../middleware/sameOrigin');
 const authRoutes = require('../routes/authRoutes');
 const orderRoutes = require('../routes/orderRoutes');
 const productRoutes = require('../routes/productRoutes');
@@ -85,6 +87,26 @@ function findRoute(router, path, method) {
     return router.stack.find((layer) => layer.route &&
         layer.route.path === path &&
         layer.route.methods[method]);
+}
+
+function createSameOriginReq(headers = {}) {
+    const normalizedHeaders = Object.fromEntries(
+        Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value])
+    );
+
+    return {
+        method: 'POST',
+        headers: normalizedHeaders,
+        get: jest.fn((name) => normalizedHeaders[String(name).toLowerCase()] || '')
+    };
+}
+
+function createSameOriginRes() {
+    const res = {};
+    res.status = jest.fn().mockReturnValue(res);
+    res.json = jest.fn().mockReturnValue(res);
+    res.render = jest.fn().mockReturnValue(res);
+    return res;
 }
 
 describe('security-sensitive routes', () => {
@@ -152,5 +174,33 @@ describe('security-sensitive routes', () => {
             verifyToken,
             orderController.cancelOrder
         ]);
+    });
+
+    it('allows same-origin form posts when browsers provide Fetch Metadata but no Origin or Referer', () => {
+        const req = createSameOriginReq({
+            host: 'localhost:3000',
+            'sec-fetch-site': 'same-origin'
+        });
+        const res = createSameOriginRes();
+        const next = jest.fn();
+
+        sameOrigin(req, res, next);
+
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it('rejects cross-site form posts', () => {
+        const req = createSameOriginReq({
+            host: 'localhost:3000',
+            origin: 'https://attacker.test'
+        });
+        const res = createSameOriginRes();
+        const next = jest.fn();
+
+        sameOrigin(req, res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
     });
 });

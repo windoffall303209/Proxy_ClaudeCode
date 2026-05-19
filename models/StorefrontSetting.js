@@ -470,8 +470,7 @@ class StorefrontSetting {
                      ON CONFLICT (setting_key) DO UPDATE SET
                         draft_value = EXCLUDED.draft_value,
                         value_type = EXCLUDED.value_type,
-                        updated_by = EXCLUDED.updated_by,
-                        updated_at = CURRENT_TIMESTAMP`,
+                        updated_by = EXCLUDED.updated_by`,
                     [key, defaultValue, draftValue, definition.type || 'string', userId || null]
                 );
             }

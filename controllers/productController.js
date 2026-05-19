@@ -170,6 +170,8 @@ function buildPagination(totalItems, requestedPage, perPage) {
 // Phân tích catalog sort.
 function parseCatalogSort(sort) {
     switch (String(sort || '').trim()) {
+        case 'relevance':
+            return { currentSort: 'relevance', sort_by: null, sort_order: null };
         case 'best-selling':
             return { currentSort: 'best-selling', sort_by: 'sold_count', sort_order: 'DESC' };
         case 'price-asc':
@@ -496,7 +498,7 @@ function buildCatalogQueryState({
     if (maxPrice !== null) query.max_price = String(maxPrice);
     if (normalizedRatings.length > 0) query.rating = normalizedRatings;
     if (normalizedPromotions.length > 0) query.promotion = normalizedPromotions;
-    if (currentSort && currentSort !== 'newest') query.sort = currentSort;
+    if (currentSort && !['newest', 'relevance'].includes(currentSort)) query.sort = currentSort;
     if (perPage && perPage !== DEFAULT_PER_PAGE) query.per_page = String(perPage);
     if (q) query.q = q;
     if (search) query.search = search;
@@ -661,7 +663,8 @@ function buildCatalogViewData({
     isSalePage = false,
     query = '',
     search = '',
-    filters = {}
+    filters = {},
+    searchFallback = null
 } = {}) {
     return {
         category,
@@ -681,6 +684,7 @@ function buildCatalogViewData({
         filterPriceRanges: CATALOG_PRICE_RANGES,
         query,
         search,
+        searchFallback,
         user,
         isSalePage
     };
@@ -1323,7 +1327,10 @@ exports.searchProducts = async (req, res) => {
 
         const requestedPage = normalizePositiveInteger(page, 1);
         const normalizedPerPage = normalizePerPage(per_page);
-        const sortOption = parseCatalogSort(sort);
+        const hasExplicitSort = typeof sort === 'string' && sort.trim() !== '';
+        const sortOption = hasExplicitSort
+            ? parseCatalogSort(sort)
+            : { currentSort: 'relevance', sort_by: null, sort_order: null };
         const normalizedPromotions = normalizePromotionFilters(promotion, sale);
         const normalizedRatings = normalizeRatingFilters(rating);
         const normalizedPricePresets = normalizePriceRangeFilters(price_range);
@@ -1340,15 +1347,22 @@ exports.searchProducts = async (req, res) => {
         const activeProductCount = await Product.count().catch(() => 0);
         const searchPoolSize = Math.max(activeProductCount, normalizedPerPage, 20);
         const allProducts = await Product.search(q, searchPoolSize);
-        const filteredProducts = sortCatalogProducts(
-            allProducts.filter((product) => matchesCatalogFilters(product, {
-                category_ids: effectiveCategoryIds,
-                price_ranges: effectivePriceRanges,
-                ratings: normalizedRatings,
-                promotions: normalizedPromotions
-            })),
-            sortOption.currentSort
-        );
+        const didFallbackToBestSellers = allProducts.length === 0;
+        const bestSellerFallbackProducts = didFallbackToBestSellers
+            ? await Product.getBestSellers(searchPoolSize)
+            : [];
+        const productPool = didFallbackToBestSellers
+            ? bestSellerFallbackProducts
+            : allProducts;
+        const matchedProducts = productPool.filter((product) => matchesCatalogFilters(product, {
+            category_ids: effectiveCategoryIds,
+            price_ranges: effectivePriceRanges,
+            ratings: normalizedRatings,
+            promotions: normalizedPromotions
+        }));
+        const filteredProducts = sortOption.currentSort === 'relevance'
+            ? matchedProducts
+            : sortCatalogProducts(matchedProducts, sortOption.currentSort);
         const pagination = buildPagination(filteredProducts.length, requestedPage, normalizedPerPage);
         const products = filteredProducts.slice(pagination.offset, pagination.offset + pagination.perPage);
         const filterState = {
@@ -1386,7 +1400,14 @@ exports.searchProducts = async (req, res) => {
             user: req.user || null,
             isSalePage: isSaleFilterActive(normalizedPromotions),
             query: q,
-            filters: filterState
+            filters: filterState,
+            searchFallback: didFallbackToBestSellers
+                ? {
+                    query: q,
+                    title: 'Không tìm thấy sản phẩm cần tìm',
+                    message: `Không tìm thấy sản phẩm phù hợp với "${q}". Dưới đây là những sản phẩm bán chạy để bạn tham khảo.`
+                }
+                : null
         }));
     } catch (error) {
         console.error('Search error:', error);

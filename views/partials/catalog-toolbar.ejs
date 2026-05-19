@@ -13,6 +13,16 @@
     const toolbarPerPageOptions = (typeof perPageOptions !== 'undefined' && Array.isArray(perPageOptions))
         ? perPageOptions
         : [10, 20, 30, 40, 50];
+    const toolbarSortOptions = (typeof sortOptions !== 'undefined' && Array.isArray(sortOptions) && sortOptions.length > 0)
+        ? sortOptions
+        : [
+            { value: 'newest', label: 'Mới nhất' },
+            { value: 'best-selling', label: 'Bán chạy' },
+            { value: 'price-asc', label: 'Giá tăng dần' },
+            { value: 'price-desc', label: 'Giá giảm dần' },
+            { value: 'name-asc', label: 'Tên A-Z' },
+            { value: 'name-desc', label: 'Tên Z-A' }
+        ];
     const toolbarShowSort = typeof allowSort !== 'undefined' ? allowSort !== false : true;
     const toolbarSummaryLabel = typeof resultsLabel !== 'undefined' ? (resultsLabel || 'sản phẩm') : 'sản phẩm';
     const preservedEntries = Object.entries(toolbarQuery).filter(([key, value]) => (
@@ -44,12 +54,9 @@
             <label class="catalog-toolbar__field">
                 <span>Sắp xếp</span>
                 <select name="sort" data-catalog-control="sort">
-                    <option value="newest" <%= toolbarSort === 'newest' ? 'selected' : '' %>>Mới nhất</option>
-                    <option value="best-selling" <%= toolbarSort === 'best-selling' ? 'selected' : '' %>>Bán chạy</option>
-                    <option value="price-asc" <%= toolbarSort === 'price-asc' ? 'selected' : '' %>>Giá tăng dần</option>
-                    <option value="price-desc" <%= toolbarSort === 'price-desc' ? 'selected' : '' %>>Giá giảm dần</option>
-                    <option value="name-asc" <%= toolbarSort === 'name-asc' ? 'selected' : '' %>>Tên A-Z</option>
-                    <option value="name-desc" <%= toolbarSort === 'name-desc' ? 'selected' : '' %>>Tên Z-A</option>
+                    <% toolbarSortOptions.forEach((option) => { %>
+                        <option value="<%= option.value %>" <%= toolbarSort === option.value ? 'selected' : '' %>><%= option.label %></option>
+                    <% }) %>
                 </select>
             </label>
         <% } %>

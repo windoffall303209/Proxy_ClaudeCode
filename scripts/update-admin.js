@@ -6,6 +6,8 @@ require('dotenv').config();
 // Cập nhật quản trị mật khẩu.
 async function updateAdminPassword() {
     try {
+        const connection = await pool.getConnection();
+
         console.log('✅ Connected to database');
 
         // Hash password
@@ -15,7 +17,7 @@ async function updateAdminPassword() {
         console.log('Password hash:', passwordHash);
 
         // Update or insert admin user
-        await pool.execute(`
+        await connection.execute(`
             INSERT INTO users (email, password_hash, full_name, phone, role, email_verified)
             VALUES ('admin@fashionstore.vn', ?, 'Admin', '0123456789', 'admin', TRUE)
             ON CONFLICT (email) DO UPDATE SET
@@ -29,13 +31,14 @@ async function updateAdminPassword() {
         console.log('Password: admin123');
 
         // Verify
-        const [rows] = await pool.execute(
+        const [rows] = await connection.execute(
             'SELECT email, role, email_verified FROM users WHERE email = ?',
             ['admin@fashionstore.vn']
         );
         
         console.log('\nAdmin user:', rows[0]);
 
+        connection.release();
         await pool.end();
     } catch (error) {
         console.error('❌ Error:', error.message);

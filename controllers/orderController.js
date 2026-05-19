@@ -29,6 +29,7 @@ const {
 
 const ALLOWED_PAYMENT_METHODS = new Set(['cod', 'vnpay', 'momo']);
 const ONLINE_PAYMENT_METHODS = new Set(['vnpay', 'momo']);
+const USER_CANCELLABLE_STATUSES = new Set(['pending_payment', 'pending', 'confirmed']);
 const DEFAULT_FREE_SHIPPING_MIN_AMOUNT = 500000;
 const DEFAULT_SHIPPING_FEE = 30000;
 
@@ -373,6 +374,16 @@ function sendAdminNewOrderAsync(order) {
     return emailService
         .sendAdminNewOrderEmail(order)
         .catch(err => console.error('Admin new order email error:', err));
+}
+
+function sendAdminOrderCancelledAsync(order) {
+    if (typeof emailService.sendAdminOrderCancelledEmail !== 'function') {
+        return Promise.resolve(false);
+    }
+
+    return emailService
+        .sendAdminOrderCancelledEmail(order)
+        .catch(err => console.error('Admin order cancelled email error:', err));
 }
 
 // Gửi đơn hàng confirmation after thanh toán.
@@ -910,11 +921,12 @@ exports.cancelOrder = async (req, res) => {
             return res.status(403).render('error', { message: 'Access denied' });
         }
 
-        if (!['pending', 'confirmed'].includes(String(order.status || '').toLowerCase())) {
+        if (!USER_CANCELLABLE_STATUSES.has(String(order.status || '').toLowerCase())) {
             return res.redirect(`/orders/${order.order_code}/tracking?cancel=invalid-status`);
         }
 
-        await Order.cancelByUser(order.id, req.user.id);
+        const cancelledOrder = await Order.cancelByUser(order.id, req.user.id);
+        sendAdminOrderCancelledAsync(cancelledOrder || order);
         return res.redirect(`/orders/${order.order_code}/tracking?cancel=success`);
     } catch (error) {
         console.error('Cancel order error:', error);

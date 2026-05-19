@@ -73,6 +73,9 @@ function normalizeAuthenticatedUser(decoded, userRow) {
         ...decoded,
         id: userRow.id,
         email: userRow.email,
+        full_name: userRow.full_name || decoded.full_name || '',
+        phone: userRow.phone || decoded.phone || '',
+        avatar_url: userRow.avatar_url || decoded.avatar_url || null,
         role: userRow.role || decoded.role || 'customer',
         email_verified: userRow.email_verified === true || userRow.email_verified === 1
     };
@@ -83,7 +86,7 @@ function normalizeAuthenticatedUser(decoded, userRow) {
  */
 async function findActiveAuthUser(userId) {
     const [rows] = await pool.execute(
-        'SELECT id, email, role, email_verified, is_active FROM users WHERE id = ? LIMIT 1',
+        'SELECT id, email, full_name, phone, avatar_url, role, email_verified, is_active FROM users WHERE id = ? LIMIT 1',
         [userId]
     );
 
@@ -196,7 +199,8 @@ const optionalAuth = async (req, res, next) => {
 
         if (token) {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            req.user = decoded;
+            const activeUser = await findActiveAuthUser(decoded.id);
+            req.user = activeUser ? normalizeAuthenticatedUser(decoded, activeUser) : null;
         }
     } catch (error) {
         // Token sai vẫn cho đi tiếp như khách vãng lai.

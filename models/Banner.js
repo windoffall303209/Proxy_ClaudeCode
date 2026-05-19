@@ -108,7 +108,6 @@ class Banner {
         const query = `
             INSERT INTO banners (title, subtitle, description, image_url, link_url, button_text, display_order, start_date, end_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
         `;
 
         const [result] = await pool.execute(query, [

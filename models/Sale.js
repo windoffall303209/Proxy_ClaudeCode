@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu khuyến mãi trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu khuyến mãi trong PostgreSQL.
 const pool = require('../config/database');
 
 class Sale {
@@ -72,8 +72,7 @@ class Sale {
 
         const [result] = await pool.execute(
             `INSERT INTO sales (name, description, type, value, start_date, end_date)
-             VALUES (?, ?, ?, ?, ?, ?)
-             RETURNING id`,
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 name,
                 description || null,

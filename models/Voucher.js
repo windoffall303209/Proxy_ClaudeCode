@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu mã giảm giá trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu mã giảm giá trong PostgreSQL.
 const pool = require('../config/database');
 
 class Voucher {
@@ -82,8 +82,7 @@ class Voucher {
                 min_order_amount, max_discount_amount, usage_limit,
                 user_limit, start_date, end_date, is_active
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 String(code || '').toUpperCase(),
                 name,

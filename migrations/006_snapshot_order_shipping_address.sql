@@ -1,6 +1,4 @@
--- File migrations/006_snapshot_order_shipping_address.sql
--- PostgreSQL version.
-
+-- PostgreSQL migration: snapshot order shipping address.
 ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS shipping_name VARCHAR(255) NULL,
     ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(20) NULL,
@@ -11,45 +9,20 @@ ALTER TABLE orders
 
 UPDATE orders o
 SET
-    shipping_name = COALESCE(o.shipping_name, a.full_name, 'Khach hang'),
+    shipping_name = COALESCE(o.shipping_name, a.full_name),
     shipping_phone = COALESCE(o.shipping_phone, a.phone),
-    shipping_address_line = COALESCE(o.shipping_address_line, a.address_line, 'Chua cap nhat'),
+    shipping_address_line = COALESCE(o.shipping_address_line, a.address_line),
     shipping_ward = COALESCE(o.shipping_ward, a.ward),
     shipping_district = COALESCE(o.shipping_district, a.district),
-    shipping_city = COALESCE(o.shipping_city, a.city, 'Chua cap nhat')
+    shipping_city = COALESCE(o.shipping_city, a.city)
 FROM addresses a
 WHERE a.id = o.address_id
   AND (
-      o.shipping_name IS NULL
-      OR o.shipping_phone IS NULL
-      OR o.shipping_address_line IS NULL
-      OR o.shipping_city IS NULL
+    o.shipping_name IS NULL
+    OR o.shipping_phone IS NULL
+    OR o.shipping_address_line IS NULL
+    OR o.shipping_city IS NULL
   );
-
-UPDATE orders
-SET
-    shipping_name = COALESCE(shipping_name, 'Khach hang'),
-    shipping_address_line = COALESCE(shipping_address_line, 'Chua cap nhat'),
-    shipping_city = COALESCE(shipping_city, 'Chua cap nhat')
-WHERE shipping_name IS NULL
-   OR shipping_address_line IS NULL
-   OR shipping_city IS NULL;
-
-DO $$
-DECLARE
-    fk_name text;
-BEGIN
-    FOR fk_name IN
-        SELECT c.conname
-        FROM pg_constraint c
-        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
-        WHERE c.conrelid = 'orders'::regclass
-          AND c.contype = 'f'
-          AND a.attname = 'address_id'
-    LOOP
-        EXECUTE format('ALTER TABLE orders DROP CONSTRAINT %I', fk_name);
-    END LOOP;
-END $$;
 
 ALTER TABLE orders
     ALTER COLUMN address_id DROP NOT NULL,
@@ -59,6 +32,25 @@ ALTER TABLE orders
     ALTER COLUMN shipping_ward DROP NOT NULL,
     ALTER COLUMN shipping_district DROP NOT NULL,
     ALTER COLUMN shipping_city SET NOT NULL;
+
+DO $$
+DECLARE constraint_name text;
+BEGIN
+    SELECT tc.constraint_name INTO constraint_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_name = kcu.constraint_name
+     AND tc.table_schema = kcu.table_schema
+    WHERE tc.table_schema = 'public'
+      AND tc.table_name = 'orders'
+      AND tc.constraint_type = 'FOREIGN KEY'
+      AND kcu.column_name = 'address_id'
+    LIMIT 1;
+
+    IF constraint_name IS NOT NULL THEN
+        EXECUTE format('ALTER TABLE orders DROP CONSTRAINT %I', constraint_name);
+    END IF;
+END $$;
 
 ALTER TABLE orders
     ADD CONSTRAINT fk_orders_address_id

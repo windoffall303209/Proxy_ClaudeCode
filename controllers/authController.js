@@ -43,6 +43,49 @@ function hasVerifiedEmail(user) {
     return user?.email_verified === true || user?.email_verified === 1;
 }
 
+function normalizeProfilePhone(value, { required = false } = {}) {
+    const phone = String(value || '').trim();
+
+    if (!phone) {
+        if (required) {
+            throw new Error('Vui lòng nhập số điện thoại mới');
+        }
+        return null;
+    }
+
+    if (!/^0[2-9]\d{8}$/.test(phone)) {
+        throw new Error('Số điện thoại phải gồm 10 số và bắt đầu bằng 0');
+    }
+
+    return phone;
+}
+
+// Áp dụng cùng quy tắc strength cho mọi điểm đặt mật khẩu (đăng ký, đổi, reset).
+function validatePasswordStrength(password) {
+    if (typeof password !== 'string' || !password) {
+        return ['Mật khẩu là bắt buộc'];
+    }
+
+    const errors = [];
+    if (password.length < 6) {
+        errors.push('Mật khẩu phải có ít nhất 6 ký tự');
+    }
+    if (password.length > 50) {
+        errors.push('Mật khẩu không được vượt quá 50 ký tự');
+    }
+    if (!/[A-Z]/.test(password)) {
+        errors.push('Mật khẩu phải chứa ít nhất 1 chữ cái viết hoa');
+    }
+    if (!/[a-z]/.test(password)) {
+        errors.push('Mật khẩu phải chứa ít nhất 1 chữ cái viết thường');
+    }
+    if (!/[0-9]/.test(password)) {
+        errors.push('Mật khẩu phải chứa ít nhất 1 chữ số');
+    }
+
+    return errors;
+}
+
 // Gửi email verification code.
 async function sendEmailVerificationCode(user) {
     const verificationCode = await User.generateVerificationCode(user.id);
@@ -61,7 +104,9 @@ function getSafeRedirectPath(value, fallback = '/') {
     }
 
     const trimmed = value.trim();
-    if (!trimmed || !trimmed.startsWith('/') || trimmed.startsWith('//')) {
+    // Phải bắt đầu bằng "/" và ký tự kế tiếp không được là "/" hoặc "\" để tránh
+    // dạng `//evil.com` hoặc `/\evil.com` bị browser hiểu là protocol-relative URL.
+    if (!/^\/[^/\\]/.test(trimmed)) {
         return fallback;
     }
 
@@ -243,20 +288,8 @@ exports.register = async (req, res) => {
         // --- Mật khẩu ---
         if (!password) {
             errors.push('Mật khẩu là bắt buộc');
-        } else if (password.length < 6) {
-            errors.push('Mật khẩu phải có ít nhất 6 ký tự');
-        } else if (password.length > 50) {
-            errors.push('Mật khẩu không được vượt quá 50 ký tự');
         } else {
-            if (!/[A-Z]/.test(password)) {
-                errors.push('Mật khẩu phải chứa ít nhất 1 chữ cái viết hoa');
-            }
-            if (!/[a-z]/.test(password)) {
-                errors.push('Mật khẩu phải chứa ít nhất 1 chữ cái viết thường');
-            }
-            if (!/[0-9]/.test(password)) {
-                errors.push('Mật khẩu phải chứa ít nhất 1 chữ số');
-            }
+            errors.push(...validatePasswordStrength(password));
         }
 
         // --- Xác nhận mật khẩu ---
@@ -396,7 +429,7 @@ exports.login = async (req, res) => {
         }
 
         // Tìm user theo email
-        const user = await User.findByEmail(trimmedEmail);
+        let user = await User.findByEmail(trimmedEmail);
         if (!user) {
             throw new Error('Email hoặc mật khẩu không đúng');
         }
@@ -409,7 +442,14 @@ exports.login = async (req, res) => {
 
         // Kiểm tra tài khoản có bị khóa không
         if (user.is_active === false || user.is_active === 0) {
-            throw new Error('Tài khoản của bạn đã bị khóa do vi phạm điều khoản sử dụng. Vui lòng liên hệ hỗ trợ.');
+            if (User.isAccountDeletionRecoverable(user)) {
+                await User.restoreDeletedAccount(user.id);
+                user = await User.findByEmail(trimmedEmail);
+            } else if (user.account_deleted_at) {
+                throw new Error('Tài khoản đã quá thời hạn khôi phục 14 ngày. Vui lòng liên hệ hỗ trợ nếu cần trợ giúp.');
+            } else {
+                throw new Error('Tài khoản của bạn đã bị khóa do vi phạm điều khoản sử dụng. Vui lòng liên hệ hỗ trợ.');
+            }
         }
 
         // Tạo JWT token
@@ -503,6 +543,36 @@ exports.logout = (req, res) => {
     res.json({ message: 'Logout successful' });
 };
 
+// Yêu cầu xóa mềm tài khoản và cho phép khôi phục trong 14 ngày.
+exports.requestAccountDeletion = async (req, res) => {
+    try {
+        await User.requestAccountDeletion(req.user.id);
+
+        const { maxAge, ...cookieOptions } = getAuthCookieOptions();
+        res.clearCookie('token', cookieOptions);
+
+        const prefersJson = req.xhr
+            || req.headers.accept?.includes('application/json')
+            || req.headers['content-type']?.includes('application/json');
+
+        if (!prefersJson && req.accepts('html')) {
+            return res.redirect('/auth/login?account_deleted=1');
+        }
+
+        return res.json({
+            success: true,
+            message: 'Tài khoản đã được đưa vào trạng thái chờ xóa. Đăng nhập lại trong vòng 14 ngày để khôi phục.',
+            redirect: '/auth/login?account_deleted=1'
+        });
+    } catch (error) {
+        console.error('Request account deletion error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Không thể xử lý yêu cầu xóa tài khoản. Vui lòng thử lại sau.'
+        });
+    }
+};
+
 // =============================================================================
 // QUẢN LÝ PROFILE
 // =============================================================================
@@ -527,9 +597,27 @@ exports.getProfile = async (req, res) => {
             return res.redirect('/auth/login');
         }
 
+        const Address = require('../models/Address');
+        const Voucher = require('../models/Voucher');
+        const Order = require('../models/Order');
+        const [addresses, recentOrders, vouchers] = await Promise.all([
+            Address.findByUser(user.id).catch(() => []),
+            Order.findByUser(user.id, 12, 0).catch(() => []),
+            Voucher.findAll({ is_active: true, limit: 100, offset: 0 }).catch(() => [])
+        ]);
+
         if (req.accepts('html')) {
             return res.render('user/profile', {
                 user,
+                addresses,
+                recentOrders,
+                vouchers: vouchers.filter((voucher) => {
+                    const now = Date.now();
+                    const startsAt = voucher.start_date ? new Date(voucher.start_date).getTime() : 0;
+                    const endsAt = voucher.end_date ? new Date(voucher.end_date).getTime() : Number.POSITIVE_INFINITY;
+                    return now >= startsAt && now <= endsAt;
+                }),
+                hideNewsletter: true,
                 category: null,
                 path: '/auth/profile'
             });
@@ -560,15 +648,17 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { full_name, phone } = req.body;
+        const hasPhoneField = Object.prototype.hasOwnProperty.call(req.body, 'phone');
+        const existingUser = hasPhoneField ? null : await User.findById(req.user.id);
 
         // Cập nhật profile trong database
         const updatedUser = await User.updateProfile(req.user.id, {
             full_name,
-            phone
+            phone: hasPhoneField ? normalizeProfilePhone(phone) : (existingUser?.phone || null)
         });
 
         if (req.accepts('html')) {
-            return res.redirect('/user/profile');
+            return res.redirect('/auth/profile');
         }
 
         res.json({
@@ -599,10 +689,12 @@ exports.showRegister = (req, res) => {
 exports.showLogin = (req, res) => {
     const requestedError = typeof req.query.error === 'string' ? req.query.error.trim() : '';
     const requestedEmail = typeof req.query.email === 'string' ? req.query.email.trim() : '';
+    const accountDeleted = req.query.account_deleted === '1';
     const redirect = getSafeRedirectPath(req.query.redirect, '');
 
     res.render('auth/login', {
         error: requestedError || null,
+        success: accountDeleted ? 'Tài khoản đang chờ xóa. Đăng nhập lại trong vòng 14 ngày để tự động khôi phục.' : null,
         email: requestedEmail,
         redirect,
         googleAuthEnabled: isGoogleAuthConfigured()
@@ -719,6 +811,16 @@ exports.createAddress = async (req, res) => {
     try {
         const Address = require('../models/Address');
         const addressPayload = normalizeAddressPayload(req.body);
+        const currentAddresses = typeof Address.findByUser === 'function'
+            ? await Address.findByUser(req.user.id)
+            : [];
+
+        if (currentAddresses.length >= 10) {
+            return res.status(400).json({
+                success: false,
+                message: 'Bạn chỉ được lưu tối đa 10 địa chỉ'
+            });
+        }
 
         // Validate dữ liệu bắt buộc
         if (!addressPayload.full_name || !addressPayload.phone || !addressPayload.address_line || !addressPayload.city) {
@@ -821,6 +923,7 @@ exports.deleteAddress = async (req, res) => {
 exports.updateFullProfile = async (req, res) => {
     try {
         const { full_name, phone, birthday } = req.body;
+        const hasPhoneField = Object.prototype.hasOwnProperty.call(req.body, 'phone');
 
         // Validate họ tên
         if (!full_name || full_name.trim().length < 2) {
@@ -831,9 +934,10 @@ exports.updateFullProfile = async (req, res) => {
         }
 
         // Cập nhật profile
+        const existingUser = hasPhoneField ? null : await User.findById(req.user.id);
         const updatedUser = await User.updateFullProfile(req.user.id, {
             full_name: full_name.trim(),
-            phone: phone?.trim() || null,
+            phone: hasPhoneField ? normalizeProfilePhone(phone, { required: true }) : (existingUser?.phone || null),
             birthday: birthday || null
         });
 
@@ -878,11 +982,12 @@ exports.changePassword = async (req, res) => {
             });
         }
 
-        // Validate độ dài mật khẩu mới
-        if (new_password.length < 6) {
+        // Validate độ mạnh mật khẩu mới (nhất quán với register/reset)
+        const strengthErrors = validatePasswordStrength(new_password);
+        if (strengthErrors.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Mật khẩu mới phải có ít nhất 6 ký tự'
+                message: strengthErrors.join('. ')
             });
         }
 
@@ -1242,6 +1347,14 @@ exports.resetPassword = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Mật khẩu mới phải có ít nhất 6 ký tự'
+            });
+        }
+
+        const resetStrengthErrors = validatePasswordStrength(new_password);
+        if (resetStrengthErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: resetStrengthErrors.join('. ')
             });
         }
 

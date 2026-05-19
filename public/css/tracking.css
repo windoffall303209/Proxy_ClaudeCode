@@ -175,6 +175,12 @@
     font-size: 16px;
 }
 
+.tracking-info--amount strong {
+    color: var(--danger);
+    font-size: 18px;
+    font-weight: 900;
+}
+
 .tracking-address p,
 .tracking-map-preview p {
     margin: 8px 0 0;

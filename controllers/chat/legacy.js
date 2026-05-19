@@ -415,12 +415,28 @@ function shouldSuggestProductsForImageRequest(normalizedMessage, hasImageAttachm
         return true;
     }
 
-    const hasExplicitSearchAction = hasExplicitImageProductSearchAction(normalizedMessage);
-    if (isImageInformationOnlyRequest(normalizedMessage) && !hasExplicitSearchAction) {
+    const hasSupportIntent = CHAT_SUPPORT_KEYWORDS.some((keyword) => includesChatPhrase(normalizedMessage, keyword));
+    if (hasSupportIntent || isGreetingOnlyMessage(normalizedMessage)) {
         return false;
     }
 
-    return hasExplicitSearchAction;
+    const hasExplicitSearchAction = hasExplicitImageProductSearchAction(normalizedMessage);
+    const hasVagueImageProductQuestion = isImageInformationOnlyRequest(normalizedMessage)
+        || [
+            'san pham nay',
+            'mau nay',
+            'mon nay',
+            'cai nay',
+            'nhu nay',
+            'the nay',
+            'thi sao',
+            'duoc khong',
+            'on khong',
+            'hop khong',
+            'co hop'
+        ].some((phrase) => includesChatPhrase(normalizedMessage, phrase));
+
+    return hasExplicitSearchAction || hasVagueImageProductQuestion;
 }
 
 function buildChatImageSearchQuickReply(normalizedMessage, uploadedMedia = []) {
@@ -903,7 +919,7 @@ function shouldUseFastImageProductFlow(normalizedMessage, hasImageAttachment) {
         return false;
     }
 
-    return shouldSuggestProductsForImageRequest(normalizedMessage, hasImageAttachment);
+    return !normalizedMessage || hasExplicitImageProductSearchAction(normalizedMessage);
 }
 
 function describeImageSearchNeed(intent, imageAnalysis) {
@@ -935,10 +951,17 @@ function buildLocalImageCatalogReply(intent, imageAnalysis, suggestedProducts = 
         };
     }
 
-    const text = imageAnalysis?.matchSummary
-        || (suggestedProducts.length === 1
-            ? `Dựa trên ảnh bạn gửi, mình thấy có 1 mẫu khá gần với ${imageNeed}. Mình gửi bạn ngay bên dưới để xem nhanh nhé.`
-            : `Dựa trên ảnh bạn gửi, mình đã lọc được ${suggestedProducts.length} mẫu khá gần với ${imageNeed}. Mình gửi bạn ngay bên dưới để bạn so sánh nhanh nhé.`);
+    const descriptionText = imageAnalysis?.matchSummary
+        || (imageAnalysis?.description
+            ? `Dựa trên ảnh bạn gửi, mình thấy đây là ${imageNeed.toLowerCase()}.`
+            : (suggestedProducts.length === 1
+                ? `Dựa trên ảnh bạn gửi, mình thấy có 1 mẫu khá gần với ${imageNeed}.`
+                : `Dựa trên ảnh bạn gửi, mình đã lọc được ${suggestedProducts.length} mẫu khá gần với ${imageNeed}.`));
+    const suggestionText = suggestedProducts.length === 1
+        ? `Mình gửi 1 mẫu tương tự bên dưới để bạn xem nhanh nhé.`
+        : `Mình gợi ý ${suggestedProducts.length} mẫu tương tự bên dưới để bạn so sánh nhanh nhé.`;
+    const text = [descriptionText, suggestionText].filter(Boolean).join(' ')
+        || `Dựa trên ảnh bạn gửi, mình đã lọc được ${suggestedProducts.length} mẫu khá gần với ${imageNeed}. Mình gửi bạn ngay bên dưới để bạn so sánh nhanh nhé.`;
 
     return {
         text,
@@ -1311,6 +1334,7 @@ function fuseVisualAndTextImageProducts(visualProducts, textProducts, intent, ma
 function selectChatSuggestedProducts(products = [], intent, options = {}) {
     const maxItems = Number.parseInt(options.limit, 10) || 6;
     const ignoreBudget = Boolean(options.ignoreBudget);
+    const relaxColorFilter = Boolean(options.relaxColorFilter);
     const usePresetScores = Boolean(options.usePresetScores);
     const rankedProducts = dedupeChatProducts(products)
         .map((product) => {
@@ -1353,8 +1377,10 @@ function selectChatSuggestedProducts(products = [], intent, options = {}) {
     }
 
     if (intent?.colors?.length) {
-        candidates = candidates.filter((product) => matchesChatColors(product, intent));
-        if (!candidates.length) {
+        const colorMatched = candidates.filter((product) => matchesChatColors(product, intent));
+        if (colorMatched.length) {
+            candidates = colorMatched;
+        } else if (!relaxColorFilter) {
             return [];
         }
     }
@@ -1403,7 +1429,7 @@ async function buildEnhancedChatSystemPrompt(messages, userMessage, flowOptions 
         ? Boolean(flowOptions.allowImageProductSuggestions)
         : true;
     const intent = buildChatIntentFromContext(messages, userMessage, { forceImageGuided });
-    const desiredProductLimit = getChatRequestedProductLimit(userMessage, 6);
+    const desiredProductLimit = getChatRequestedProductLimit(userMessage, forceImageGuided ? 4 : 6);
     const hasSupportIntent = CHAT_SUPPORT_KEYWORDS.some((keyword) => includesChatPhrase(intent.normalizedMessage, keyword));
     const looksLikeImageProductSearch = !normalizeMessage(userMessage)
         || includesChatPhrase(intent.normalizedMessage, 'giong nay')
@@ -1491,6 +1517,7 @@ async function buildEnhancedChatSystemPrompt(messages, userMessage, flowOptions 
             limit: desiredProductLimit,
             ignoreBudget: true,
             usePresetScores: true,
+            relaxColorFilter: true,
             skipFocusTermFilter: true
         });
     } else if (intent.imageGuided) {
@@ -1544,10 +1571,10 @@ Quy tac:
 - Khi da co muc "San pham nen goi y cho nhu cau hien tai", chi duoc phep nhac ten cac san pham trong danh sach do
 - Neu khach hoi co ho tro tim san pham bang hinh anh hay khong, khang dinh la co va moi khach gui anh truc tiep trong khung chat
 - Neu trong noi dung co cum "Mo ta tu anh" hoac "Tu khoa tim kiem", nghia la he thong da phan tich anh xong; khong duoc yeu cau khach gui anh lai
-- Khi khach chi hoi thong tin, mo ta, nhan xet ve anh san pham, chi tu van bang text dua tren mo ta anh; khong noi da loc duoc san pham va khong tu goi y mau tuong tu
+- Khi khach hoi mo ho ve anh san pham, hay mo ta san pham truoc roi neu co ngu canh "San pham nen goi y" thi goi y 3-4 mau tuong tu
 - Voi tim kiem bang anh, chi nen goi y cac san pham cung loai hoac rat gan; neu catalog khong co mau gan, noi ro la shop chua co mau phu hop thay vi dua ra san pham khong lien quan
 - Khong mac dinh gioi tinh cua khach la nguoi se mac; neu khach chua noi ro mua cho ai, tu van trung lap hoac hoi lai 1 cau ngan
-- Neu khach moi noi chung chung ma chua noi ro loai san pham hoac nhu cau, khong goi y san pham hay link ngay; hay hoi 1 cau lam ro ngan gon ve kieu do, phong cach, doi tuong mac hoac ngan sach
+- Neu khach moi noi chung chung ma khong kem anh va chua noi ro loai san pham hoac nhu cau, khong goi y san pham hay link ngay; hay hoi 1 cau lam ro ngan gon ve kieu do, phong cach, doi tuong mac hoac ngan sach
 - Neu khach can ho tro sau hon, noi ro admin se ho tro them
 
 Thong tin cua hang:

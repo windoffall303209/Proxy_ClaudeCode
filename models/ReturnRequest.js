@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu returnrequest trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu returnrequest trong PostgreSQL.
 const pool = require('../config/database');
 
 const RETURN_STATUSES = ['pending', 'approved', 'rejected', 'resolved'];
@@ -42,8 +42,7 @@ class ReturnRequest {
             await connection.beginTransaction();
             const [result] = await connection.execute(
                 `INSERT INTO order_return_requests (order_id, user_id, reason, status)
-                 VALUES (?, ?, ?, 'pending')
-                 RETURNING id`,
+                 VALUES (?, ?, ?, 'pending')`,
                 [orderId, userId, reason]
             );
 

@@ -6,6 +6,7 @@ jest.mock('../models/Product', () => ({
     findAll: jest.fn(),
     count: jest.fn(),
     search: jest.fn(),
+    getBestSellers: jest.fn(),
     getForYouRecommendations: jest.fn(),
     getReviewContext: jest.fn(),
     createReview: jest.fn(),
@@ -506,7 +507,7 @@ describe('productController product listing rules', () => {
         await productController.searchProducts(req, res);
 
         expect(Product.search).toHaveBeenCalledWith('ao khoac', 80);
-        const expectedProducts = [...allResults].sort((left, right) => right.id - left.id).slice(10, 20);
+        const expectedProducts = allResults.slice(10, 20);
         expect(res.render).toHaveBeenCalledWith('products/search-results', expect.objectContaining({
             products: expectedProducts,
             totalItems: 25,
@@ -588,6 +589,39 @@ describe('productController product listing rules', () => {
                 category: ['nu'],
                 rating: ['4'],
                 promotion: ['active']
+            })
+        }));
+    });
+
+    it('shows best-selling products with a clear fallback message when search has no matches', async () => {
+        Category.findAll.mockResolvedValue([]);
+        Product.count.mockResolvedValue(20);
+        Product.search.mockResolvedValue([]);
+        Product.getBestSellers.mockResolvedValue([
+            { id: 10, slug: 'ban-chay-1', name: 'Sản phẩm bán chạy 1' },
+            { id: 9, slug: 'ban-chay-2', name: 'Sản phẩm bán chạy 2' }
+        ]);
+
+        const req = {
+            query: {
+                q: 'khong-co-san-pham'
+            },
+            user: null
+        };
+        const res = createRes();
+
+        await productController.searchProducts(req, res);
+
+        expect(Product.getBestSellers).toHaveBeenCalledWith(20);
+        expect(res.render).toHaveBeenCalledWith('products/search-results', expect.objectContaining({
+            products: [
+                expect.objectContaining({ slug: 'ban-chay-1' }),
+                expect.objectContaining({ slug: 'ban-chay-2' })
+            ],
+            totalItems: 2,
+            searchFallback: expect.objectContaining({
+                title: 'Không tìm thấy sản phẩm cần tìm',
+                message: expect.stringContaining('khong-co-san-pham')
             })
         }));
     });

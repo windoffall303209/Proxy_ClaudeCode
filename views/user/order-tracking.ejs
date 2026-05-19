@@ -47,7 +47,8 @@
     const mapsUrl = hasCoordinates ? `https://www.google.com/maps?q=${shipment.current_lat},${shipment.current_lng}` : null;
     const isPaymentSettled = order.payment_status === 'paid' || ['delivered', 'completed'].includes(order.status);
     const paymentStatusLabel = isPaymentSettled ? 'Đã thanh toán' : (order.payment_method === 'cod' ? 'COD' : 'Chưa thanh toán');
-    const canCancelOrder = ['pending', 'confirmed'].includes(order.status);
+    const canCancelOrder = ['pending_payment', 'pending', 'confirmed'].includes(order.status);
+    const formatMoney = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')}đ`;
 %>
 
 <!-- ===== Trang theo dõi vận chuyển đơn hàng ===== -->
@@ -146,9 +147,9 @@
                             <span>Trạng thái</span>
                             <strong><%= paymentStatusLabel %></strong>
                         </div>
-                        <div class="tracking-info">
+                        <div class="tracking-info tracking-info--amount">
                             <span>Tổng thanh toán</span>
-                            <strong><%= (order.final_amount || order.total_amount).toLocaleString('vi-VN') %>đ</strong>
+                            <strong><%= formatMoney(order.final_amount || order.total_amount) %></strong>
                         </div>
                     </div>
                     <% if (order.status === 'pending_payment' && order.payment_status !== 'paid' && (order.payment_method === 'vnpay' || order.payment_method === 'momo')) { %>
@@ -175,7 +176,7 @@
             </section>
         <% } else if (currentCancelFeedback === 'invalid-status') { %>
             <section class="tracking-card tracking-action-card tracking-action-card--warning">
-                <p>Chỉ có thể hủy đơn ở trạng thái Chờ xác nhận hoặc Đã xác nhận.</p>
+                <p>Chỉ có thể hủy đơn ở trạng thái Chờ thanh toán, Chờ xác nhận hoặc Đã xác nhận.</p>
             </section>
         <% } %>
 

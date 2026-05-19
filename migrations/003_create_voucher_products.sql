@@ -1,11 +1,13 @@
--- File migrations/003_create_voucher_products.sql
--- PostgreSQL version.
-
+-- PostgreSQL migration: create voucher_products.
 CREATE TABLE IF NOT EXISTS voucher_products (
-    voucher_id INTEGER NOT NULL REFERENCES vouchers(id) ON DELETE CASCADE,
-    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    voucher_id INT NOT NULL,
+    product_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (voucher_id, product_id)
+    PRIMARY KEY (voucher_id, product_id),
+    CONSTRAINT fk_voucher_products_voucher
+        FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE CASCADE,
+    CONSTRAINT fk_voucher_products_product
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_voucher_products_product ON voucher_products(product_id);
+CREATE INDEX IF NOT EXISTS voucher_products_idx_product ON voucher_products (product_id);

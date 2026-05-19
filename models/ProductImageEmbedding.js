@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu productimageembedding trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu productimageembedding trong PostgreSQL.
 const pool = require('../config/database');
 
 class ProductImageEmbedding {

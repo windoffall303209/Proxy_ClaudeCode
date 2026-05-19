@@ -37,6 +37,7 @@ describe('app security headers', () => {
             const cspHeader = response.headers.get('content-security-policy');
 
             expect(cspHeader).toContain("form-action 'self' https://sandbox.vnpayment.vn https://pay.vnpay.vn");
+            expect(response.headers.get('referrer-policy')).toBe('same-origin');
         } finally {
             await new Promise((resolve, reject) => {
                 server.close((error) => {

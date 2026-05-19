@@ -319,6 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileMenu();
     initHeaderScrollState();
     initDesktopCategoryDropdowns();
+    initAccountMenu();
+    initLogoutConfirmations();
 
     runWhenBrowserIdle(() => {
         updateCartCount();
@@ -327,6 +329,141 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initProductCardActions();
 });
+
+// Xác nhận trước khi đăng xuất tài khoản.
+function initLogoutConfirmations() {
+    const modal = document.getElementById('logoutConfirmModal');
+    const confirmButton = document.getElementById('logoutConfirmSubmit');
+    const cancelControls = modal ? Array.from(modal.querySelectorAll('[data-logout-confirm-cancel]')) : [];
+    let pendingLogoutForm = null;
+
+    const closeModal = () => {
+        if (!modal) {
+            return;
+        }
+
+        modal.hidden = true;
+        document.body.classList.remove('logout-confirm-open');
+        pendingLogoutForm = null;
+    };
+
+    const openModal = (form) => {
+        if (!modal || !confirmButton) {
+            HTMLFormElement.prototype.submit.call(form);
+            return;
+        }
+
+        pendingLogoutForm = form;
+        modal.hidden = false;
+        document.body.classList.add('logout-confirm-open');
+        window.setTimeout(() => confirmButton.focus(), 0);
+    };
+
+    document.querySelectorAll('form[action="/auth/logout"]').forEach((form) => {
+        if (form.dataset.logoutConfirmBound === 'true') {
+            return;
+        }
+
+        form.dataset.logoutConfirmBound = 'true';
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            openModal(form);
+        });
+    });
+
+    if (!modal || modal.dataset.logoutConfirmModalBound === 'true') {
+        return;
+    }
+
+    modal.dataset.logoutConfirmModalBound = 'true';
+
+    confirmButton?.addEventListener('click', () => {
+        if (!pendingLogoutForm) {
+            closeModal();
+            return;
+        }
+
+        const form = pendingLogoutForm;
+        closeModal();
+        HTMLFormElement.prototype.submit.call(form);
+    });
+
+    cancelControls.forEach((control) => {
+        control.addEventListener('click', closeModal);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !modal.hidden) {
+            closeModal();
+        }
+    });
+}
+
+// Khởi tạo menu tài khoản trên header.
+function initAccountMenu() {
+    const accountMenus = Array.from(document.querySelectorAll('.account-menu'));
+    if (!accountMenus.length) {
+        return;
+    }
+
+    const closeMenu = (menu) => {
+        menu.classList.remove('is-open');
+        const trigger = menu.querySelector('.account-menu__trigger');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+    };
+
+    const openMenu = (menu) => {
+        accountMenus.forEach((item) => {
+            if (item !== menu) {
+                closeMenu(item);
+            }
+        });
+        menu.classList.add('is-open');
+        const trigger = menu.querySelector('.account-menu__trigger');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'true');
+        }
+    };
+
+    accountMenus.forEach((menu) => {
+        const trigger = menu.querySelector('.account-menu__trigger');
+        if (!trigger || trigger.dataset.initialized) {
+            return;
+        }
+
+        if (trigger.tagName === 'A') {
+            return;
+        }
+
+        trigger.dataset.initialized = 'true';
+        trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (menu.classList.contains('is-open')) {
+                closeMenu(menu);
+            } else {
+                openMenu(menu);
+            }
+        });
+
+        menu.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+            closeMenu(menu);
+            trigger.focus();
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        accountMenus.forEach((menu) => {
+            if (!menu.contains(event.target)) {
+                closeMenu(menu);
+            }
+        });
+    });
+}
 
 // Khởi tạo mobile menu.
 function initMobileMenu() {

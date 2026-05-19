@@ -1,20 +1,11 @@
--- Migration: add rich content support to chat messages
--- PostgreSQL version.
-
+-- PostgreSQL migration: add rich content support to chat messages.
 ALTER TABLE chat_messages
-    ADD COLUMN IF NOT EXISTS message_type VARCHAR(30) NOT NULL DEFAULT 'text',
+    ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) NOT NULL DEFAULT 'text',
     ADD COLUMN IF NOT EXISTS message_metadata TEXT NULL;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conrelid = 'chat_messages'::regclass
-          AND conname = 'chat_messages_message_type_check'
-    ) THEN
-        ALTER TABLE chat_messages
-            ADD CONSTRAINT chat_messages_message_type_check
-            CHECK (message_type IN ('text', 'media', 'product_cards'));
-    END IF;
-END $$;
+ALTER TABLE chat_messages
+    DROP CONSTRAINT IF EXISTS chk_chat_messages_message_type;
+
+ALTER TABLE chat_messages
+    ADD CONSTRAINT chk_chat_messages_message_type
+    CHECK (message_type IN ('text', 'media', 'product_cards'));

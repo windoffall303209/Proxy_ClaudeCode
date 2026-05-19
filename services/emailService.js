@@ -286,6 +286,47 @@ class EmailService {
         return this.sendEmail(adminEmails, `Người dùng đã đặt đơn #${order.order_code}`, html);
     }
 
+    async sendAdminOrderCancelledEmail(order) {
+        const adminEmails = await this.getAdminEmails();
+        if (!adminEmails.length || !order) {
+            return false;
+        }
+
+        const orderUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/orders/${order.id}`;
+        const itemsHtml = Array.isArray(order.items) ? order.items.map(item => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.product_name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${Number(item.subtotal || 0).toLocaleString('vi-VN')}đ</td>
+            </tr>
+        `).join('') : '';
+
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+                <h2>Khách hàng đã hủy đơn #${order.order_code}</h2>
+                <p>Khách hàng: <strong>${order.user_name || order.shipping_name || 'N/A'}</strong></p>
+                <p>Email: ${order.user_email || 'N/A'}</p>
+                <p>Số điện thoại: ${order.shipping_phone || 'N/A'}</p>
+                <p>Thanh toán: ${this.getPaymentMethodText(order.payment_method)} - ${order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}</p>
+                <p>Trạng thái mới: ${order.status || 'cancelled'}</p>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 8px; text-align: left;">Sản phẩm</th>
+                            <th style="padding: 8px; text-align: center;">SL</th>
+                            <th style="padding: 8px; text-align: right;">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <p style="text-align: right; font-size: 18px;"><strong>Tổng:</strong> ${Number(order.final_amount || 0).toLocaleString('vi-VN')}đ</p>
+                <a href="${orderUrl}" style="display: inline-block; padding: 10px 18px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">Xem đơn hàng</a>
+            </div>
+        `;
+
+        return this.sendEmail(adminEmails, `Khách hàng đã hủy đơn #${order.order_code}`, html);
+    }
+
     async sendAdminReturnRequestEmail(returnRequest, order) {
         const adminEmails = await this.getAdminEmails();
         if (!adminEmails.length || !returnRequest || !order) {

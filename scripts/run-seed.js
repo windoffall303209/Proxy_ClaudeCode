@@ -1,102 +1,92 @@
 /**
- * Create the PostgreSQL database when needed, then run schema and seed data.
- * Run: node scripts/run-seed.js
+ * Script de tao schema va import seed data cho PostgreSQL.
+ * Chay: node scripts/run-seed.js
  */
 
-const { Client } = require('pg');
+const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-function getConnectionConfig(database) {
-    return {
+const DB_NAME = process.env.DB_NAME || 'tmdt_ecommerce';
+
+function adminPool() {
+    return new Pool({
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'postgres',
         password: process.env.DB_PASSWORD || '',
-        database,
+        database: process.env.DB_ADMIN_DATABASE || 'postgres',
         port: Number.parseInt(process.env.DB_PORT, 10) || 5432,
-        connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000,
-        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : false
-    };
+        connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000
+    });
 }
 
-function quoteIdentifier(identifier) {
-    return `"${String(identifier).replace(/"/g, '""')}"`;
+function appPool() {
+    return new Pool({
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || '',
+        database: DB_NAME,
+        port: Number.parseInt(process.env.DB_PORT, 10) || 5432,
+        connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000
+    });
 }
 
-async function ensureDatabase(dbName) {
-    const adminDb = process.env.DB_ADMIN_DATABASE || 'postgres';
-    const client = new Client(getConnectionConfig(adminDb));
-    await client.connect();
-
+async function ensureDatabase() {
+    const pool = adminPool();
     try {
-        const result = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
-        if (result.rowCount === 0) {
-            console.log(`Database ${dbName} does not exist. Creating...`);
-            await client.query(`CREATE DATABASE ${quoteIdentifier(dbName)}`);
-            console.log(`Created database ${dbName}`);
+        const { rows } = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [DB_NAME]);
+        if (rows.length > 0) {
+            console.log(`Database ${DB_NAME} da ton tai`);
+            return;
         }
+
+        const escapedName = DB_NAME.replace(/"/g, '""');
+        await pool.query(`CREATE DATABASE "${escapedName}"`);
+        console.log(`Da tao database ${DB_NAME}`);
     } finally {
-        await client.end();
+        await pool.end();
     }
 }
 
-async function tableExists(client, tableName) {
-    const result = await client.query('SELECT to_regclass($1) AS table_name', [`public.${tableName}`]);
-    return Boolean(result.rows[0]?.table_name);
-}
-
-async function runSqlFile(client, relativePath) {
+async function runSqlFile(pool, relativePath) {
     const sqlPath = path.join(__dirname, '..', relativePath);
     const sql = fs.readFileSync(sqlPath, 'utf8');
-    await client.query(sql);
+    await pool.query(sql);
 }
 
 async function runSeed() {
-    const dbName = process.env.DB_NAME || 'tmdt_ecommerce';
-    console.log('Starting PostgreSQL seed flow...\n');
+    console.log('Bat dau tao PostgreSQL schema va seed data...\\n');
 
-    await ensureDatabase(dbName);
+    await ensureDatabase();
 
-    const client = new Client(getConnectionConfig(dbName));
-    await client.connect();
-
+    const pool = appPool();
     try {
-        if (!(await tableExists(client, 'categories'))) {
-            console.log('Creating schema...');
-            await runSqlFile(client, 'database/schema.sql');
-            console.log('Schema created');
-        }
+        console.log('Dang tao schema...');
+        await runSqlFile(pool, 'database/schema.sql');
+        console.log('Da tao schema');
 
-        const categoryCount = await client.query('SELECT COUNT(*)::int AS count FROM categories');
-        if (categoryCount.rows[0].count === 0) {
-            console.log('Importing seed data...');
-            await runSqlFile(client, 'database/seed.sql');
-            console.log('Seed data imported');
-        } else {
-            console.log(`Database already has ${categoryCount.rows[0].count} categories; skipping seed.`);
-        }
+        console.log('Dang import seed data...');
+        await runSqlFile(pool, 'database/seed.sql');
+        console.log('Da import seed data');
 
-        const [catCount, prodCount, userCount] = await Promise.all([
-            client.query('SELECT COUNT(*)::int AS count FROM categories'),
-            client.query('SELECT COUNT(*)::int AS count FROM products'),
-            client.query('SELECT COUNT(*)::int AS count FROM users')
+        const [{ rows: catCount }, { rows: prodCount }, { rows: userCount }] = await Promise.all([
+            pool.query('SELECT COUNT(*)::int AS count FROM categories'),
+            pool.query('SELECT COUNT(*)::int AS count FROM products'),
+            pool.query('SELECT COUNT(*)::int AS count FROM users')
         ]);
 
-        console.log('\nDatabase summary:');
-        console.log(`   - Categories: ${catCount.rows[0].count}`);
-        console.log(`   - Products: ${prodCount.rows[0].count}`);
-        console.log(`   - Users: ${userCount.rows[0].count}`);
-        console.log('\nSeed completed. Refresh http://localhost:3000 to view products.');
+        console.log('\\nTom tat database:');
+        console.log(`   - Categories: ${catCount[0].count}`);
+        console.log(`   - Products: ${prodCount[0].count}`);
+        console.log(`   - Users: ${userCount[0].count}`);
+        console.log('\\nSeed hoan tat!');
     } catch (error) {
-        console.error('Seed failed:', error.message);
-        console.log('\nManual fallback:');
-        console.log(`   psql -U ${process.env.DB_USER || 'postgres'} -d ${dbName} -f database/schema.sql`);
-        console.log(`   psql -U ${process.env.DB_USER || 'postgres'} -d ${dbName} -f database/seed.sql`);
-        process.exitCode = 1;
+        console.error('Loi:', error.message);
+        throw error;
     } finally {
-        await client.end();
+        await pool.end();
     }
 }
 
-runSeed();
+runSeed().catch(() => process.exit(1));

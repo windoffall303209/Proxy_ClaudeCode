@@ -1,6 +1,9 @@
 // Kiểm thử tự động cho tests ordercontroller.test để giữ ổn định hành vi quan trọng.
 process.env.NODE_ENV = 'test';
 
+const fs = require('fs');
+const path = require('path');
+
 jest.mock('../models/Order', () => ({
     create: jest.fn(),
     createFromProduct: jest.fn(),
@@ -76,6 +79,10 @@ describe('orderController', () => {
 
     afterEach(() => {
         consoleErrorSpy.mockRestore();
+    });
+
+    it('has the MoMo payment view used by checkout and retry payment', () => {
+        expect(fs.existsSync(path.join(__dirname, '..', 'views', 'checkout', 'momo-payment.ejs'))).toBe(true);
     });
 
     it('rejects checkout when the address does not belong to the user', async () => {
@@ -584,4 +591,5 @@ describe('orderController', () => {
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({ RspCode: '04', Message: 'Invalid Amount' });
     });
+
 });

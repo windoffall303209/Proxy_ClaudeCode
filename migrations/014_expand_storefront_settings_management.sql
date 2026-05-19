@@ -1,31 +1,18 @@
-DO $$
-DECLARE
-    con record;
-BEGIN
-    FOR con IN
-        SELECT c.conname
-        FROM pg_constraint c
-        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
-        WHERE c.conrelid = 'storefront_settings'::regclass
-          AND c.contype = 'c'
-          AND a.attname = 'value_type'
-    LOOP
-        EXECUTE format('ALTER TABLE storefront_settings DROP CONSTRAINT %I', con.conname);
-    END LOOP;
-END $$;
-
 ALTER TABLE storefront_settings
     ALTER COLUMN setting_value TYPE TEXT,
     ALTER COLUMN setting_value SET NOT NULL,
-    ALTER COLUMN value_type TYPE VARCHAR(20),
-    ALTER COLUMN value_type SET DEFAULT 'string',
+    ALTER COLUMN value_type TYPE VARCHAR(50),
     ALTER COLUMN value_type SET NOT NULL,
+    ALTER COLUMN value_type SET DEFAULT 'string',
     ADD COLUMN IF NOT EXISTS draft_value TEXT NULL,
-    ADD COLUMN IF NOT EXISTS updated_by INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS updated_by INT NULL,
     ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL;
 
 ALTER TABLE storefront_settings
-    ADD CONSTRAINT storefront_settings_value_type_check
+    DROP CONSTRAINT IF EXISTS chk_storefront_settings_value_type;
+
+ALTER TABLE storefront_settings
+    ADD CONSTRAINT chk_storefront_settings_value_type
     CHECK (value_type IN ('int', 'string', 'boolean', 'json', 'color', 'url', 'image', 'select'));
 
 UPDATE storefront_settings
@@ -149,6 +136,4 @@ VALUES
     ('maintenance_mode', 'false', 'boolean', CURRENT_TIMESTAMP),
     ('maintenance_message', 'Website đang bảo trì, vui lòng quay lại sau.', 'string', CURRENT_TIMESTAMP)
 ON CONFLICT (setting_key) DO UPDATE SET
-    value_type = EXCLUDED.value_type,
-    published_at = COALESCE(storefront_settings.published_at, EXCLUDED.published_at),
-    updated_at = CURRENT_TIMESTAMP;
+    value_type = EXCLUDED.value_type;

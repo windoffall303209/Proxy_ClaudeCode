@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu danh mục trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu danh mục trong PostgreSQL.
 const pool = require('../config/database');
 
 class Category {
@@ -349,12 +349,10 @@ class Category {
             ? `
                 INSERT INTO categories (id, name, slug, description, parent_id, image_url, display_order, is_active)
                 VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)
-                RETURNING id
             `
             : `
                 INSERT INTO categories (name, slug, description, parent_id, image_url, display_order)
                 VALUES (?, ?, ?, ?, ?, ?)
-                RETURNING id
             `;
 
         try {
@@ -526,13 +524,15 @@ class Category {
             `);
 
             const [deleteResult] = await connection.query(`
-                DELETE FROM categories c
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM products p2
+                DELETE c
+                FROM categories c
+                LEFT JOIN (
+                    SELECT DISTINCT c2.id AS category_id
+                    FROM categories c2
+                    INNER JOIN products p2 ON p2.category_id = c2.id
                     INNER JOIN order_items oi ON oi.product_id = p2.id
-                    WHERE p2.category_id = c.id
-                )
+                ) blocked ON blocked.category_id = c.id
+                WHERE blocked.category_id IS NULL
             `);
 
             await connection.commit();

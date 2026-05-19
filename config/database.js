@@ -1,61 +1,36 @@
-// PostgreSQL connection pool shared by models, services, and controllers.
-// The wrapper keeps the previous driver-style API so existing call sites can still
-// destructure query results as [rows] or read result.insertId after INSERT ... RETURNING id.
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 require('dotenv').config();
 
-const DEFAULT_PORT = 5432;
+const DEFAULT_DATABASE = 'tmdt_ecommerce';
 
-const pgPool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'tmdt_ecommerce',
-    port: Number.parseInt(process.env.DB_PORT, 10) || DEFAULT_PORT,
-    connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000,
-    max: Number.parseInt(process.env.DB_POOL_MAX, 10) || 10,
-    idleTimeoutMillis: Number.parseInt(process.env.DB_IDLE_TIMEOUT_MS, 10) || 30000,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : false
-});
+types.setTypeParser(20, (value) => Number(value));
 
-function normalizeParams(params = []) {
-    return Array.isArray(params)
-        ? params.map((value) => (value === undefined ? null : value))
-        : [];
-}
+function buildPoolConfig() {
+    const sslEnabled = String(process.env.DB_SSL || '').toLowerCase() === 'true';
+    const baseConfig = process.env.DATABASE_URL
+        ? { connectionString: process.env.DATABASE_URL }
+        : {
+            host: process.env.DB_HOST || 'localhost',
+            user: process.env.DB_USER || 'postgres',
+            password: process.env.DB_PASSWORD || '',
+            database: process.env.DB_NAME || DEFAULT_DATABASE,
+            port: Number.parseInt(process.env.DB_PORT, 10) || 5432
+        };
 
-function stripLeadingComments(sql) {
-    return String(sql || '')
-        .replace(/^\s*(?:--[^\n]*\n\s*|\/\*[\s\S]*?\*\/\s*)*/g, '')
-        .trimStart();
-}
-
-function isRowReturningQuery(sql) {
-    const normalized = stripLeadingComments(sql).toLowerCase();
-    return normalized.startsWith('select') || normalized.startsWith('with') || normalized.startsWith('show');
-}
-
-function translatePgError(error) {
-    if (!error || typeof error !== 'object') {
-        return error;
-    }
-
-    const legacyCodeByPgCode = {
-        '23505': 'ER_DUP_ENTRY',
-        '42P01': 'ER_NO_SUCH_TABLE',
-        '42703': 'ER_BAD_FIELD_ERROR',
-        '42704': 'ER_BAD_FIELD_ERROR'
+    return {
+        ...baseConfig,
+        max: Number.parseInt(process.env.DB_POOL_MAX, 10) || 10,
+        connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000,
+        idleTimeoutMillis: Number.parseInt(process.env.DB_IDLE_TIMEOUT_MS, 10) || 30000,
+        ssl: sslEnabled ? { rejectUnauthorized: false } : undefined
     };
-
-    if (legacyCodeByPgCode[error.code]) {
-        error.pgCode = error.code;
-        error.code = legacyCodeByPgCode[error.code];
-    }
-
-    return error;
 }
 
-function convertQuestionPlaceholders(sql) {
+function replaceQuestionPlaceholders(sql, params = []) {
+    if (!params.length || !sql.includes('?')) {
+        return sql;
+    }
+
     let index = 0;
     let output = '';
     let inSingleQuote = false;
@@ -64,20 +39,18 @@ function convertQuestionPlaceholders(sql) {
     let inBlockComment = false;
 
     for (let i = 0; i < sql.length; i += 1) {
-        const current = sql[i];
+        const char = sql[i];
         const next = sql[i + 1];
 
         if (inLineComment) {
-            output += current;
-            if (current === '\n') {
-                inLineComment = false;
-            }
+            output += char;
+            if (char === '\n') inLineComment = false;
             continue;
         }
 
         if (inBlockComment) {
-            output += current;
-            if (current === '*' && next === '/') {
+            output += char;
+            if (char === '*' && next === '/') {
                 output += next;
                 i += 1;
                 inBlockComment = false;
@@ -85,158 +58,160 @@ function convertQuestionPlaceholders(sql) {
             continue;
         }
 
-        if (inSingleQuote) {
-            output += current;
-            if (current === "'" && next === "'") {
-                output += next;
-                i += 1;
-                continue;
-            }
-            if (current === "'") {
-                inSingleQuote = false;
-            }
-            continue;
-        }
-
-        if (inDoubleQuote) {
-            output += current;
-            if (current === '"' && next === '"') {
-                output += next;
-                i += 1;
-                continue;
-            }
-            if (current === '"') {
-                inDoubleQuote = false;
-            }
-            continue;
-        }
-
-        if (current === '-' && next === '-') {
-            output += current + next;
+        if (!inSingleQuote && !inDoubleQuote && char === '-' && next === '-') {
+            output += char + next;
             i += 1;
             inLineComment = true;
             continue;
         }
 
-        if (current === '/' && next === '*') {
-            output += current + next;
+        if (!inSingleQuote && !inDoubleQuote && char === '/' && next === '*') {
+            output += char + next;
             i += 1;
             inBlockComment = true;
             continue;
         }
 
-        if (current === "'") {
-            output += current;
-            inSingleQuote = true;
+        if (!inDoubleQuote && char === "'") {
+            output += char;
+            if (inSingleQuote && next === "'") {
+                output += next;
+                i += 1;
+            } else {
+                inSingleQuote = !inSingleQuote;
+            }
             continue;
         }
 
-        if (current === '"') {
-            output += current;
-            inDoubleQuote = true;
+        if (!inSingleQuote && char === '"') {
+            output += char;
+            inDoubleQuote = !inDoubleQuote;
             continue;
         }
 
-        if (current === '?') {
+        if (!inSingleQuote && !inDoubleQuote && char === '?') {
             index += 1;
             output += `$${index}`;
             continue;
         }
 
-        output += current;
+        output += char;
     }
 
     return output;
 }
 
-function prepareSql(sql, params = []) {
-    const text = String(sql || '')
-        .replace(/\bBINARY\s+LOWER\s*\(/gi, 'LOWER(')
-        .replace(/DATE_SUB\s*\(\s*NOW\s*\(\s*\)\s*,\s*INTERVAL\s+(\d+)\s+DAY\s*\)/gi, "(NOW() - INTERVAL '$1 DAY')")
-        .replace(/DATE_ADD\s*\(\s*NOW\s*\(\s*\)\s*,\s*INTERVAL\s+(\d+)\s+DAY\s*\)/gi, "(NOW() + INTERVAL '$1 DAY')")
-        .replace(/DATE_ADD\s*\(\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*,\s*INTERVAL\s+(\d+)\s+HOUR\s*\)/gi, "($1 + INTERVAL '$2 HOUR')")
-        .replace(/\bCURDATE\s*\(\s*\)/gi, 'CURRENT_DATE');
+function normalizeSql(sql, params = []) {
+    let normalized = String(sql)
+        .replace(/DATE_ADD\s*\(\s*NOW\(\)\s*,\s*INTERVAL\s+(\d+)\s+DAY\s*\)/gi, "(NOW() + INTERVAL '$1 day')")
+        .replace(/DATE_SUB\s*\(\s*NOW\(\)\s*,\s*INTERVAL\s+(\d+)\s+DAY\s*\)/gi, "(NOW() - INTERVAL '$1 day')")
+        .replace(/DATE_ADD\s*\(\s*NOW\(\)\s*,\s*INTERVAL\s+(\d+)\s+HOUR\s*\)/gi, "(NOW() + INTERVAL '$1 hour')")
+        .replace(/DATE_SUB\s*\(\s*NOW\(\)\s*,\s*INTERVAL\s+(\d+)\s+HOUR\s*\)/gi, "(NOW() - INTERVAL '$1 hour')");
 
-    return params.length > 0 ? convertQuestionPlaceholders(text) : text;
-}
+    normalized = replaceQuestionPlaceholders(normalized, params);
 
-function toLegacyStyleResult(result, sql) {
-    if (isRowReturningQuery(sql)) {
-        return [result.rows, result.fields || []];
+    if (/^\s*INSERT\s+/i.test(normalized) && !/\bRETURNING\b/i.test(normalized)) {
+        normalized = normalized.replace(/;?\s*$/, ' RETURNING *');
     }
 
-    return [{
-        rowCount: result.rowCount,
-        affectedRows: result.rowCount,
-        changedRows: result.rowCount,
-        insertId: result.rows?.[0]?.id ?? null,
-        rows: result.rows
-    }, result.fields || []];
+    return normalized;
 }
 
-async function runQuery(executor, sql, params = []) {
-    const normalizedParams = normalizeParams(params);
-    const preparedSql = prepareSql(sql, normalizedParams);
+function normalizeError(error) {
+    if (!error || typeof error !== 'object') {
+        return error;
+    }
+
+    const pgToMysqlCode = {
+        '23505': 'ER_DUP_ENTRY',
+        '42P01': 'ER_NO_SUCH_TABLE',
+        '42703': 'ER_BAD_FIELD_ERROR'
+    };
+
+    if (pgToMysqlCode[error.code]) {
+        error.pgCode = error.code;
+        error.code = pgToMysqlCode[error.code];
+    }
+
+    return error;
+}
+
+async function run(client, sql, params = []) {
+    const values = Array.isArray(params) ? params : [];
+    const text = normalizeSql(sql, values);
 
     try {
-        const result = await executor.query(preparedSql, normalizedParams);
-        return toLegacyStyleResult(result, sql);
+        const queryResult = await client.query(text, values);
+        const result = Array.isArray(queryResult) ? queryResult[queryResult.length - 1] : queryResult;
+        const meta = {
+            affectedRows: result.rowCount || 0,
+            changedRows: result.rowCount || 0,
+            insertId: result.rows?.[0]?.id
+        };
+
+        if (['SELECT', 'SHOW'].includes(result.command)) {
+            return [result.rows, result.fields || []];
+        }
+
+        return [meta, result.fields || []];
     } catch (error) {
-        throw translatePgError(error);
+        throw normalizeError(error);
     }
 }
 
-async function getConnection() {
-    const client = await pgPool.connect();
+const pgPool = new Pool(buildPoolConfig());
 
-    return {
-        query(sql, params = []) {
-            return runQuery(client, sql, params);
-        },
-        execute(sql, params = []) {
-            return runQuery(client, sql, params);
-        },
-        beginTransaction() {
-            return client.query('BEGIN');
-        },
-        commit() {
-            return client.query('COMMIT');
-        },
-        rollback() {
-            return client.query('ROLLBACK');
-        },
-        release() {
-            client.release();
-        }
-    };
-}
+const pool = {
+    execute(sql, params = []) {
+        return run(pgPool, sql, params);
+    },
+
+    query(sql, params = []) {
+        return run(pgPool, sql, params);
+    },
+
+    async getConnection() {
+        const client = await pgPool.connect();
+        return {
+            execute(sql, params = []) {
+                return run(client, sql, params);
+            },
+            query(sql, params = []) {
+                return run(client, sql, params);
+            },
+            beginTransaction() {
+                return client.query('BEGIN');
+            },
+            commit() {
+                return client.query('COMMIT');
+            },
+            rollback() {
+                return client.query('ROLLBACK');
+            },
+            release() {
+                client.release();
+            }
+        };
+    },
+
+    end() {
+        return pgPool.end();
+    }
+};
 
 const shouldProbeConnection =
     process.env.NODE_ENV !== 'test' &&
     process.env.SKIP_DB_CONNECTION_PROBE !== 'true';
 
 if (shouldProbeConnection) {
-    pgPool.connect()
-        .then((client) => {
+    pool.getConnection()
+        .then(connection => {
             console.log('PostgreSQL database connected successfully');
-            client.release();
+            connection.release();
         })
-        .catch((err) => {
+        .catch(err => {
             console.error('PostgreSQL database connection failed:', err.message);
         });
 }
 
-module.exports = {
-    query(sql, params = []) {
-        return runQuery(pgPool, sql, params);
-    },
-    execute(sql, params = []) {
-        return runQuery(pgPool, sql, params);
-    },
-    getConnection,
-    end() {
-        return pgPool.end();
-    },
-    rawPool: pgPool,
-    formatPlaceholders: convertQuestionPlaceholders
-};
+module.exports = pool;

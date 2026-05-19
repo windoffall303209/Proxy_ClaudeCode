@@ -1,4 +1,4 @@
-﻿-- File database/seed.sql: PostgreSQL seed data for the application.
+-- File database/seed.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 -- =============================================================================
 -- WIND OF FALL - Real Product Image Reseed
 -- =============================================================================
@@ -6,7 +6,7 @@
 -- Source dataset: 26 products + 78 real Cloudinary product images.
 --
 -- Manual run:
---   psql -U postgres -d tmdt_ecommerce -f database/seed.sql
+--   psql -d tmdt_ecommerce -f database/seed.sql
 --
 -- Notes:
 -- - This script keeps the category/sale structure compatible with the current app.
@@ -18,14 +18,7 @@ START TRANSACTION;
 -- ADMIN USER (password: admin123)
 -- =============================================================================
 INSERT INTO users (email, password_hash, full_name, phone, role, email_verified, is_active) VALUES
-('admin@fashionstore.vn', '$2b$10$zWfYhRKxfkvhp.82oM2RR.Nax8x3LBVxY6vLKVPjNOuVY1REt5EcW', 'Admin', '0123456789', 'admin', TRUE, TRUE)
-ON CONFLICT (email) DO UPDATE SET
-    password_hash = EXCLUDED.password_hash,
-    full_name = EXCLUDED.full_name,
-    phone = EXCLUDED.phone,
-    role = EXCLUDED.role,
-    email_verified = EXCLUDED.email_verified,
-    is_active = EXCLUDED.is_active;
+('admin@fashionstore.vn', '$2b$10$zWfYhRKxfkvhp.82oM2RR.Nax8x3LBVxY6vLKVPjNOuVY1REt5EcW', 'Admin', '0123456789', 'admin', TRUE, TRUE);
 
 -- -----------------------------------------------------------------------------
 -- 1. Categories
@@ -42,18 +35,16 @@ ON CONFLICT (id) DO UPDATE SET
     display_order = EXCLUDED.display_order,
     is_active = EXCLUDED.is_active;
 
-SELECT setval(pg_get_serial_sequence('categories', 'id'), COALESCE((SELECT MAX(id) FROM categories), 1), true);
-
 -- -----------------------------------------------------------------------------
 -- 2. Sales
 -- -----------------------------------------------------------------------------
 -- Original durations were 7 / 20 / 15 / 30 days.
 -- They are converted to relative PostgreSQL dates so sale data is usable after reseed.
 INSERT INTO sales (id, name, description, type, value, start_date, end_date, is_active) VALUES
-(1, 'Flash Sale 30%', 'Giảm 30% cho các sản phẩm flash sale', 'percentage', 30.00, NOW() - INTERVAL '1 DAY', NOW() + INTERVAL '6 DAY', TRUE),
-(2, 'Giảm 100K', 'Giảm trực tiếp 100.000đ', 'fixed', 100000.00, NOW() - INTERVAL '1 DAY', NOW() + INTERVAL '19 DAY', TRUE),
-(3, 'Giảm Giá 21%', 'Ưu đãi giảm 21% cho các sản phẩm chọn lọc', 'percentage', 21.00, NOW() - INTERVAL '1 DAY', NOW() + INTERVAL '14 DAY', TRUE),
-(4, 'Sale Cuối Mùa', 'Sale cuối mùa giảm sâu', 'percentage', 50.00, NOW() - INTERVAL '1 DAY', NOW() + INTERVAL '29 DAY', TRUE)
+(1, 'Flash Sale 30%', 'Giảm 30% cho các sản phẩm flash sale', 'percentage', 30.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '6 day', TRUE),
+(2, 'Giảm 100K', 'Giảm trực tiếp 100.000đ', 'fixed', 100000.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '19 day', TRUE),
+(3, 'Giảm Giá 21%', 'Ưu đãi giảm 21% cho các sản phẩm chọn lọc', 'percentage', 21.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '14 day', TRUE),
+(4, 'Sale Cuối Mùa', 'Sale cuối mùa giảm sâu', 'percentage', 50.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '29 day', TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
@@ -63,7 +54,8 @@ ON CONFLICT (id) DO UPDATE SET
     end_date = EXCLUDED.end_date,
     is_active = EXCLUDED.is_active;
 
-SELECT setval(pg_get_serial_sequence('sales', 'id'), COALESCE((SELECT MAX(id) FROM sales), 1), true);
+SELECT setval(pg_get_serial_sequence('categories', 'id'), COALESCE((SELECT MAX(id) FROM categories), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('sales', 'id'), COALESCE((SELECT MAX(id) FROM sales), 1), TRUE);
 
 -- -----------------------------------------------------------------------------
 -- 3. Remove existing product-related data
@@ -82,7 +74,7 @@ RESTART IDENTITY CASCADE;
 -- -----------------------------------------------------------------------------
 -- 4. Product catalog
 -- -----------------------------------------------------------------------------
-DROP TABLE IF EXISTS tmp_product_catalog;
+DROP TEMPORARY TABLE IF EXISTS tmp_product_catalog;
 CREATE TEMPORARY TABLE tmp_product_catalog (
     category_slug VARCHAR(20) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -90,12 +82,11 @@ CREATE TEMPORARY TABLE tmp_product_catalog (
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
     stock_quantity INT NOT NULL,
-    sku VARCHAR(100) NOT NULL,
+    sku VARCHAR(100) NOT NULL UNIQUE,
     is_featured BOOLEAN NOT NULL,
     is_active BOOLEAN NOT NULL,
     sale_id INT NULL,
-    PRIMARY KEY (slug),
-    CONSTRAINT uk_tmp_product_catalog_sku UNIQUE (sku)
+    PRIMARY KEY (slug)
 );
 
 INSERT INTO tmp_product_catalog (category_slug, name, slug, description, price, stock_quantity, sku, is_featured, is_active, sale_id) VALUES
@@ -155,7 +146,7 @@ JOIN categories c ON c.slug = pc.category_slug;
 -- -----------------------------------------------------------------------------
 -- 5. Real Cloudinary product images
 -- -----------------------------------------------------------------------------
-DROP TABLE IF EXISTS tmp_product_images;
+DROP TEMPORARY TABLE IF EXISTS tmp_product_images;
 CREATE TEMPORARY TABLE tmp_product_images (
     product_slug VARCHAR(255) NOT NULL,
     image_url VARCHAR(500) NOT NULL,
@@ -256,7 +247,7 @@ JOIN products p ON p.slug = tpi.product_slug;
 -- -----------------------------------------------------------------------------
 -- 6. Variants mapped to the real images
 -- -----------------------------------------------------------------------------
-DROP TABLE IF EXISTS tmp_variant_profile;
+DROP TEMPORARY TABLE IF EXISTS tmp_variant_profile;
 CREATE TEMPORARY TABLE tmp_variant_profile (
     category_slug VARCHAR(20) NOT NULL,
     display_order INT NOT NULL,
@@ -293,9 +284,9 @@ SELECT
     tvp.color_value,
     tvp.additional_price,
     CASE pi.display_order
-        WHEN 0 THEN (p.stock_quantity / 3) + CASE WHEN MOD(p.stock_quantity, 3) > 0 THEN 1 ELSE 0 END
-        WHEN 1 THEN (p.stock_quantity / 3) + CASE WHEN MOD(p.stock_quantity, 3) > 1 THEN 1 ELSE 0 END
-        ELSE (p.stock_quantity / 3)
+        WHEN 0 THEN FLOOR(p.stock_quantity / 3.0)::int + CASE WHEN MOD(p.stock_quantity, 3) > 0 THEN 1 ELSE 0 END
+        WHEN 1 THEN FLOOR(p.stock_quantity / 3.0)::int + CASE WHEN MOD(p.stock_quantity, 3) > 1 THEN 1 ELSE 0 END
+        ELSE FLOOR(p.stock_quantity / 3.0)::int
     END AS variant_stock,
     CONCAT(
         p.sku,
@@ -315,7 +306,7 @@ JOIN tmp_variant_profile tvp
 UPDATE products p
 SET stock_quantity = pv.total_stock
 FROM (
-    SELECT product_id, SUM(stock_quantity) AS total_stock
+    SELECT product_id, SUM(stock_quantity)::int AS total_stock
     FROM product_variants
     GROUP BY product_id
 ) pv
@@ -330,9 +321,9 @@ UPDATE products SET sold_count = 35 WHERE slug IN ('ao-hoodie-basic-nam', 'ao-ca
 UPDATE products SET sold_count = 30 WHERE slug IN ('ao-thun-basic-nam', 'ao-so-mi-lua-nu');
 UPDATE products SET sold_count = 20 WHERE slug IN ('ao-so-mi-oxford', 'ao-kieu-cong-so');
 
-DROP TABLE IF EXISTS tmp_product_catalog;
-DROP TABLE IF EXISTS tmp_product_images;
-DROP TABLE IF EXISTS tmp_variant_profile;
+DROP TEMPORARY TABLE IF EXISTS tmp_product_catalog;
+DROP TEMPORARY TABLE IF EXISTS tmp_product_images;
+DROP TEMPORARY TABLE IF EXISTS tmp_variant_profile;
 
 COMMIT;
 
@@ -348,3 +339,4 @@ ORDER BY c.display_order;
 SELECT COUNT(*) AS total_products FROM products;
 SELECT COUNT(*) AS total_images FROM product_images;
 SELECT COUNT(*) AS total_variants FROM product_variants;
+

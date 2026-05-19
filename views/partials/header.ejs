@@ -15,6 +15,23 @@
     const cardRadius = Number.isFinite(Number(websiteSettings.card_radius)) ? Number(websiteSettings.card_radius) : 20;
     const buttonRadius = Number.isFinite(Number(websiteSettings.button_radius)) ? Number(websiteSettings.button_radius) : 999;
     const brandNameFontSize = Number.isFinite(Number(websiteSettings.brand_name_font_size)) ? Number(websiteSettings.brand_name_font_size) : 18;
+    // Fallback nếu render context không inject privacy helper (vd unit test render trực tiếp).
+    const cssGuards = (typeof privacy !== 'undefined' && privacy && typeof privacy.safeCssValue === 'function')
+        ? privacy
+        : {
+            safeCssValue(value, fallback = '') {
+                const raw = String(value == null ? '' : value).trim();
+                if (!raw) return fallback;
+                return /^[A-Za-z0-9 _,'"\-.]+$/.test(raw) ? raw : fallback;
+            },
+            safeCssColor(value, fallback = '') {
+                const raw = String(value == null ? '' : value).trim();
+                if (!raw) return fallback;
+                if (/^#[0-9a-fA-F]{3,8}$/.test(raw)) return raw;
+                if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(raw)) return raw;
+                return fallback;
+            }
+        };
 %>
 <head>
     <meta charset="UTF-8">
@@ -34,14 +51,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --font-family: <%- websiteSettings.site_font_family || "'Be Vietnam Pro', sans-serif" %>;
-            --accent: <%= websiteSettings.primary_color || '#f2c94c' %>;
-            --accent-strong: <%= websiteSettings.secondary_color || '#d8a617' %>;
-            --paper: <%= websiteSettings.background_color || '#fcfaf4' %>;
-            --ink: <%= websiteSettings.text_color || '#18140d' %>;
+            --font-family: <%- cssGuards.safeCssValue(websiteSettings.site_font_family, "'Be Vietnam Pro', sans-serif") %>;
+            --accent: <%= cssGuards.safeCssColor(websiteSettings.primary_color, '#f2c94c') %>;
+            --accent-strong: <%= cssGuards.safeCssColor(websiteSettings.secondary_color, '#d8a617') %>;
+            --paper: <%= cssGuards.safeCssColor(websiteSettings.background_color, '#fcfaf4') %>;
+            --ink: <%= cssGuards.safeCssColor(websiteSettings.text_color, '#18140d') %>;
             --radius-md: <%= cardRadius %>px;
             --radius-full: <%= buttonRadius %>px;
-            --brand-font-family: <%- websiteSettings.brand_font_family || "'Be Vietnam Pro', sans-serif" %>;
+            --brand-font-family: <%- cssGuards.safeCssValue(websiteSettings.brand_font_family, "'Be Vietnam Pro', sans-serif") %>;
             --brand-name-font-size: <%= brandNameFontSize %>px;
         }
     </style>
@@ -103,18 +120,6 @@
                     <% if (user.role === 'admin') { %>
                         <a href="/admin/dashboard" class="admin-badge" title="Quản trị">Admin</a>
                     <% } %>
-                    <a href="/auth/profile" class="icon-btn <%= isProfilePage ? 'icon-btn--active' : '' %>" title="Tài khoản">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <span class="icon-label">Tài khoản</span>
-                    </a>
-                    <a href="/orders/history" class="icon-btn <%= isOrdersPage ? 'icon-btn--active' : '' %>" title="Đơn hàng">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <span class="icon-label">Đơn hàng</span>
-                    </a>
                     <a href="/cart" class="icon-btn cart-btn <%= isCartPage ? 'icon-btn--active' : '' %>" title="Giỏ hàng">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -124,14 +129,33 @@
                         <span class="icon-label">Giỏ hàng</span>
                         <span class="cart-count" id="cart-count">0</span>
                     </a>
-                    <form action="/auth/logout" method="POST" class="logout-form">
-                        <button type="submit" class="icon-btn logout-btn" title="Đăng xuất">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <a href="/orders/history" class="icon-btn orders-btn <%= isOrdersPage ? 'icon-btn--active' : '' %>" title="Đơn mua">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span class="icon-label">Đơn mua</span>
+                    </a>
+                    <div class="account-menu <%= isProfilePage ? 'account-menu--active' : '' %>">
+                        <a href="/auth/profile" class="account-menu__trigger" aria-haspopup="true" aria-expanded="false" title="Tài khoản">
+                            <span class="account-menu__avatar">
+                                <% if (user.avatar_url) { %>
+                                    <img src="<%= user.avatar_url %>" alt="Avatar">
+                                <% } else { %>
+                                    <%= String(user.full_name || user.email || 'U').trim().charAt(0).toUpperCase() %>
+                                <% } %>
+                            </span>
+                            <span class="account-menu__name">Tài khoản</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                            <span class="icon-label">Thoát</span>
-                        </button>
-                    </form>
+                        </a>
+                        <div class="account-menu__dropdown">
+                            <a href="/auth/profile" class="<%= isProfilePage ? 'active' : '' %>">Tài khoản của tôi</a>
+                            <form action="/auth/logout" method="POST">
+                                <button type="submit">Đăng xuất</button>
+                            </form>
+                        </div>
+                    </div>
                 <% } else { %>
                     <a href="/auth/login" class="auth-link" title="Đăng nhập">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -257,7 +281,7 @@
                 <a href="/admin/dashboard" class="admin-badge">Quản trị</a>
             <% } %>
             <a href="/auth/profile">Tài khoản của tôi</a>
-            <a href="/orders/history">Đơn hàng của tôi</a>
+            <a href="/orders/history">Đơn mua</a>
             <a href="/cart">Giỏ hàng</a>
             <form action="/auth/logout" method="POST" class="mobile-nav__logout-form">
                 <button type="submit" class="mobile-nav__logout-btn">Đăng xuất</button>
@@ -273,5 +297,19 @@
         <p><%= websiteSettings.mobile_support_text || 'Hỗ trợ tư vấn set đồ 1:1 qua hotline 1900 123 456' %></p>
     </div>
 </nav>
+
+<% if (user) { %>
+    <div class="logout-confirm-modal" id="logoutConfirmModal" hidden>
+        <button type="button" class="logout-confirm-modal__backdrop" data-logout-confirm-cancel aria-label="Hủy đăng xuất"></button>
+        <div class="logout-confirm-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle" aria-describedby="logoutConfirmMessage">
+            <h2 id="logoutConfirmTitle">Đăng xuất</h2>
+            <p id="logoutConfirmMessage">Bạn chắc chắn muốn đăng xuất khỏi tài khoản này chứ? Bạn sẽ cần đăng nhập lại để tiếp tục quản lý hồ sơ, đơn hàng và địa chỉ đã lưu.</p>
+            <div class="logout-confirm-modal__actions">
+                <button type="button" class="logout-confirm-modal__cancel" data-logout-confirm-cancel>Hủy</button>
+                <button type="button" class="logout-confirm-modal__confirm" id="logoutConfirmSubmit">Đăng xuất</button>
+            </div>
+        </div>
+    </div>
+<% } %>
 
 <main>

@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu address trong MySQL.
+// Model truy vấn và chuẩn hóa dữ liệu address trong PostgreSQL.
 const pool = require('../config/database');
 
 class Address {
@@ -20,8 +20,7 @@ class Address {
             const [result] = await connection.execute(
                 `INSERT INTO addresses (
                     user_id, full_name, phone, address_line, ward, district, city, is_default
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                RETURNING id`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     userId,
                     full_name,

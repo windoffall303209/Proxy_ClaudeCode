@@ -21,6 +21,7 @@ router.post('/profile', verifyToken, authController.updateProfile);
 router.post('/profile/update', verifyToken, authController.updateFullProfile);
 router.post('/profile/avatar', verifyToken, authController.handleAvatarUpload);
 router.post('/change-password', verifyToken, authController.changePassword);
+router.post('/account/delete', verifyToken, authController.requestAccountDeletion);
 
 // Address management
 router.post('/address', verifyToken, authController.createAddress);

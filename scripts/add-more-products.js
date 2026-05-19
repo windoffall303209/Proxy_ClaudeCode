@@ -73,7 +73,7 @@ const imagesTreEm = [
 async function main() {
   console.log('🚀 Bổ sung sản phẩm cho đủ 90 mỗi loại...\n');
 
-  const connection = pool;
+  const connection = await pool.getConnection();
 
   try {
     // Thêm cho nữ (category_id = 2)
@@ -83,14 +83,13 @@ async function main() {
       const slug = product.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
       const sku = 'PRD-NU-' + Date.now();
 
-      const [result] = await connection.execute(
+      const [insertResult] = await connection.execute(
         `INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, is_featured, is_active)
-         VALUES (2, ?, ?, ?, ?, 100, ?, TRUE, TRUE)
-         RETURNING id`,
+         VALUES (2, ?, ?, ?, ?, 100, ?, TRUE, TRUE)`,
         [product.name, slug, product.desc, product.price, sku]
       );
 
-      const productId = result.insertId;
+      const productId = insertResult.insertId;
 
       const numImages = Math.floor(Math.random() * 2) + 5;
       for (let j = 0; j < numImages; j++) {
@@ -110,14 +109,13 @@ async function main() {
       const slug = product.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
       const sku = 'PRD-TE-' + Date.now();
 
-      const [result] = await connection.execute(
+      const [insertResult] = await connection.execute(
         `INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, is_featured, is_active)
-         VALUES (3, ?, ?, ?, ?, 100, ?, TRUE, TRUE)
-         RETURNING id`,
+         VALUES (3, ?, ?, ?, ?, 100, ?, TRUE, TRUE)`,
         [product.name, slug, product.desc, product.price, sku]
       );
 
-      const productId = result.insertId;
+      const productId = insertResult.insertId;
 
       const numImages = Math.floor(Math.random() * 2) + 5;
       for (let j = 0; j < numImages; j++) {
@@ -135,7 +133,8 @@ async function main() {
   } catch (error) {
     console.error('❌ Lỗi:', error.message);
   } finally {
-    await connection.end();
+    connection.release();
+    await pool.end();
   }
 }
 

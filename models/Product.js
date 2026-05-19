@@ -1,4 +1,4 @@
-﻿/**
+/**
  * =============================================================================
  * PRODUCT MODEL - Model Sản phẩm
  * =============================================================================
@@ -93,6 +93,156 @@ class Product {
         });
 
         return variants;
+    }
+
+    // Chuan hoa chuoi tim kiem ve dang khong dau de tranh lech do PostgreSQL collation.
+    static normalizeSearchText(value = '') {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .toLowerCase();
+    }
+
+    // Tach tu khoa tim kiem thanh cac token co the so khop on dinh.
+    static getSearchTerms(searchQuery = '') {
+        return Array.from(new Set(
+            this.normalizeSearchText(searchQuery)
+                .split(/[^a-z0-9]+/)
+                .map((term) => term.trim())
+                .filter(Boolean)
+        )).slice(0, 8);
+    }
+
+    // Tach noi dung thanh tu rieng de "ao" khong match nham trong "cao".
+    static getSearchWords(value = '') {
+        return this.normalizeSearchText(value)
+            .split(/[^a-z0-9]+/)
+            .map((word) => word.trim())
+            .filter(Boolean);
+    }
+
+    // Khoang cach edit nho de nhan dien loi go ngan trong query nhieu tu.
+    static getLevenshteinDistance(left = '', right = '') {
+        const a = String(left || '');
+        const b = String(right || '');
+        const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+        for (let i = 0; i <= a.length; i += 1) dp[i][0] = i;
+        for (let j = 0; j <= b.length; j += 1) dp[0][j] = j;
+
+        for (let i = 1; i <= a.length; i += 1) {
+            for (let j = 1; j <= b.length; j += 1) {
+                dp[i][j] = a[i - 1] === b[j - 1]
+                    ? dp[i - 1][j - 1]
+                    : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+            }
+        }
+
+        return dp[a.length][b.length];
+    }
+
+    // So khop token voi bien the prefix hop ly cho tu dai.
+    static hasSearchTerm(words = [], term = '', options = {}) {
+        const allowFuzzy = options.allowFuzzy === true;
+        return words.some((word) => (
+            (term.length === 1 && word.includes(term)) ||
+            word === term ||
+            (term.length >= 3 && word.startsWith(term)) ||
+            (word.length >= 3 && term.startsWith(word)) ||
+            (
+                allowFuzzy &&
+                term.length >= 3 &&
+                word.length >= 3 &&
+                Math.abs(word.length - term.length) <= 1 &&
+                this.getLevenshteinDistance(word, term) <= 1
+            )
+        ));
+    }
+
+    // Chuan hoa cum tu de so khop phrase sau khi bo dau va dau cau.
+    static normalizeSearchPhrase(value = '') {
+        return this.getSearchWords(value).join(' ');
+    }
+
+    // Cham diem ket qua tim kiem bang JavaScript sau khi DB tra candidate ve.
+    static scoreSearchResult(product, searchQuery = '') {
+        const normalizedQuery = this.normalizeSearchPhrase(searchQuery);
+        const terms = this.getSearchTerms(searchQuery);
+
+        if (!normalizedQuery || terms.length === 0) {
+            return 0;
+        }
+
+        const nameText = product?.name || '';
+        const categoryText = [
+            product?.category_name,
+            product?.category_slug
+        ].filter(Boolean).join(' ');
+        const secondaryText = [
+            product?.sku,
+            product?.variant_colors,
+            product?.variant_sizes,
+            product?.description
+        ].filter(Boolean).join(' ');
+
+        const name = this.normalizeSearchPhrase(nameText);
+        const category = this.normalizeSearchPhrase(categoryText);
+        const secondary = this.normalizeSearchPhrase(secondaryText);
+        const nameWords = this.getSearchWords(nameText);
+        const categoryWords = this.getSearchWords(categoryText);
+        const secondaryWords = this.getSearchWords(secondaryText);
+        const searchableWords = [...nameWords, ...categoryWords, ...secondaryWords];
+        const allowFuzzyTerms = terms.length > 1;
+
+        if (!terms.every((term) => this.hasSearchTerm(searchableWords, term, {
+            allowFuzzy: allowFuzzyTerms
+        }))) {
+            return 0;
+        }
+
+        const nameMatches = terms.filter((term) => this.hasSearchTerm(nameWords, term, {
+            allowFuzzy: allowFuzzyTerms
+        })).length;
+        const categoryMatches = terms.filter((term) => this.hasSearchTerm(categoryWords, term, {
+            allowFuzzy: allowFuzzyTerms
+        })).length;
+        const secondaryMatches = terms.filter((term) => this.hasSearchTerm(secondaryWords, term, {
+            allowFuzzy: allowFuzzyTerms
+        })).length;
+
+        if (name === normalizedQuery) return 170;
+        if (name.startsWith(`${normalizedQuery} `)) return terms.length === 1 && terms[0].length === 1 ? 50 : 150;
+        if (name.includes(normalizedQuery)) return terms.length === 1 && terms[0].length === 1 ? 45 : 120;
+        if (nameMatches === terms.length) return 100;
+        if (category.includes(normalizedQuery)) return 90;
+        if (nameMatches + categoryMatches >= terms.length) return 80;
+        if (secondary.includes(normalizedQuery)) return 55;
+
+        return (nameMatches * 20) + (categoryMatches * 12) + (secondaryMatches * 6);
+    }
+
+    // Loc va sap xep ket qua theo do phu hop thuc te, khong dua vao collation cua DB.
+    static rankSearchRows(rows = [], searchQuery = '') {
+        return rows
+            .map((product) => ({
+                ...product,
+                search_score: this.scoreSearchResult(product, searchQuery)
+            }))
+            .filter((product) => product.search_score > 0)
+            .sort((left, right) => {
+                const availabilityDiff = this.getAvailabilityOrderValue(left) - this.getAvailabilityOrderValue(right);
+                if (availabilityDiff !== 0) return availabilityDiff;
+
+                const scoreDiff = Number(right.search_score || 0) - Number(left.search_score || 0);
+                if (scoreDiff !== 0) return scoreDiff;
+
+                const soldDiff = Number(right.sold_count || 0) - Number(left.sold_count || 0);
+                if (soldDiff !== 0) return soldDiff;
+
+                return Number(right.id || 0) - Number(left.id || 0);
+            });
     }
 
     // Thao tác với hydrate listing sản phẩm.
@@ -223,6 +373,11 @@ ${this.getVariantAggregateSelect(productAlias)}`;
         return `CASE WHEN ${productAlias}.stock_quantity > 0 THEN 0 ELSE 1 END`;
     }
 
+    // Gia tri sap xep ton kho dung cho ranking phia Node.
+    static getAvailabilityOrderValue(product) {
+        return Number(product?.stock_quantity || 0) > 0 ? 0 : 1;
+    }
+
     // Tạo dữ liệu đơn hàng theo clause.
     static buildOrderByClause(orderSegments = [], options = {}) {
         const {
@@ -246,12 +401,12 @@ ${this.getVariantAggregateSelect(productAlias)}`;
     static getVariantAggregateSelect(productAlias = 'p') {
         return `
                    (
-                       SELECT string_agg(DISTINCT NULLIF(TRIM(pv.color), ''), ', ' ORDER BY NULLIF(TRIM(pv.color), ''))
+                       SELECT STRING_AGG(DISTINCT NULLIF(TRIM(pv.color), ''), ', ' ORDER BY NULLIF(TRIM(pv.color), ''))
                        FROM product_variants pv
                        WHERE pv.product_id = ${productAlias}.id
                    ) as variant_colors,
                    (
-                       SELECT string_agg(DISTINCT NULLIF(TRIM(pv.size), ''), ', ' ORDER BY NULLIF(TRIM(pv.size), ''))
+                       SELECT STRING_AGG(DISTINCT NULLIF(TRIM(pv.size), ''), ', ' ORDER BY NULLIF(TRIM(pv.size), ''))
                        FROM product_variants pv
                        WHERE pv.product_id = ${productAlias}.id
                    ) as variant_sizes`;
@@ -264,8 +419,8 @@ ${this.getVariantAggregateSelect(productAlias)}`;
             return '';
         }
 
-        // accentSensitive is kept for compatibility with older callers; PostgreSQL search uses LOWER().
-        // Callers that strip accents can still pass accentSensitive: false without changing this SQL.
+        // accentSensitive is kept for call-site compatibility; PostgreSQL text comparison is already byte-aware here.
+        // Tắt khi caller đã strip dấu (ví dụ chatbot intent search)
         const searchBase = normalizedSearch.toLowerCase();
         const exactSearchTerm = `%${searchBase}%`;
         const terms = Array.from(new Set(
@@ -1010,8 +1165,7 @@ ${this.getVariantAggregateSelect('p')}
 
             const [result] = await connection.execute(
                 `INSERT INTO reviews (product_id, user_id, order_id, rating, comment, is_verified, is_approved)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                 RETURNING id`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
                     productId,
                     userId,
@@ -1325,7 +1479,7 @@ ${this.getVariantAggregateSelect('p')}
                 LEFT JOIN sales s ON p.sale_id = s.id AND s.is_active = TRUE
                     AND NOW() BETWEEN s.start_date AND s.end_date
                 WHERE p.is_active = TRUE
-                  AND LOWER(p.name) LIKE ?
+                  AND SOUNDEX(p.name) = SOUNDEX(?)
                 ORDER BY ${this.buildOrderByClause(['p.sold_count DESC'], {
                     prioritizeInStock: true,
                     productAlias: 'p'
@@ -1333,7 +1487,7 @@ ${this.getVariantAggregateSelect('p')}
                 LIMIT ${limitNum}
             `;
 
-            [rows] = await pool.query(soundexQuery, [`%${lowerQuery}%`]);
+            [rows] = await pool.query(soundexQuery, [searchQuery]);
         }
 
         // Nếu vẫn không có, trả về sản phẩm bán chạy làm gợi ý
@@ -1404,6 +1558,7 @@ ${this.getVariantAggregateSelect('p')}
             sort_by: 'sold_count',
             sort_order: 'DESC',
             prioritize_in_stock: true,
+            min_sold_count: 1,
             limit
         });
     }
@@ -1648,7 +1803,6 @@ ${this.getVariantAggregateSelect('p')}
         const query = `
             INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, sale_id, is_featured)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
         `;
 
         const [result] = await pool.execute(query, [
@@ -1751,12 +1905,13 @@ ${this.getVariantAggregateSelect('p')}
             `);
 
             const [deleteResult] = await connection.query(`
-                DELETE FROM products p
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM order_items oi
-                    WHERE oi.product_id = p.id
-                )
+                DELETE p
+                FROM products p
+                LEFT JOIN (
+                    SELECT DISTINCT product_id
+                    FROM order_items
+                ) order_refs ON order_refs.product_id = p.id
+                WHERE order_refs.product_id IS NULL
             `);
 
             await connection.commit();
@@ -1806,7 +1961,6 @@ ${this.getVariantAggregateSelect('p')}
         const query = `
             INSERT INTO product_images (product_id, image_url, is_primary, display_order)
             VALUES (?, ?, ?, ?)
-            RETURNING id
         `;
 
         const [result] = await pool.execute(query, [productId, imageUrl, isPrimary, displayOrder]);
@@ -1873,7 +2027,6 @@ ${this.getVariantAggregateSelect('p')}
         const query = `
             INSERT INTO product_variants (product_id, size, color, additional_price, stock_quantity, sku, image_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
         `;
         const [result] = await pool.execute(query, [
             productId,
@@ -1963,6 +2116,11 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
 
         if (filters.is_featured) {
             query += ' AND p.is_featured = TRUE';
+        }
+
+        if (filters.min_sold_count !== undefined && filters.min_sold_count !== null && filters.min_sold_count !== '') {
+            query += ' AND COALESCE(p.sold_count, 0) >= ?';
+            params.push(Math.max(0, Number.parseInt(filters.min_sold_count, 10) || 0));
         }
 
         if (effectiveRatingThreshold !== null) {
@@ -2170,6 +2328,8 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
     // Tìm kiếm search.
     static async search(searchQuery, limit = 20) {
         const limitNum = parseInt(limit, 10) || 20;
+        const activeProductCount = await this.count().catch(() => 0);
+        const candidateLimit = Math.max(limitNum, 100, activeProductCount);
         const params = [];
         const searchClause = this.buildSearchFilterClause(searchQuery, params, 'p', {
             accentSensitive: false
@@ -2213,7 +2373,7 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
                 prioritizeInStock: true,
                 productAlias: 'p'
             })}
-            LIMIT ${limitNum}
+            LIMIT ${candidateLimit}
         `;
 
         let [rows] = await pool.query(query, [
@@ -2223,9 +2383,11 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
             looseSearchTerm,
             ...nameMatchParams
         ]);
+        rows = this.rankSearchRows(rows, searchQuery).slice(0, limitNum);
 
         if (rows.length === 0) {
-            rows = await this.fuzzySearch(searchQuery, limitNum);
+            const fuzzyRows = await this.fuzzySearch(searchQuery, candidateLimit);
+            rows = this.rankSearchRows(fuzzyRows, searchQuery).slice(0, limitNum);
         }
 
         return this.hydrateListingProducts(rows);
@@ -2311,7 +2473,7 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
                 LEFT JOIN categories c ON p.category_id = c.id
                 LEFT JOIN sales sale_ref ON p.sale_id = sale_ref.id
                 WHERE p.is_active = TRUE
-                  AND LOWER(p.name) LIKE ?
+                  AND SOUNDEX(p.name) = SOUNDEX(?)
                 ORDER BY ${this.buildOrderByClause(['p.sold_count DESC'], {
                     prioritizeInStock: true,
                     productAlias: 'p'
@@ -2319,7 +2481,7 @@ ${this.getListingSelectFields('p', 'c', 'sale_ref')}
                 LIMIT ${limitNum}
             `;
 
-            [rows] = await pool.query(soundexQuery, [`%${lowerQuery}%`]);
+            [rows] = await pool.query(soundexQuery, [searchQuery]);
         }
 
         if (rows.length === 0) {

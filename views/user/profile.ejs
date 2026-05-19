@@ -1,167 +1,445 @@
-<%# Template EJS render người dùng hồ sơ người dùng cho storefront hoặc tài khoản người dùng. %>
+<%# Template EJS render khu vực tài khoản người dùng. %>
 <%- include('../partials/header') %>
 
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/css/checkout.css">
 <link rel="stylesheet" href="/css/user-profile.css">
 
-<!-- ===== Trang hồ sơ người dùng ===== -->
+<%
+    const userInitial = String(user?.full_name || user?.email || 'U').trim().charAt(0).toUpperCase();
+    const maskedProfilePhone = user?.phone ? privacy.maskPhone(user.phone) : '';
+    const accountAddresses = Array.isArray(typeof addresses !== 'undefined' ? addresses : null) ? addresses : [];
+    const accountOrders = Array.isArray(typeof recentOrders !== 'undefined' ? recentOrders : null) ? recentOrders : [];
+    const accountVouchers = Array.isArray(typeof vouchers !== 'undefined' ? vouchers : null) ? vouchers : [];
+    const birthdayValue = privacy.normalizeDateInput(user?.birthday);
+    const birthdayDisplay = birthdayValue ? birthdayValue.split('-').reverse().join('/') : 'Chưa cập nhật';
+    const accountSubnavItems = [
+        { key: 'profile', label: 'Hồ sơ' },
+        { key: 'address', label: 'Địa chỉ' },
+        { key: 'bank', label: 'Ngân hàng' },
+        { key: 'password', label: 'Đổi mật khẩu' },
+        { key: 'notification-settings', label: 'Cài đặt thông báo' },
+        { key: 'delete-account', label: 'Xóa tài khoản', danger: true }
+    ];
+    const formatMoney = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')}đ`;
+    const orderNoticeTitle = (order) => {
+        const status = String(order.status || '').toLowerCase();
+        if (status === 'completed') return 'Đơn hàng đã hoàn tất';
+        if (status === 'delivered') return 'Bạn đã nhận đơn hàng?';
+        if (status === 'cancelled') return 'Đơn hàng đã hủy';
+        if (status === 'shipping') return 'Đơn hàng đang giao';
+        if (status === 'processing') return 'Đơn hàng đang được xử lý';
+        return 'Cập nhật đơn hàng';
+    };
+    const orderNoticeCopy = (order) => {
+        const code = order.order_code || `#${order.id}`;
+        const status = String(order.status || '').toLowerCase();
+        if (status === 'completed') return `Đơn hàng ${code} đã hoàn thành. Bạn có thể đánh giá sản phẩm trong đơn.`;
+        if (status === 'delivered') return `Đơn hàng ${code} đã được giao. Xác nhận đã nhận hàng nếu mọi thứ ổn.`;
+        if (status === 'cancelled') return `Yêu cầu hủy đơn hàng ${code} đã được ghi nhận.`;
+        if (status === 'shipping') return `Đơn hàng ${code} đang trên đường giao đến bạn.`;
+        return `Đơn hàng ${code} vừa có cập nhật trạng thái mới.`;
+    };
+    const voucherValueText = (voucher) => {
+        if (voucher.type === 'percentage') return `Giảm ${Number(voucher.value || 0)}%`;
+        return `Giảm ${formatMoney(voucher.value)}`;
+    };
+    const safeJson = (value) => JSON.stringify(value).replace(/</g, '\\u003c');
+%>
+
 <div class="user-profile-page page-shell">
     <div class="container">
         <% if (user) { %>
-            <section class="page-intro page-intro--compact">
-                <h1 class="page-intro__title page-intro__title-inline">
-                    <span>Tài khoản</span>
-                    <span class="page-intro__slash">/</span>
-                    <span>Tài khoản của tôi</span>
-                </h1>
-            </section>
-
-            <div class="profile-grid">
-                <aside class="profile-sidebar">
-                    <div class="profile-avatar">
-                        <% if (user.avatar_url) { %>
-                            <img src="<%= user.avatar_url %>" alt="Avatar" class="profile-avatar__image" id="avatarImage">
-                            <div class="profile-avatar__placeholder" id="avatarPlaceholder" hidden>WF</div>
-                        <% } else { %>
-                            <img src="" alt="Avatar" class="profile-avatar__image" id="avatarImage" hidden>
-                            <div class="profile-avatar__placeholder" id="avatarPlaceholder">WF</div>
-                        <% } %>
-                        <label class="profile-avatar__upload" title="Thay đổi ảnh đại diện">
-                            <input type="file" accept="image/*" id="avatarInput">
-                            <span class="profile-avatar__upload-icon">+</span>
-                        </label>
+            <div class="account-shell">
+                <aside class="account-sidebar account-sidebar--account-open">
+                    <div class="account-sidebar__profile">
+                        <div class="account-sidebar__avatar">
+                            <% if (user.avatar_url) { %>
+                                <img src="<%= user.avatar_url %>" alt="Avatar" id="avatarImage">
+                                <div class="account-sidebar__avatar-placeholder" id="avatarPlaceholder" hidden><%= userInitial %></div>
+                            <% } else { %>
+                                <img src="" alt="Avatar" id="avatarImage" hidden>
+                                <div class="account-sidebar__avatar-placeholder" id="avatarPlaceholder"><%= userInitial %></div>
+                            <% } %>
+                        </div>
+                        <div class="account-sidebar__text-badge"><%= userInitial %></div>
+                        <div class="account-sidebar__identity">
+                            <strong><%= user.full_name %></strong>
+                        </div>
                     </div>
 
-                    <h2 class="profile-sidebar__name"><%= user.full_name %></h2>
-                    <p class="profile-sidebar__email"><%= privacy.maskEmail(user.email) %></p>
-                    <p class="profile-sidebar__joined">Thành viên từ <%= new Date(user.created_at).toLocaleDateString('vi-VN') %></p>
+                    <nav class="account-sidebar__nav" aria-label="Tài khoản người dùng">
+                        <button type="button" class="account-sidebar__link account-sidebar__top-link" data-account-tab="notifications">
+                            <span class="account-sidebar__icon account-sidebar__icon--red">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 6 3 8H3c0-2 3-1 3-8zM10 20h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </span>
+                            Thông báo
+                        </button>
 
-                    <div class="profile-sidebar__badges">
-                        <span><%= user.email_verified ? 'Email đã xác thực' : 'Email chưa xác thực' %></span>
-                        <span><%= user.phone_verified ? 'Số điện thoại đã xác thực' : 'Cần xác thực số điện thoại' %></span>
-                    </div>
+                        <div class="account-sidebar__group is-open">
+                            <button type="button" class="account-sidebar__group-title" data-account-toggle="account" data-account-tab="profile">
+                                <span class="account-sidebar__icon account-sidebar__icon--blue">
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                </span>
+                                Tài khoản của tôi
+                            </button>
+                            <div class="account-sidebar__subnav">
+                                <% accountSubnavItems.forEach((item) => { %>
+                                    <button type="button" class="account-sidebar__tab <%= item.key === 'profile' ? 'is-active' : '' %> <%= item.danger ? 'account-sidebar__tab--danger' : '' %>" data-account-tab="<%= item.key %>"><%= item.label %></button>
+                                <% }) %>
+                            </div>
+                        </div>
+
+                        <a href="/orders/history" class="account-sidebar__link account-sidebar__top-link">
+                            <span class="account-sidebar__icon account-sidebar__icon--blue">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            </span>
+                            Đơn mua
+                        </a>
+
+                        <button type="button" class="account-sidebar__link account-sidebar__top-link" data-account-tab="vouchers">
+                            <span class="account-sidebar__icon account-sidebar__icon--orange">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a3 3 0 0 0 0 6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a3 3 0 0 0 0-6V7zM9 9h6M9 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            </span>
+                            Kho voucher
+                        </button>
+
+                        <form action="/auth/logout" method="POST" class="account-sidebar__logout-form">
+                            <button type="submit" class="account-sidebar__link account-sidebar__link--button">
+                                <span class="account-sidebar__icon account-sidebar__icon--red">
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </span>
+                                Đăng xuất
+                            </button>
+                        </form>
+                    </nav>
                 </aside>
 
-                <div class="profile-content">
-                    <section class="profile-section">
-                        <div class="profile-section__header">
-                            <h3 class="profile-section__title">Thông tin cá nhân</h3>
-                            <p class="profile-section__copy">Cập nhật tên, số điện thoại và ngày sinh.</p>
+                <div class="account-content">
+                    <section class="account-panel is-active" data-account-panel="profile">
+                        <div class="account-panel__header">
+                            <h1>Hồ sơ của tôi</h1>
+                            <p>Quản lý thông tin hồ sơ để bảo mật tài khoản.</p>
                         </div>
-                        <form id="profileForm">
-                            <div class="profile-form__grid">
-                                <div class="profile-form__field">
-                                    <label class="profile-form__label">Họ và tên</label>
-                                    <input type="text" name="full_name" value="<%= user.full_name %>" class="profile-form__input" required minlength="2">
+                        <form id="profileForm" class="profile-form">
+                            <div class="profile-editor">
+                                <div class="profile-editor__fields">
+                                    <div class="profile-editor__row">
+                                        <label class="profile-editor__label" for="profileFullName">Tên</label>
+                                        <input id="profileFullName" type="text" name="full_name" value="<%= user.full_name %>" class="profile-form__input profile-editor__input" required minlength="2">
+                                    </div>
+
+                                    <div class="profile-editor__row">
+                                        <span class="profile-editor__label">Email</span>
+                                        <div class="profile-editor__value">
+                                            <span><%= privacy.maskEmail(user.email) %></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="profile-editor__row">
+                                        <span class="profile-editor__label">Số điện thoại</span>
+                                        <div class="profile-editor__value profile-editor__value--editable">
+                                            <span class="private-value" data-private-type="phone"><%= maskedProfilePhone || 'Chưa cập nhật' %></span>
+                                            <button type="button" class="profile-editor__link" data-profile-action="toggle-private-edit" data-private-edit-target="phone">Thay đổi</button>
+                                            <input type="tel" name="phone" value="" placeholder="Nhập số điện thoại mới" class="profile-form__input profile-editor__inline-input" data-private-edit-field="phone" hidden disabled required maxlength="10" inputmode="numeric" autocomplete="tel" pattern="0[2-9][0-9]{8}" title="Số điện thoại phải gồm 10 số và bắt đầu bằng 0">
+                                        </div>
+                                    </div>
+
+                                    <div class="profile-editor__row">
+                                        <span class="profile-editor__label">Ngày sinh</span>
+                                        <div class="profile-editor__value profile-editor__value--editable">
+                                            <span class="private-value" data-private-type="birthday"><%= birthdayDisplay %></span>
+                                            <button type="button" class="profile-editor__link" data-profile-action="toggle-private-edit" data-private-edit-target="birthday">Thay đổi</button>
+                                            <input type="date" name="birthday" value="<%= birthdayValue %>" class="profile-form__input profile-editor__inline-input" data-private-edit-field="birthday" hidden>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="profile-form__submit profile-editor__submit">Lưu</button>
                                 </div>
-                                <div class="profile-form__field">
-                                    <label class="profile-form__label">Số điện thoại</label>
-                                    <input type="tel" name="phone" value="<%= user.phone || '' %>" class="profile-form__input" placeholder="0901234567">
+
+                                <div class="profile-editor__avatar-panel">
+                                    <div class="profile-editor__avatar">
+                                        <% if (user.avatar_url) { %>
+                                            <img src="<%= user.avatar_url %>" alt="Avatar" id="profileAvatarImage">
+                                            <span id="profileAvatarPlaceholder" hidden><%= userInitial %></span>
+                                        <% } else { %>
+                                            <img src="" alt="Avatar" id="profileAvatarImage" hidden>
+                                            <span id="profileAvatarPlaceholder"><%= userInitial %></span>
+                                        <% } %>
+                                    </div>
+                                    <button type="button" class="profile-editor__choose" data-profile-action="choose-avatar">Chọn Ảnh</button>
+                                    <input type="file" accept="image/*" id="avatarInput" hidden>
+                                    <p>Dung lượng file tối đa 1 MB<br>Định dạng: JPEG, PNG</p>
                                 </div>
                             </div>
-                            <div class="profile-form__field">
-                                <label class="profile-form__label">Ngày sinh</label>
-                                <input type="date" name="birthday" value="<%= privacy.normalizeDateInput(user.birthday) %>" class="profile-form__input">
-                            </div>
-                            <button type="submit" class="profile-form__submit">Lưu thay đổi</button>
                         </form>
                     </section>
-                    <section class="profile-section">
-                        <div class="profile-section__header">
-                            <h3 class="profile-section__title">Thông tin liên hệ</h3>
-                            <p class="profile-section__copy">Kiểm tra trạng thái liên hệ của tài khoản.</p>
+
+                    <section class="account-panel" data-account-panel="address" hidden>
+                        <div class="account-panel__header account-panel__header--split">
+                            <div>
+                                <h1>Địa chỉ của tôi</h1>
+                                <p>Tối đa 10 địa chỉ. Bạn có thể thêm, sửa, xóa và đặt mặc định.</p>
+                            </div>
+                            <button type="button" class="account-add-button" data-checkout-action="toggle-address-form" <%= accountAddresses.length >= 10 ? 'disabled' : '' %>>+ Thêm địa chỉ</button>
                         </div>
-
-                        <div class="contact-info">
-                            <div class="contact-info__item">
-                                <div class="contact-info__left">
-                                    <div>
-                                        <div class="contact-info__label">Email</div>
-                                        <div class="contact-info__value private-value" data-private-type="email"><%= privacy.maskEmail(user.email) %></div>
-                                    </div>
-                                </div>
-                                <div class="contact-info__right">
-                                    <% if (user.email_verified) { %>
-                                        <span class="verification-badge verification-badge--verified">Đã xác thực</span>
-                                    <% } else { %>
-                                        <span class="verification-badge verification-badge--unverified">Chưa xác thực</span>
-                                    <% } %>
-                                </div>
-                            </div>
-
-                            <div class="contact-info__item">
-                                <div class="contact-info__left">
-                                    <div>
-                                        <div class="contact-info__label">Số điện thoại</div>
-                                        <div class="contact-info__value private-value" data-private-type="phone"><%= privacy.maskPhone(user.phone) %></div>
-                                    </div>
-                                </div>
-                                <div class="contact-info__right">
-                                    <% if (user.phone_verified) { %>
-                                        <span class="verification-badge verification-badge--verified">Đã xác thực</span>
-                                    <% } else { %>
-                                        <span class="verification-badge verification-badge--unverified">Chưa xác thực</span>
-                                        <button type="button" class="verify-btn" data-profile-action="show-developing">Xác thực ngay</button>
-                                    <% } %>
-                                </div>
-                            </div>
-
-                            <div class="contact-info__item">
-                                <div class="contact-info__left">
-                                    <div>
-                                        <div class="contact-info__label">Ngày sinh</div>
-                                        <div class="contact-info__value private-value" data-private-type="birthday"><%= privacy.maskBirthday(user.birthday) %></div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="account-address-list" id="accountAddressList">
+                            <% if (accountAddresses.length) { %>
+                                <% accountAddresses.forEach((address) => { %>
+                                    <article class="account-address-card"
+                                        data-address-id="<%= address.id %>"
+                                        data-full-name="<%= address.full_name || '' %>"
+                                        data-phone="<%= address.phone || '' %>"
+                                        data-address-line="<%= address.address_line || '' %>"
+                                        data-ward="<%= address.ward || '' %>"
+                                        data-district="<%= address.district || '' %>"
+                                        data-city="<%= address.city || '' %>"
+                                        data-is-default="<%= address.is_default ? 'true' : 'false' %>">
+                                        <div class="account-address-card__main">
+                                            <p><strong><%= address.full_name %></strong><span><%= address.phone || '' %></span></p>
+                                            <div><%= address.address_line %><%= address.ward ? ', ' + address.ward : '' %><%= address.district ? ', ' + address.district : '' %><%= address.city ? ', ' + address.city : '' %></div>
+                                            <% if (address.is_default) { %><em>Mặc định</em><% } %>
+                                        </div>
+                                        <div class="account-address-card__actions">
+                                            <button type="button" data-checkout-action="edit-address" data-address-id="<%= address.id %>">Cập nhật</button>
+                                            <% if (!address.is_default) { %>
+                                                <button type="button" data-profile-action="delete-address">Xóa</button>
+                                                <button type="button" data-profile-action="default-address">Thiết lập mặc định</button>
+                                            <% } %>
+                                        </div>
+                                    </article>
+                                <% }) %>
+                            <% } else { %>
+                                <div class="account-empty">Bạn chưa lưu địa chỉ nào.</div>
+                            <% } %>
                         </div>
                     </section>
-                    <section class="profile-section">
-                        <div class="profile-section__header">
-                            <h3 class="profile-section__title">Đổi mật khẩu</h3>
-                            <p class="profile-section__copy">Nhập mật khẩu hiện tại trước khi tạo mật khẩu mới.</p>
-                        </div>
 
+                    <section class="account-panel" data-account-panel="bank" hidden>
+                        <div class="account-panel__header">
+                            <h1>Ngân hàng</h1>
+                            <p>Quản lý tài khoản nhận hoàn tiền và đối soát thanh toán.</p>
+                        </div>
+                        <div class="account-empty">Bạn chưa thêm tài khoản ngân hàng.</div>
+                    </section>
+
+                    <section class="account-panel" data-account-panel="password" hidden>
+                        <div class="account-panel__header">
+                            <h1>Đổi mật khẩu</h1>
+                            <p>Nhập mật khẩu hiện tại trước khi tạo mật khẩu mới.</p>
+                        </div>
                         <div class="password-section__info">Mật khẩu mới cần có ít nhất 6 ký tự.</div>
-                        <form id="passwordForm">
+                        <form id="passwordForm" class="profile-form">
                             <div class="profile-form__field">
                                 <label class="profile-form__label">Mật khẩu hiện tại</label>
-                                <div class="password-input-wrapper">
-                                    <input type="password" name="current_password" class="profile-form__input" required>
-                                    <button type="button" class="password-toggle" aria-label="Hiển thị mật khẩu" aria-pressed="false">
-                                        <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
-                                        <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
-                                    </button>
-                                </div>
+                                <input type="password" name="current_password" class="profile-form__input" required>
                             </div>
-
                             <div class="profile-form__grid">
                                 <div class="profile-form__field">
                                     <label class="profile-form__label">Mật khẩu mới</label>
-                                    <div class="password-input-wrapper">
-                                        <input type="password" name="new_password" class="profile-form__input" required minlength="6">
-                                        <button type="button" class="password-toggle" aria-label="Hiển thị mật khẩu" aria-pressed="false">
-                                            <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
-                                            <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
-                                        </button>
-                                    </div>
+                                    <input type="password" name="new_password" class="profile-form__input" required minlength="6">
                                 </div>
                                 <div class="profile-form__field">
                                     <label class="profile-form__label">Xác nhận mật khẩu mới</label>
-                                    <div class="password-input-wrapper">
-                                        <input type="password" name="confirm_password" class="profile-form__input" required>
-                                        <button type="button" class="password-toggle" aria-label="Hiển thị mật khẩu" aria-pressed="false">
-                                            <img class="eye-open" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681927-612x612_n4gfaw.jpg" alt="" aria-hidden="true">
-                                            <img class="eye-closed" src="https://res.cloudinary.com/drs7xrtxo/image/upload/v1777038652/istockphoto-1481681933-612x612_pywojy.jpg" alt="" aria-hidden="true" hidden>
-                                        </button>
-                                    </div>
+                                    <input type="password" name="confirm_password" class="profile-form__input" required>
                                 </div>
                             </div>
-
                             <button type="submit" class="profile-form__submit">Cập nhật mật khẩu</button>
                         </form>
                     </section>
+
+                    <section class="account-panel" data-account-panel="notification-settings" hidden>
+                        <div class="notification-settings">
+                            <div class="notification-settings__section">
+                                <div class="notification-settings__header">
+                                    <div>
+                                        <h1>Email thông báo</h1>
+                                        <p>Thông báo và nhắc nhở quan trọng về tài khoản sẽ không thể bị tắt</p>
+                                    </div>
+                                    <label class="switch"><input type="checkbox" checked disabled><span></span></label>
+                                </div>
+                                <div class="notification-settings__row">
+                                    <div><h2>Cập nhật đơn hàng</h2><p>Cập nhật về tình trạng vận chuyển của tất cả các đơn hàng</p></div>
+                                    <label class="switch"><input type="checkbox" data-notification-setting="email_orders" checked><span></span></label>
+                                </div>
+                                <div class="notification-settings__row">
+                                    <div><h2>Khuyến mãi</h2><p>Cập nhật về các ưu đãi và khuyến mãi sắp tới</p></div>
+                                    <label class="switch"><input type="checkbox" data-notification-setting="email_promotions" <%= user.marketing_consent ? 'checked' : '' %>><span></span></label>
+                                </div>
+                                <div class="notification-settings__row">
+                                    <div><h2>Khảo sát</h2><p>Đồng ý nhận khảo sát để chúng tôi được lắng nghe bạn</p></div>
+                                    <label class="switch"><input type="checkbox" data-notification-setting="email_surveys" checked><span></span></label>
+                                </div>
+                            </div>
+                            <div class="notification-settings__section">
+                                <div class="notification-settings__header">
+                                    <div>
+                                        <h1>Thông báo SMS</h1>
+                                        <p>Thông báo và nhắc nhở quan trọng về tài khoản sẽ không thể bị tắt</p>
+                                    </div>
+                                    <label class="switch"><input type="checkbox" checked disabled><span></span></label>
+                                </div>
+                                <div class="notification-settings__row">
+                                    <div><h2>Khuyến mãi</h2><p>Cập nhật về các ưu đãi và khuyến mãi sắp tới</p></div>
+                                    <label class="switch"><input type="checkbox" data-notification-setting="sms_promotions"><span></span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="account-panel" data-account-panel="delete-account" hidden>
+                        <div class="account-panel__header">
+                            <h1>Xóa tài khoản</h1>
+                            <p>Tài khoản sẽ được đưa vào trạng thái chờ xóa và có thể khôi phục trong 14 ngày.</p>
+                        </div>
+                        <div class="delete-account-card">
+                            <strong>Yêu cầu xóa tài khoản</strong>
+                            <p>Bạn chắc chắn muốn xóa tài khoản này chứ và bạn vẫn có thể khôi phục lại tài khoản trong vòng 14 ngày. Chỉ cần đăng nhập lại vào tài khoản này trong vòng 14 ngày là tự động khôi phục tài khoản.</p>
+                            <button type="button" class="delete-account-card__button" data-profile-action="open-delete-account">Xóa tài khoản</button>
+                        </div>
+                    </section>
+
+                    <section class="account-panel" data-account-panel="notifications" hidden>
+                        <div class="account-panel__header account-panel__header--split account-panel__header--notifications">
+                            <button type="button" class="account-panel__mark-read" data-profile-action="mark-notifications-read">Đánh dấu Đã đọc tất cả</button>
+                        </div>
+                        <div class="account-notification-list">
+                            <% if (accountOrders.length) { %>
+                                <% accountOrders.slice(0, 8).forEach((order) => { %>
+                                    <% const firstItem = Array.isArray(order.items) ? order.items[0] : null; %>
+                                    <article class="account-notification-item">
+                                        <div class="account-notification-item__thumb">
+                                            <% if (firstItem && firstItem.image_url) { %>
+                                                <img src="<%= firstItem.image_url %>" alt="<%= firstItem.product_name || 'Sản phẩm' %>">
+                                            <% } else { %>
+                                                <span><%= userInitial %></span>
+                                            <% } %>
+                                        </div>
+                                        <div class="account-notification-item__body">
+                                            <h2><%= orderNoticeTitle(order) %></h2>
+                                            <p><%= orderNoticeCopy(order) %></p>
+                                            <time><%= new Date(order.updated_at || order.created_at).toLocaleString('vi-VN') %></time>
+                                        </div>
+                                        <a href="/orders/<%= order.order_code %>/tracking">Xem Chi Tiết</a>
+                                    </article>
+                                <% }) %>
+                            <% } else { %>
+                                <div class="account-empty">Bạn chưa có thông báo đơn hàng.</div>
+                            <% } %>
+                        </div>
+                    </section>
+
+                    <section class="account-panel" data-account-panel="vouchers" hidden>
+                        <div class="account-panel__header">
+                            <h1>Kho voucher</h1>
+                            <p>Các mã giảm giá hiện có thể dùng trong cửa hàng.</p>
+                        </div>
+                        <div class="account-voucher-grid">
+                            <% if (accountVouchers.length) { %>
+                                <% accountVouchers.forEach((voucher) => { %>
+                                    <article class="account-voucher-card">
+                                        <div class="account-voucher-card__value"><%= voucherValueText(voucher) %></div>
+                                        <div>
+                                            <strong><%= voucher.name || voucher.code %></strong>
+                                            <p><%= voucher.description || 'Áp dụng cho đơn hàng đủ điều kiện.' %></p>
+                                            <small>Đơn tối thiểu <%= formatMoney(voucher.min_order_amount || 0) %><% if (voucher.end_date) { %> - HSD <%= new Date(voucher.end_date).toLocaleDateString('vi-VN') %><% } %></small>
+                                        </div>
+                                        <button type="button" data-voucher-code="<%= voucher.code %>"><%= voucher.code %></button>
+                                    </article>
+                                <% }) %>
+                            <% } else { %>
+                                <div class="account-empty">Hiện chưa có voucher khả dụng.</div>
+                            <% } %>
+                        </div>
+                    </section>
                 </div>
             </div>
+
+            <div id="newAddressForm" class="address-form-modal" hidden>
+                <div class="address-form-modal__backdrop" data-checkout-action="close-address-form"></div>
+                <div class="address-form" role="dialog" aria-modal="true" aria-labelledby="addressFormTitle">
+                    <button type="button" class="address-form__close" data-checkout-action="close-address-form" aria-label="Đóng biểu mẫu địa chỉ">
+                        <span>&times;</span>
+                    </button>
+                    <input type="hidden" id="editingAddressId" value="">
+                    <input type="hidden" id="editingAddressDefault" value="true">
+                    <h4 id="addressFormTitle" class="address-form__title">Địa chỉ mới</h4>
+                    <div class="address-form__grid">
+                        <div>
+                            <label class="address-form__label">Họ tên*</label>
+                            <input type="text" id="newFullName" placeholder="Nguyễn Văn A" class="address-form__input" minlength="2" autocomplete="name">
+                            <span id="newFullNameError" class="address-form__error"></span>
+                        </div>
+                        <div>
+                            <label class="address-form__label">Số điện thoại*</label>
+                            <input type="tel" id="newPhone" placeholder="0901234567" class="address-form__input" maxlength="10" inputmode="numeric" autocomplete="tel">
+                            <span id="newPhoneError" class="address-form__error"></span>
+                        </div>
+                    </div>
+
+                    <div class="address-form__grid-3">
+                        <div>
+                            <label class="address-form__label">Tỉnh / Thành phố*</label>
+                            <div class="address-form__select-wrapper">
+                                <select id="newCity" class="address-form__select">
+                                    <option value="">-- Chọn Tỉnh/TP --</option>
+                                </select>
+                                <input type="hidden" id="newCityName">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="address-form__label">Quận / Huyện*</label>
+                            <div class="address-form__select-wrapper">
+                                <select id="newDistrict" class="address-form__select" disabled>
+                                    <option value="">-- Chọn Quận/Huyện --</option>
+                                </select>
+                                <input type="hidden" id="newDistrictName">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="address-form__label">Phường / Xã*</label>
+                            <div class="address-form__select-wrapper">
+                                <select id="newWard" class="address-form__select" disabled>
+                                    <option value="">-- Chọn Phường/Xã --</option>
+                                </select>
+                                <input type="hidden" id="newWardName">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="address-form__field">
+                        <label class="address-form__label">Địa chỉ chi tiết*</label>
+                        <input type="text" id="newAddressLine" placeholder="Số nhà, tên đường, tòa nhà..." class="address-form__input">
+                    </div>
+
+                    <div class="address-form__actions">
+                        <button type="button" data-checkout-action="delete-address-inline" id="deleteAddressInlineBtn" class="address-form__delete" hidden>Xóa địa chỉ</button>
+                        <button type="button" data-checkout-action="save-address" id="saveAddressBtn" class="address-form__submit">Lưu địa chỉ</button>
+                    </div>
+
+                    <div class="address-form__map-section">
+                        <label class="address-form__label">Bản đồ giao hàng (tùy chọn)</label>
+                        <div id="addressMap" class="address-form__map"></div>
+                        <p class="address-form__map-hint">Bấm vào bản đồ để chọn vị trí giao hàng chính xác hơn.</p>
+                        <input type="hidden" id="newLatitude" name="latitude">
+                        <input type="hidden" id="newLongitude" name="longitude">
+                    </div>
+                </div>
+            </div>
+
+            <script type="application/json" id="checkoutBootstrapData"><%- safeJson({
+                mode: 'account-profile',
+                addresses: accountAddresses.map((addr) => ({
+                    id: addr.id,
+                    full_name: addr.full_name,
+                    phone: addr.phone,
+                    address_line: addr.address_line,
+                    ward: addr.ward,
+                    district: addr.district,
+                    city: addr.city,
+                    is_default: Boolean(addr.is_default)
+                }))
+            }) %></script>
         <% } else { %>
             <div class="empty-panel">
                 <h3>Vui lòng đăng nhập</h3>
@@ -172,6 +450,20 @@
     </div>
 </div>
 
+<div class="account-modal" id="deleteAccountModal" hidden>
+    <div class="account-modal__backdrop" data-profile-action="close-delete-account"></div>
+    <div class="account-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
+        <h2 id="deleteAccountTitle">Xóa tài khoản</h2>
+        <p>Bạn chắc chắn muốn xóa tài khoản này chứ và bạn vẫn có thể khôi phục lại tài khoản trong vòng 14 ngày. Chỉ cần đăng nhập lại vào tài khoản này trong vòng 14 ngày là tự động khôi phục tài khoản.</p>
+        <div class="account-modal__actions">
+            <button type="button" class="account-modal__cancel" data-profile-action="close-delete-account">Hủy</button>
+            <button type="button" class="account-modal__danger" id="confirmDeleteAccountBtn">Xác nhận xóa</button>
+        </div>
+    </div>
+</div>
+
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script src="/js/checkout.js"></script>
 <script src="/js/user-profile.js"></script>
 
 <%- include('../partials/footer') %>

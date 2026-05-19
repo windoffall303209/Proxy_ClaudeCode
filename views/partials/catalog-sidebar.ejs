@@ -121,7 +121,7 @@
             params.set('max_price', String(maxPrice));
         }
 
-        if (keepSort && sidebarCurrentSort && sidebarCurrentSort !== 'newest') {
+        if (keepSort && sidebarCurrentSort && !['newest', 'relevance'].includes(sidebarCurrentSort)) {
             params.set('sort', sidebarCurrentSort);
         }
 

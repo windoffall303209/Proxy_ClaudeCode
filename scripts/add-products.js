@@ -137,7 +137,7 @@ const imagesByCategory = {
 async function main() {
   console.log('🚀 Bắt đầu thêm 90 sản phẩm mới...\n');
 
-  const connection = pool;
+  const connection = await pool.getConnection();
 
   try {
     const categoryMap = { nam: 1, nu: 2, 'tre-em': 3 };
@@ -156,8 +156,7 @@ async function main() {
         // Insert product
         const [result] = await connection.execute(
           `INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, is_featured, is_active)
-           VALUES (?, ?, ?, ?, ?, 100, ?, TRUE, TRUE)
-           RETURNING id`,
+           VALUES (?, ?, ?, ?, ?, 100, ?, TRUE, TRUE)`,
           [categoryId, product.name, slug, product.desc, product.price, sku]
         );
 
@@ -184,7 +183,8 @@ async function main() {
   } catch (error) {
     console.error('❌ Lỗi:', error.message);
   } finally {
-    await connection.end();
+    connection.release();
+    await pool.end();
   }
 }
 
