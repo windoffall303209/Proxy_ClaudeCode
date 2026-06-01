@@ -60,6 +60,10 @@ function normalizeProfilePhone(value, { required = false } = {}) {
     return phone;
 }
 
+function normalizeBooleanToggle(value) {
+    return value === true || value === 'true' || value === 'on' || value === 1 || value === '1';
+}
+
 // Áp dụng cùng quy tắc strength cho mọi điểm đặt mật khẩu (đăng ký, đổi, reset).
 function validatePasswordStrength(password) {
     if (typeof password !== 'string' || !password) {
@@ -667,6 +671,48 @@ exports.updateProfile = async (req, res) => {
         });
     } catch (error) {
         res.status(400).json({ message: error.message });
+    }
+};
+
+exports.updateNotificationSettings = async (req, res) => {
+    try {
+        const setting = String(req.body?.setting || '').trim();
+        const enabled = normalizeBooleanToggle(req.body?.enabled);
+
+        if (setting !== 'email_promotions') {
+            return res.status(400).json({
+                success: false,
+                message: 'Cài đặt thông báo này chưa được hỗ trợ'
+            });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy tài khoản'
+            });
+        }
+
+        await User.updateMarketingConsent(user.id, enabled);
+
+        const Newsletter = require('../models/Newsletter');
+        await Newsletter.setUserSubscription(user.email, user.id, enabled);
+
+        return res.json({
+            success: true,
+            setting,
+            enabled,
+            message: enabled
+                ? 'Đã bật nhận email khuyến mãi'
+                : 'Đã tắt nhận email khuyến mãi'
+        });
+    } catch (error) {
+        console.error('Update notification settings error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Không thể cập nhật cài đặt thông báo. Vui lòng thử lại sau.'
+        });
     }
 };
 

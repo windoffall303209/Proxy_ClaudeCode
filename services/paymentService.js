@@ -46,7 +46,7 @@ class PaymentService {
         vnp_Params['vnp_Locale'] = 'vn';
         vnp_Params['vnp_CurrCode'] = 'VND';
         vnp_Params['vnp_TxnRef'] = orderId;
-        vnp_Params['vnp_OrderInfo'] = `Thanh toan don hang ${orderId}`;
+        vnp_Params['vnp_OrderInfo'] = `Thanh toán đơn hàng ${orderId}`;
         vnp_Params['vnp_OrderType'] = 'other';
         vnp_Params['vnp_Amount'] = amount * 100;
         vnp_Params['vnp_ReturnUrl'] = vnp_ReturnUrl;
@@ -120,7 +120,7 @@ class PaymentService {
         const notifyUrl = process.env.MOMO_NOTIFY_URL;
 
         if (!partnerCode || !accessKey || !secretKey || !endpoint || !returnUrl || !notifyUrl) {
-            throw new Error('MoMo sandbox chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh Ä‘áº§y Ä‘á»§');
+            throw new Error('MoMo sandbox chưa được cấu hình đầy đủ');
         }
 
         const orderId = order.order_code;
@@ -131,7 +131,7 @@ class PaymentService {
         const extraData = '';
 
         if (Number(amount) <= 0) {
-            throw new Error('So tien thanh toan MoMo khong hop le');
+            throw new Error('Số tiền thanh toán MoMo không hợp lệ');
         }
 
         // Create signature

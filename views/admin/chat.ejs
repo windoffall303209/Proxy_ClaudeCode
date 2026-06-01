@@ -1,5 +1,6 @@
 <%# Template admin render màn quản trị chat với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'chat', pageStyles: ['/css/chat-rich-message.css', '/css/admin/chat.css?v=image-preview-20260514'] }) %>
+<% const adminChatUnreadLabel = Number(unreadCount || 0) > 99 ? '99+' : String(Number(unreadCount || 0)); %>
 
 
 
@@ -14,7 +15,7 @@
             id="adminChatUnreadCountBadge"
             class="admin-chat-page__badge"
             <%= unreadCount > 0 ? "" : "hidden" %>
-        ><%= unreadCount %> chưa đọc</span>
+        ><%= adminChatUnreadLabel %> chưa đọc</span>
     </h1>
 
     <div class="admin-chat-layout">
@@ -22,7 +23,12 @@
             <div class="admin-chat-list__header">
                 <div>
                     <h3>Hộp thư khách hàng</h3>
-                    <p id="chatListSummary"><%= total %> cuộc trò chuyện</p>
+                    <div class="admin-chat-list__filters" id="chatListFilters" role="tablist" aria-label="Lọc cuộc trò chuyện">
+                        <button type="button" class="admin-chat-list__filter active" data-filter="all">Tất cả</button>
+                        <button type="button" class="admin-chat-list__filter" data-filter="unread">Chưa đọc</button>
+                        <button type="button" class="admin-chat-list__filter" data-filter="ai">AI</button>
+                        <button type="button" class="admin-chat-list__filter" data-filter="manual">Người</button>
+                    </div>
                 </div>
                 <div class="admin-chat-list__search">
                     <input

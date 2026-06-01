@@ -1,14 +1,13 @@
--- PostgreSQL migration: create review_media.
-CREATE TABLE IF NOT EXISTS review_media (
-    id SERIAL PRIMARY KEY,
+-- File migrations/004_create_review_media.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
+CREATE TABLE review_media (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     review_id INT NOT NULL,
-    media_type VARCHAR(50) NOT NULL CHECK (media_type IN ('image', 'video')),
+    media_type ENUM('image', 'video') NOT NULL,
     media_url VARCHAR(500) NOT NULL,
     public_id VARCHAR(255) NULL,
     display_order INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_review_media_review
-        FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE
+        FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE,
+    INDEX idx_review_media_review (review_id)
 );
-
-CREATE INDEX IF NOT EXISTS review_media_idx_review ON review_media (review_id);

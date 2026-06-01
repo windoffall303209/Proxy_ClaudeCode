@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu address trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu address trong MySQL.
 const pool = require('../config/database');
 
 class Address {

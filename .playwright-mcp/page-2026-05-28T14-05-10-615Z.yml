@@ -1,0 +1,42 @@
+- main [ref=e2]:
+  - generic "Thanh truy cập quản trị" [ref=e3]:
+    - link "WIND OF FALL" [ref=e4] [cursor=pointer]:
+      - /url: /
+      - img "WIND OF FALL" [ref=e5]
+      - generic [ref=e6]:
+        - strong [ref=e7]: WIND OF FALL
+        - generic [ref=e8]: Không gian quản trị
+    - link "Về cửa hàng" [ref=e9] [cursor=pointer]:
+      - /url: /
+  - region "Đăng nhập để vận hành cửa hàng." [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e12]: Khu vực quản trị
+      - heading "Đăng nhập để vận hành cửa hàng." [level=1] [ref=e13]
+      - paragraph [ref=e14]: Không gian riêng cho đội ngũ quản trị sản phẩm, đơn hàng, nội dung và chăm sóc khách hàng.
+      - list [ref=e15]:
+        - listitem [ref=e16]: Chỉ tài khoản admin đã được cấp quyền mới hợp lệ
+        - listitem [ref=e17]: Google OAuth quay về callback riêng của admin
+        - listitem [ref=e18]: Sau xác thực sẽ chuyển thẳng vào bảng điều khiển
+    - generic [ref=e19]:
+      - heading "Đăng nhập Admin" [level=2] [ref=e20]
+      - paragraph [ref=e21]: Dùng email, mật khẩu hoặc tài khoản Google đã được cấp quyền admin.
+      - paragraph
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Email quản trị
+          - textbox "Email quản trị" [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]: Mật khẩu
+          - generic [ref=e28]:
+            - textbox "Mật khẩu" [ref=e29]
+            - button "Hiển thị mật khẩu" [ref=e30] [cursor=pointer]:
+              - img
+        - button "Đăng nhập" [ref=e31] [cursor=pointer]
+      - generic [ref=e33]: hoặc
+      - link "Google Tiếp tục với Google" [ref=e34] [cursor=pointer]:
+        - /url: /admin/google?redirect=%2Fadmin%2Fdashboard
+        - img "Google" [ref=e35]
+        - generic [ref=e36]: Tiếp tục với Google
+      - generic [ref=e37]:
+        - strong [ref=e38]: "Lưu ý:"
+        - text: tài khoản người dùng hoặc Google chưa có quyền admin sẽ bị từ chối.

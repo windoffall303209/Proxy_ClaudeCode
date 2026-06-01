@@ -1,6 +1,7 @@
 // Điều phối tương tác trình duyệt cho chat định dạng nâng cao tin nhắn, tách khỏi template EJS.
 (function initChatRichMessage(global) {
     const CHAT_LINK_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+|\/(?:products|cart|checkout|chat|auth|admin|orders)[^\s<]*)/gi;
+    const CHAT_MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(((?:https?:\/\/|www\.|\/(?:products|cart|checkout|chat|auth|admin|orders))[^\s)]*)\)/gi;
 
     // Chuẩn hóa chat link.
     function normalizeChatLink(rawValue) {
@@ -31,19 +32,20 @@
 
         lines.forEach((line, lineIndex) => {
             let lastIndex = 0;
+            const combinedPattern = new RegExp(`${CHAT_MARKDOWN_LINK_PATTERN.source}|${CHAT_LINK_PATTERN.source}`, 'gi');
 
-            line.replace(CHAT_LINK_PATTERN, (match, _group, offset) => {
+            line.replace(combinedPattern, (match, markdownText, markdownHref, rawLink, offset) => {
                 if (offset > lastIndex) {
                     container.appendChild(document.createTextNode(line.slice(lastIndex, offset)));
                 }
 
-                const normalized = normalizeChatLink(match);
+                const normalized = normalizeChatLink(markdownHref || rawLink || match);
                 if (!normalized) {
                     container.appendChild(document.createTextNode(match));
                 } else {
                     const link = document.createElement('a');
                     link.href = normalized.href;
-                    link.textContent = normalized.text;
+                    link.textContent = markdownText || normalized.text;
                     link.target = normalized.href.startsWith('/') ? '_self' : '_blank';
                     if (link.target === '_blank') {
                         link.rel = 'noopener noreferrer';

@@ -222,8 +222,8 @@ async function fetchRagProducts() {
                s.type AS sale_type,
                s.value AS sale_value,
                s.name AS sale_name,
-               STRING_AGG(DISTINCT NULLIF(TRIM(pv.color), ''), ', ' ORDER BY NULLIF(TRIM(pv.color), '')) AS variant_colors,
-               STRING_AGG(DISTINCT NULLIF(TRIM(pv.size), ''), ', ' ORDER BY NULLIF(TRIM(pv.size), '')) AS variant_sizes
+               GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.color), '') ORDER BY pv.color SEPARATOR ', ') AS variant_colors,
+               GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.size), '') ORDER BY pv.size SEPARATOR ', ') AS variant_sizes
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN sales s ON p.sale_id = s.id
@@ -231,7 +231,7 @@ async function fetchRagProducts() {
             AND NOW() BETWEEN s.start_date AND s.end_date
         LEFT JOIN product_variants pv ON pv.product_id = p.id
         WHERE p.is_active = TRUE
-        GROUP BY p.id, c.name, c.slug, s.type, s.value, s.name
+        GROUP BY p.id
         ORDER BY p.id ASC
     `);
 
@@ -298,13 +298,13 @@ function buildProductChunks(product) {
         ...sizes
     ]);
     const sharedLines = [
-        `Ten san pham: ${product.name}`,
-        product.category_name ? `Danh muc: ${product.category_name}` : '',
-        colors.length ? `Mau sac: ${colors.join(', ')}` : '',
-        sizes.length ? `Kich thuoc: ${sizes.join(', ')}` : '',
-        `Gia hien tai: ${Number(product.final_price || product.price || 0).toLocaleString('vi-VN')}d`
+        `Tên sản phẩm: ${product.name}`,
+        product.category_name ? `Danh mục: ${product.category_name}` : '',
+        colors.length ? `Màu sắc: ${colors.join(', ')}` : '',
+        sizes.length ? `Kích thước: ${sizes.join(', ')}` : '',
+        `Giá hiện tại: ${Number(product.final_price || product.price || 0).toLocaleString('vi-VN')}đ`
     ].filter(Boolean);
-    const keywordLine = keywords.length ? `Tu khoa: ${keywords.join(', ')}` : '';
+    const keywordLine = keywords.length ? `Từ khóa: ${keywords.join(', ')}` : '';
     const sourceType = 'product';
     const sourceKey = `product:${product.id}`;
     const metadata = {
@@ -327,7 +327,7 @@ function buildProductChunks(product) {
             ? sharedPrefix
             : (splitOversizedText(summaryPrefixCandidate, DEFAULT_EMBEDDING_CHUNK_TOKENS)[0] || sharedPrefix));
     const baseContent = baseDescription
-        ? `${summaryPrefix}\nMo ta: ${baseDescription}`
+        ? `${summaryPrefix}\nMô tả: ${baseDescription}`
         : summaryPrefix;
 
     if (estimateTokenCount(baseContent) <= DEFAULT_EMBEDDING_CHUNK_TOKENS) {
@@ -375,7 +375,7 @@ function buildProductChunks(product) {
         sourceId: product.id,
         chunkKey: `detail-${index + 1}`,
         title: product.name,
-        content: `${detailPrefix}\nMo ta chi tiet (${index + 1}/${descriptionChunks.length}): ${descriptionChunk}`,
+        content: `${detailPrefix}\nMô tả chi tiết (${index + 1}/${descriptionChunks.length}): ${descriptionChunk}`,
         metadata: {
             ...metadata,
             chunkType: 'detail',
@@ -697,8 +697,8 @@ async function retrieveChatRagContext(query, options = {}) {
         .map((chunk) => ({
             ...chunk,
             reason: chunk.metadata?.categoryName
-                ? `gan voi ${chunk.metadata.categoryName.toLowerCase()}`
-                : 'gan voi nhu cau tim kiem'
+                ? `gần với ${chunk.metadata.categoryName.toLowerCase()}`
+                : 'gần với nhu cầu tìm kiếm'
         }));
 
     const knowledgeMatches = scoredChunks

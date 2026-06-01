@@ -58,6 +58,43 @@
                 </div>
             </div>
 
+            <% if (orderRisk) { %>
+                <div class="admin-section admin-section--spaced">
+                    <h3 class="admin-section__title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 9v4"/>
+                            <path d="M12 17h.01"/>
+                            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        </svg>
+                        AI đánh giá rủi ro đơn hàng
+                    </h3>
+                    <div class="summary-list">
+                        <div class="summary-item">
+                            <span>Mức rủi ro</span>
+                            <span>
+                                <span class="admin-table__badge admin-table__badge--<%= orderRisk.risk_level === 'high' ? 'cancelled' : (orderRisk.risk_level === 'medium' ? 'pending' : 'delivered') %>">
+                                    <%= orderRisk.risk_level %> · <%= orderRisk.risk_score %>/100
+                                </span>
+                            </span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Tóm tắt</span>
+                            <span><%= orderRisk.ai_summary || 'Không có dấu hiệu rủi ro đáng kể.' %></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Hành động</span>
+                            <span><%= orderRisk.recommended_action || 'Xử lý theo quy trình thông thường.' %></span>
+                        </div>
+                    </div>
+                    <% if (Array.isArray(orderRisk.reasons) && orderRisk.reasons.length) { %>
+                        <div class="order-detail__tracking-note">
+                            <strong>Lý do</strong>
+                            <p><%= orderRisk.reasons.map((reason) => reason.label + (reason.detail ? ': ' + reason.detail : '')).join(' · ') %></p>
+                        </div>
+                    <% } %>
+                </div>
+            <% } %>
+
             <div class="order-detail-grid">
                 <div class="admin-section">
                     <h3 class="admin-section__title">
@@ -96,7 +133,7 @@
                         </div>
                         <div class="info-item">
                             <span class="info-item__label">SĐT</span>
-                            <span class="info-item__value"><%= order.shipping_phone ? privacy.maskPhone(order.shipping_phone) : 'N/A' %></span>
+                            <span class="info-item__value"><%= order.shipping_phone || 'N/A' %></span>
                         </div>
                         <div class="info-item">
                             <span class="info-item__label">Địa chỉ</span>

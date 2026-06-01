@@ -2,7 +2,7 @@
  * Script bổ sung sản phẩm cho đủ 90 mỗi loại
  * Chạy: node scripts/add-more-products.js
  */
-const pool = require('../config/database');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const moreProductsNu = [
@@ -73,7 +73,13 @@ const imagesTreEm = [
 async function main() {
   console.log('🚀 Bổ sung sản phẩm cho đủ 90 mỗi loại...\n');
 
-  const connection = await pool.getConnection();
+  const connection = await mysql.createConnection({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'tmdt_ecommerce',
+    port: process.env.DB_PORT || 3306
+  });
 
   try {
     // Thêm cho nữ (category_id = 2)
@@ -83,20 +89,21 @@ async function main() {
       const slug = product.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
       const sku = 'PRD-NU-' + Date.now();
 
-      const [insertResult] = await connection.execute(
+      await connection.execute(
         `INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, is_featured, is_active)
          VALUES (2, ?, ?, ?, ?, 100, ?, TRUE, TRUE)`,
         [product.name, slug, product.desc, product.price, sku]
       );
 
-      const productId = insertResult.insertId;
+      const [result] = await connection.execute('SELECT LAST_INSERT_ID() as id');
+      const productId = result[0].id;
 
       const numImages = Math.floor(Math.random() * 2) + 5;
       for (let j = 0; j < numImages; j++) {
         await connection.execute(
           `INSERT INTO product_images (product_id, image_url, is_primary, display_order)
            VALUES (?, ?, ?, ?)`,
-          [productId, imagesNu[j % imagesNu.length], j === 0, j]
+          [productId, imagesNu[j % imagesNu.length], j === 0 ? 1 : 0, j]
         );
       }
       console.log(`  ✅ ${product.name}`);
@@ -109,20 +116,21 @@ async function main() {
       const slug = product.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
       const sku = 'PRD-TE-' + Date.now();
 
-      const [insertResult] = await connection.execute(
+      await connection.execute(
         `INSERT INTO products (category_id, name, slug, description, price, stock_quantity, sku, is_featured, is_active)
          VALUES (3, ?, ?, ?, ?, 100, ?, TRUE, TRUE)`,
         [product.name, slug, product.desc, product.price, sku]
       );
 
-      const productId = insertResult.insertId;
+      const [result] = await connection.execute('SELECT LAST_INSERT_ID() as id');
+      const productId = result[0].id;
 
       const numImages = Math.floor(Math.random() * 2) + 5;
       for (let j = 0; j < numImages; j++) {
         await connection.execute(
           `INSERT INTO product_images (product_id, image_url, is_primary, display_order)
            VALUES (?, ?, ?, ?)`,
-          [productId, imagesTreEm[j % imagesTreEm.length], j === 0, j]
+          [productId, imagesTreEm[j % imagesTreEm.length], j === 0 ? 1 : 0, j]
         );
       }
       console.log(`  ✅ ${product.name}`);
@@ -133,8 +141,7 @@ async function main() {
   } catch (error) {
     console.error('❌ Lỗi:', error.message);
   } finally {
-    connection.release();
-    await pool.end();
+    await connection.end();
   }
 }
 

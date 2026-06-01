@@ -23,6 +23,37 @@ function initRecentLimitSelector() {
     return select;
 }
 
+function initDashboardPeriodForm() {
+    const form = document.querySelector('[data-dashboard-period-form]');
+    if (!form) {
+        return;
+    }
+
+    const modeSelect = form.querySelector('[data-dashboard-period-mode]');
+    const inputs = Array.from(form.querySelectorAll('[data-dashboard-period-input]'));
+
+    function syncVisibleInput() {
+        const mode = modeSelect?.value || 'month';
+        inputs.forEach((input) => {
+            const isActive = input.dataset.dashboardPeriodInput === mode;
+            input.hidden = !isActive;
+            input.disabled = !isActive;
+        });
+    }
+
+    function submitPeriod() {
+        syncVisibleInput();
+        form.requestSubmit();
+    }
+
+    syncVisibleInput();
+
+    modeSelect?.addEventListener('change', submitPeriod);
+    inputs.forEach((input) => {
+        input.addEventListener('change', submitPeriod);
+    });
+}
+
 // Xử lý resize canvas.
 function resizeCanvas(canvas) {
     const pixelRatio = window.devicePixelRatio || 1;
@@ -300,6 +331,8 @@ function renderRecentOrders(orders, limit) {
 
 // Khởi tạo quản trị tổng quan trang.
 function initAdminDashboardPage() {
+    initDashboardPeriodForm();
+
     document.querySelectorAll('[data-dashboard-action="refresh"]').forEach((button) => {
         button.addEventListener('click', () => {
             window.location.reload();

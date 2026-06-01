@@ -136,10 +136,10 @@ function createCategoryImportTemplateBuffer() {
     return createWorkbookBuffer([
         {
             id: '',
-            name: 'Ao khoac nu',
+            name: 'Áo khoác nữ',
             slug: 'ao-khoac-nu',
             parent_slug: 'nu',
-            description: 'Danh muc ao khoac cho nu',
+            description: 'Danh mục áo khoác cho nữ',
             image_url: '',
             display_order: 0
         }

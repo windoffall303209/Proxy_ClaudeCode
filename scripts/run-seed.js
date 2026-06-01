@@ -1,92 +1,86 @@
 /**
- * Script de tao schema va import seed data cho PostgreSQL.
- * Chay: node scripts/run-seed.js
+ * Script để chạy seed data vào database
+ * Chạy: node scripts/run-seed.js
  */
 
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const DB_NAME = process.env.DB_NAME || 'tmdt_ecommerce';
+// Xử lý run seed.
+async function runSeed() {
+    console.log('🌱 Bắt đầu seed database...\n');
 
-function adminPool() {
-    return new Pool({
+    const connection = await mysql.createConnection({
         host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'postgres',
+        user: process.env.DB_USER || 'root',
         password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_ADMIN_DATABASE || 'postgres',
-        port: Number.parseInt(process.env.DB_PORT, 10) || 5432,
-        connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000
+        port: process.env.DB_PORT || 3306,
+        multipleStatements: true
     });
-}
 
-function appPool() {
-    return new Pool({
-        host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || '',
-        database: DB_NAME,
-        port: Number.parseInt(process.env.DB_PORT, 10) || 5432,
-        connectionTimeoutMillis: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS, 10) || 60000
-    });
-}
-
-async function ensureDatabase() {
-    const pool = adminPool();
     try {
-        const { rows } = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [DB_NAME]);
-        if (rows.length > 0) {
-            console.log(`Database ${DB_NAME} da ton tai`);
-            return;
+        // Check if database exists
+        console.log('📦 Kiểm tra database...');
+        const [databases] = await connection.execute("SHOW DATABASES LIKE 'tmdt_ecommerce'");
+        
+        if (databases.length === 0) {
+            console.log('⚠️ Database tmdt_ecommerce chưa tồn tại. Đang tạo...');
+            await connection.execute('CREATE DATABASE IF NOT EXISTS tmdt_ecommerce');
+            console.log('✅ Đã tạo database tmdt_ecommerce');
+            
+            // Run schema
+            console.log('\n📋 Đang tạo schema...');
+            const schemaPath = path.join(__dirname, '../database/schema.sql');
+            const schema = fs.readFileSync(schemaPath, 'utf8');
+            await connection.query(schema);
+            console.log('✅ Đã tạo schema');
+        } else {
+            console.log('✅ Database đã tồn tại');
         }
 
-        const escapedName = DB_NAME.replace(/"/g, '""');
-        await pool.query(`CREATE DATABASE "${escapedName}"`);
-        console.log(`Da tao database ${DB_NAME}`);
-    } finally {
-        await pool.end();
-    }
-}
+        // Use the database
+        await connection.query('USE tmdt_ecommerce');
 
-async function runSqlFile(pool, relativePath) {
-    const sqlPath = path.join(__dirname, '..', relativePath);
-    const sql = fs.readFileSync(sqlPath, 'utf8');
-    await pool.query(sql);
-}
+        // Check if categories table has data
+        const [categories] = await connection.execute('SELECT COUNT(*) as count FROM categories');
+        
+        if (categories[0].count === 0) {
+            // Run seed
+            console.log('\n🌱 Đang import seed data...');
+            const seedPath = path.join(__dirname, '../database/seed.sql');
+            const seed = fs.readFileSync(seedPath, 'utf8');
+            await connection.query(seed);
+            console.log('✅ Đã import seed data thành công!');
+        } else {
+            console.log(`✅ Database đã có ${categories[0].count} categories, không cần seed lại.`);
+        }
 
-async function runSeed() {
-    console.log('Bat dau tao PostgreSQL schema va seed data...\\n');
-
-    await ensureDatabase();
-
-    const pool = appPool();
-    try {
-        console.log('Dang tao schema...');
-        await runSqlFile(pool, 'database/schema.sql');
-        console.log('Da tao schema');
-
-        console.log('Dang import seed data...');
-        await runSqlFile(pool, 'database/seed.sql');
-        console.log('Da import seed data');
-
-        const [{ rows: catCount }, { rows: prodCount }, { rows: userCount }] = await Promise.all([
-            pool.query('SELECT COUNT(*)::int AS count FROM categories'),
-            pool.query('SELECT COUNT(*)::int AS count FROM products'),
-            pool.query('SELECT COUNT(*)::int AS count FROM users')
-        ]);
-
-        console.log('\\nTom tat database:');
+        // Display summary
+        console.log('\n📊 Tóm tắt database:');
+        const [catCount] = await connection.execute('SELECT COUNT(*) as count FROM categories');
+        const [prodCount] = await connection.execute('SELECT COUNT(*) as count FROM products');
+        const [userCount] = await connection.execute('SELECT COUNT(*) as count FROM users');
+        
         console.log(`   - Categories: ${catCount[0].count}`);
         console.log(`   - Products: ${prodCount[0].count}`);
         console.log(`   - Users: ${userCount[0].count}`);
-        console.log('\\nSeed hoan tat!');
+        
+        console.log('\n✅ Seed hoàn tất!');
+        console.log('🚀 Bạn có thể refresh lại trang http://localhost:3000 để xem sản phẩm.');
+
     } catch (error) {
-        console.error('Loi:', error.message);
-        throw error;
+        console.error('❌ Lỗi:', error.message);
+        
+        if (error.message.includes('ER_NO_SUCH_TABLE')) {
+            console.log('\n💡 Gợi ý: Có vẻ như tables chưa được tạo. Hãy chạy schema.sql trước:');
+            console.log('   mysql -u root -p < database/schema.sql');
+            console.log('   mysql -u root -p < database/seed.sql');
+        }
     } finally {
-        await pool.end();
+        await connection.end();
     }
 }
 
-runSeed().catch(() => process.exit(1));
+runSeed();

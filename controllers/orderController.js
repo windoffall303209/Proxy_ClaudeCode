@@ -21,6 +21,9 @@ const Payment = require('../models/Payment');
 const ReturnRequest = require('../models/ReturnRequest');
 const paymentService = require('../services/paymentService');
 const emailService = require('../services/emailService');
+const { scheduleOrderPurchaseEvents } = require('../services/recommendationService');
+const { scheduleOrderRiskAssessment } = require('../services/orderRiskService');
+const { scheduleInventoryForecastRefresh } = require('../services/inventoryForecastService');
 const {
     cleanupUploadedReturnMedia,
     MAX_RETURN_IMAGES,
@@ -628,6 +631,9 @@ exports.createOrder = async (req, res) => {
         // Lấy thông tin đầy đủ của đơn hàng
         let order = await Order.findById(orderResult.id);
         order = await confirmZeroPayableOrder(order);
+        scheduleOrderPurchaseEvents({ userId: req.user.id, sessionId: req.sessionID || null, orderId: order.id });
+        scheduleOrderRiskAssessment(order.id);
+        scheduleInventoryForecastRefresh();
         sendAdminNewOrderAsync(order);
 
         // Gửi email xác nhận đơn hàng (async)
@@ -1430,6 +1436,9 @@ exports.createBuyNowOrder = async (req, res) => {
         // Lấy thông tin đầy đủ đơn hàng
         let order = await Order.findById(orderResult.id);
         order = await confirmZeroPayableOrder(order);
+        scheduleOrderPurchaseEvents({ userId: req.user.id, sessionId: req.sessionID || null, orderId: order.id });
+        scheduleOrderRiskAssessment(order.id);
+        scheduleInventoryForecastRefresh();
         sendAdminNewOrderAsync(order);
 
         // Gửi email xác nhận

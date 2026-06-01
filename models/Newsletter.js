@@ -10,6 +10,10 @@
 const pool = require('../config/database');
 
 class Newsletter {
+    static normalizeEmail(email) {
+        return String(email || '').trim().toLowerCase();
+    }
+
     /**
      * Đăng ký email nhận tin khuyến mãi
      *
@@ -19,6 +23,8 @@ class Newsletter {
      * @returns {Promise<Object>} Thông tin đăng ký
      */
     static async subscribe(email, userId = null) {
+        email = this.normalizeEmail(email);
+
         // Kiểm tra email đã đăng ký chưa
         const existing = await this.findByEmail(email);
 
@@ -55,6 +61,8 @@ class Newsletter {
      * @returns {Promise<Object>} Kết quả hủy đăng ký
      */
     static async unsubscribe(email) {
+        email = this.normalizeEmail(email);
+
         const existing = await this.findByEmail(email);
 
         if (!existing || !existing.is_active) {
@@ -77,9 +85,39 @@ class Newsletter {
      * @returns {Promise<Object|null>} Thông tin đăng ký hoặc null
      */
     static async findByEmail(email) {
+        email = this.normalizeEmail(email);
         const query = 'SELECT * FROM newsletter_subscribers WHERE email = ?';
         const [rows] = await pool.execute(query, [email]);
         return rows[0] || null;
+    }
+
+    static async setUserSubscription(email, userId, isActive) {
+        const normalizedEmail = this.normalizeEmail(email);
+        if (!normalizedEmail || !userId) {
+            throw new Error('Thiếu thông tin đăng ký nhận tin');
+        }
+
+        const existing = await this.findByEmail(normalizedEmail);
+        if (existing) {
+            await pool.execute(
+                `UPDATE newsletter_subscribers
+                 SET user_id = COALESCE(user_id, ?),
+                     is_active = ?,
+                     unsubscribed_at = CASE WHEN ? THEN NULL ELSE NOW() END
+                 WHERE email = ?`,
+                [userId, Boolean(isActive), Boolean(isActive), normalizedEmail]
+            );
+            return;
+        }
+
+        if (!isActive) {
+            return;
+        }
+
+        await pool.execute(
+            'INSERT INTO newsletter_subscribers (email, user_id, is_active, subscribed_at, unsubscribed_at) VALUES (?, ?, TRUE, NOW(), NULL)',
+            [normalizedEmail, userId]
+        );
     }
 
     /**

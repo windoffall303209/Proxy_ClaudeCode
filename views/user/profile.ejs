@@ -8,6 +8,7 @@
 <%
     const userInitial = String(user?.full_name || user?.email || 'U').trim().charAt(0).toUpperCase();
     const maskedProfilePhone = user?.phone ? privacy.maskPhone(user.phone) : '';
+    const hasProfilePhone = Boolean(String(user?.phone || '').trim());
     const accountAddresses = Array.isArray(typeof addresses !== 'undefined' ? addresses : null) ? addresses : [];
     const accountOrders = Array.isArray(typeof recentOrders !== 'undefined' ? recentOrders : null) ? recentOrders : [];
     const accountVouchers = Array.isArray(typeof vouchers !== 'undefined' ? vouchers : null) ? vouchers : [];
@@ -275,13 +276,16 @@
                                 <div class="notification-settings__header">
                                     <div>
                                         <h1>Thông báo SMS</h1>
-                                        <p>Thông báo và nhắc nhở quan trọng về tài khoản sẽ không thể bị tắt</p>
+                                        <p><%= hasProfilePhone ? 'SMS đang tắt mặc định. Hệ thống hiện chưa gửi thông báo SMS tự động.' : 'SMS đang tắt mặc định vì hồ sơ chưa có số điện thoại.' %></p>
                                     </div>
-                                    <label class="switch"><input type="checkbox" checked disabled><span></span></label>
+                                    <label class="switch"><input type="checkbox" disabled><span></span></label>
                                 </div>
                                 <div class="notification-settings__row">
-                                    <div><h2>Khuyến mãi</h2><p>Cập nhật về các ưu đãi và khuyến mãi sắp tới</p></div>
-                                    <label class="switch"><input type="checkbox" data-notification-setting="sms_promotions"><span></span></label>
+                                    <div>
+                                        <h2>Khuyến mãi</h2>
+                                        <p><%= hasProfilePhone ? 'SMS khuyến mãi đang tắt mặc định và chưa được hỗ trợ.' : 'Chưa có số điện thoại để nhận SMS khuyến mãi.' %></p>
+                                    </div>
+                                    <label class="switch"><input type="checkbox" data-notification-setting="sms_promotions" disabled><span></span></label>
                                 </div>
                             </div>
                         </div>

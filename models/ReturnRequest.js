@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu returnrequest trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu returnrequest trong MySQL.
 const pool = require('../config/database');
 
 const RETURN_STATUSES = ['pending', 'approved', 'rejected', 'resolved'];

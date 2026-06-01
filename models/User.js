@@ -196,7 +196,7 @@ class User {
             `UPDATE users
              SET is_active = FALSE,
                  account_deleted_at = NOW(),
-                 account_delete_expires_at = NOW() + INTERVAL '14 days'
+                 account_delete_expires_at = DATE_ADD(NOW(), INTERVAL 14 DAY)
              WHERE id = ?`,
             [userId]
         );

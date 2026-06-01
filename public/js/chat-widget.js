@@ -10,9 +10,17 @@ const chatState = window.__tmdtChatWidgetState || (window.__tmdtChatWidgetState 
     initialized: false,
     badgeRequest: null,
     expanded: false,
-    attachmentPreviewUrls: []
+    attachmentPreviewUrls: [],
+    speechRecognition: null,
+    speechListening: false,
+    speechSupported: false,
+    speechBaseText: ''
 });
 chatState.attachmentPreviewUrls = chatState.attachmentPreviewUrls || [];
+chatState.speechRecognition = chatState.speechRecognition || null;
+chatState.speechListening = Boolean(chatState.speechListening);
+chatState.speechSupported = Boolean(chatState.speechSupported);
+chatState.speechBaseText = chatState.speechBaseText || '';
 
 // Lấy chat elements.
 function getChatElements() {
@@ -24,6 +32,7 @@ function getChatElements() {
         input: document.getElementById('chatInput'),
         sendButton: document.getElementById('chatSendBtn'),
         attachButton: document.getElementById('chatAttachBtn'),
+        micButton: document.getElementById('chatMicBtn'),
         fileInput: document.getElementById('chatMediaInput'),
         attachmentPreview: document.getElementById('chatAttachmentPreview'),
         attachmentPreviewMedia: document.getElementById('chatAttachmentPreviewMedia'),
@@ -49,7 +58,7 @@ function updateChatBadge(count) {
     }
 
     badge.hidden = false;
-    badge.textContent = String(count);
+    badge.textContent = count > 99 ? '99+' : String(count);
 }
 
 // Kiểm tra chat trang visible.
@@ -129,11 +138,7 @@ function scrollToBottom() {
 // Tạo dữ liệu tin nhắn label.
 function buildMessageLabel(type) {
     if (type === 'admin') {
-        return 'Admin';
-    }
-
-    if (type === 'bot') {
-        return 'Trợ lý AI';
+        return '';
     }
 
     if (type === 'system') {
@@ -405,6 +410,147 @@ function hideTyping() {
     }
 }
 
+function getSpeechRecognitionConstructor() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function syncSpeechButtonState() {
+    const { micButton } = getChatElements();
+    if (!micButton) {
+        return;
+    }
+
+    micButton.classList.toggle('is-listening', chatState.speechListening);
+    micButton.setAttribute('aria-pressed', chatState.speechListening ? 'true' : 'false');
+
+    if (!chatState.speechSupported) {
+        micButton.disabled = true;
+        micButton.title = 'Trình duyệt chưa hỗ trợ nhập bằng giọng nói';
+        micButton.setAttribute('aria-label', 'Trình duyệt chưa hỗ trợ nhập bằng giọng nói');
+        return;
+    }
+
+    micButton.disabled = false;
+    micButton.title = chatState.speechListening ? 'Dừng nhập giọng nói' : 'Nhập bằng giọng nói';
+    micButton.setAttribute('aria-label', chatState.speechListening ? 'Dừng nhập giọng nói' : 'Nhập bằng giọng nói');
+}
+
+function buildSpeechInputValue(transcript) {
+    const baseText = chatState.speechBaseText.trim();
+    const nextText = String(transcript || '').replace(/\s+/g, ' ').trim();
+
+    if (!baseText) {
+        return nextText;
+    }
+
+    if (!nextText) {
+        return baseText;
+    }
+
+    return `${baseText} ${nextText}`;
+}
+
+function stopSpeechRecognition() {
+    if (!chatState.speechRecognition || !chatState.speechListening) {
+        return;
+    }
+
+    try {
+        chatState.speechRecognition.stop();
+    } catch (error) {
+        chatState.speechListening = false;
+        syncSpeechButtonState();
+    }
+}
+
+function initSpeechRecognition() {
+    const SpeechRecognition = getSpeechRecognitionConstructor();
+    chatState.speechSupported = Boolean(SpeechRecognition);
+
+    if (!SpeechRecognition) {
+        syncSpeechButtonState();
+        return null;
+    }
+
+    if (chatState.speechRecognition) {
+        syncSpeechButtonState();
+        return chatState.speechRecognition;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+        const { input } = getChatElements();
+        chatState.speechBaseText = input?.value || '';
+        chatState.speechListening = true;
+        syncSpeechButtonState();
+    };
+
+    recognition.onresult = (event) => {
+        const { input } = getChatElements();
+        if (!input) {
+            return;
+        }
+
+        let transcript = '';
+        for (let index = 0; index < event.results.length; index += 1) {
+            transcript += event.results[index][0]?.transcript || '';
+        }
+
+        input.value = buildSpeechInputValue(transcript);
+    };
+
+    recognition.onerror = (event) => {
+        chatState.speechListening = false;
+        syncSpeechButtonState();
+
+        const errorMessages = {
+            'audio-capture': 'Không tìm thấy micro trên thiết bị.',
+            'not-allowed': 'Trình duyệt chưa được cấp quyền micro.',
+            'service-not-allowed': 'Trình duyệt đang chặn nhập bằng giọng nói.',
+            'no-speech': 'Chưa nhận được giọng nói, bạn thử nói lại nhé.'
+        };
+        const message = errorMessages[event?.error];
+        if (message) {
+            appendMessage('system', message, new Date().toISOString());
+        }
+    };
+
+    recognition.onend = () => {
+        chatState.speechListening = false;
+        syncSpeechButtonState();
+        getChatElements().input?.focus();
+    };
+
+    chatState.speechRecognition = recognition;
+    syncSpeechButtonState();
+    return recognition;
+}
+
+function toggleVoiceInput() {
+    const recognition = initSpeechRecognition();
+    if (!recognition) {
+        appendMessage('system', 'Trình duyệt hiện chưa hỗ trợ nhập bằng giọng nói.', new Date().toISOString());
+        return;
+    }
+
+    if (chatState.speechListening) {
+        stopSpeechRecognition();
+        return;
+    }
+
+    try {
+        recognition.start();
+    } catch (error) {
+        chatState.speechListening = false;
+        syncSpeechButtonState();
+    }
+}
+
 // Đồng bộ input state.
 function syncInputState() {
     const { input, sendButton, attachButton } = getChatElements();
@@ -415,11 +561,12 @@ function syncInputState() {
     const isManualMode = chatState.conversation?.handling_mode === 'manual';
     input.placeholder = isManualMode
         ? 'Nhập tin nhắn để admin hỗ trợ...'
-        : 'Nhập tin nhắn...';
+        : 'Hỏi bất cứ điều gì';
 
     input.disabled = false;
     sendButton.disabled = false;
     attachButton.disabled = false;
+    syncSpeechButtonState();
 }
 
 // Xử lý describe selected tệp.
@@ -580,6 +727,7 @@ async function loadChatHistory() {
 // Gửi chat tin nhắn.
 async function sendChatMessage(event) {
     event.preventDefault();
+    stopSpeechRecognition();
 
     const { input, sendButton, attachButton, fileInput } = getChatElements();
     if (!input || !sendButton || !attachButton || !fileInput) {
@@ -814,6 +962,7 @@ function initChatWidget() {
     const {
         toggleButton,
         attachButton,
+        micButton,
         fileInput,
         attachmentClearButton,
         expandButton
@@ -824,17 +973,20 @@ function initChatWidget() {
     }
 
     chatState.initialized = true;
+    initSpeechRecognition();
     runChatTaskWhenIdle(() => refreshChatBadge());
     syncExpandButton();
     toggleButton.addEventListener('click', toggleChatWidget);
     document.querySelector('.chat-widget__close')?.addEventListener('click', toggleChatWidget);
     document.getElementById('chatForm')?.addEventListener('submit', sendChatMessage);
     attachButton?.addEventListener('click', () => fileInput?.click());
+    micButton?.addEventListener('click', toggleVoiceInput);
     fileInput?.addEventListener('change', updateAttachmentPreview);
     attachmentClearButton?.addEventListener('click', clearAttachmentSelection);
     expandButton?.addEventListener('click', toggleChatExpand);
     document.addEventListener('visibilitychange', syncChatAfterFocus);
     window.addEventListener('pagehide', revokeAttachmentPreviewUrls, { passive: true });
+    window.addEventListener('pagehide', stopSpeechRecognition, { passive: true });
     window.addEventListener('pagehide', stopChatPolling, { passive: true });
 }
 document.addEventListener('DOMContentLoaded', initChatWidget);

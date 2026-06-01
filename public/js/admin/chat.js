@@ -10,10 +10,22 @@ const adminChatState = {
     currentConversationId: null,
     currentConversation: null,
     searchTerm: '',
+    activeFilter: 'all',
     detailPollInterval: null,
     listPollInterval: null,
     attachmentPreviewUrls: []
 };
+
+function formatUnreadCount(count) {
+    const value = Number(count) || 0;
+    return value > 99 ? '99+' : String(Math.max(0, value));
+}
+
+function getTotalUnreadMessages() {
+    return adminChatState.conversations.reduce((total, conversation) => (
+        total + Math.max(0, Number(conversation.unread_count) || 0)
+    ), 0);
+}
 
 // Xử lý show quản trị chat toast.
 function showAdminChatToast(message, type = 'success') {
@@ -92,57 +104,90 @@ function updateTitleUnreadBadge(count) {
 
     if (!count || count <= 0) {
         badge.hidden = true;
+        if (typeof window.updateAdminSidebarChatBadge === 'function') {
+            window.updateAdminSidebarChatBadge(0);
+        }
         badge.textContent = '0 chưa đọc';
         return;
     }
 
     badge.hidden = false;
+    window.setTimeout(() => {
+        badge.textContent = `${formatUnreadCount(count)} chưa đọc`;
+    }, 0);
+    if (typeof window.updateAdminSidebarChatBadge === 'function') {
+        window.updateAdminSidebarChatBadge(count);
+    }
     badge.textContent = `${count} chưa đọc`;
 }
 
-// Cập nhật danh sách summary.
-function updateListSummary() {
-    const summary = document.getElementById('chatListSummary');
-    if (!summary) {
-        return;
+function getConversationFilterCount(filter) {
+    return adminChatState.conversations.filter((conversation) => doesConversationMatchFilter(conversation, filter)).length;
+}
+
+function updateListFilters() {
+    const filters = document.querySelectorAll('#chatListFilters .admin-chat-list__filter');
+    filters.forEach((button) => {
+        const filter = button.dataset.filter || 'all';
+        const count = getConversationFilterCount(filter);
+        const label = button.dataset.label || button.textContent.replace(/\s*\d+$/, '').trim();
+        button.dataset.label = label;
+        button.classList.toggle('active', filter === adminChatState.activeFilter);
+        button.textContent = `${label} ${count}`;
+    });
+}
+
+function doesConversationMatchFilter(conversation, filter = adminChatState.activeFilter) {
+    if (filter === 'unread') {
+        return Number(conversation.unread_count) > 0;
     }
 
-    const filteredTotal = getFilteredConversations().length;
-    const total = adminChatState.conversations.length;
-    const unread = adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length;
-    const totalLabel = filteredTotal !== total
-        ? `${filteredTotal}/${total} cuộc trò chuyện`
-        : `${total} cuộc trò chuyện`;
-    summary.textContent = unread > 0
-        ? `${totalLabel}, ${unread} cuộc chưa đọc`
-        : totalLabel;
+    if (filter === 'ai') {
+        return conversation.handling_mode !== 'manual';
+    }
+
+    if (filter === 'manual') {
+        return conversation.handling_mode === 'manual';
+    }
+
+    return true;
+}
+
+function doesConversationMatchSearch(conversation) {
+    const keyword = String(adminChatState.searchTerm || '').trim().toLowerCase();
+    if (!keyword) {
+        return true;
+    }
+
+    const haystack = [
+        conversation.user_name,
+        conversation.user_email,
+        conversation.guest_name,
+        conversation.last_message
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+    return haystack.includes(keyword);
 }
 
 // Lấy filtered conversations.
 function getFilteredConversations() {
-    const keyword = String(adminChatState.searchTerm || '').trim().toLowerCase();
-    if (!keyword) {
-        return adminChatState.conversations;
-    }
-
-    return adminChatState.conversations.filter((conversation) => {
-        const haystack = [
-            conversation.user_name,
-            conversation.user_email,
-            conversation.guest_name,
-            conversation.last_message
-        ]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
-
-        return haystack.includes(keyword);
-    });
+    return adminChatState.conversations.filter((conversation) => (
+        doesConversationMatchFilter(conversation)
+        && doesConversationMatchSearch(conversation)
+    ));
 }
 
 // Cập nhật chat search.
 function updateChatSearch(value) {
     adminChatState.searchTerm = value || '';
+    renderConversationList();
+}
+
+function updateChatFilter(filter) {
+    adminChatState.activeFilter = ['all', 'unread', 'ai', 'manual'].includes(filter) ? filter : 'all';
     renderConversationList();
 }
 
@@ -229,7 +274,9 @@ function createConversationItem(conversation) {
     if (conversation.unread_count > 0 && conversation.id !== adminChatState.currentConversationId) {
         const badge = document.createElement('span');
         badge.className = 'admin-chat-list__badge';
+        badge.dataset.unreadCount = String(conversation.unread_count);
         badge.textContent = String(conversation.unread_count);
+        badge.textContent = formatUnreadCount(conversation.unread_count);
         button.appendChild(badge);
     }
 
@@ -253,8 +300,8 @@ function renderConversationList() {
             ? 'Không tìm thấy cuộc trò chuyện phù hợp.'
             : 'Chưa có cuộc trò chuyện nào.';
         container.appendChild(emptyState);
-        updateListSummary();
-        updateTitleUnreadBadge(adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length);
+        updateListFilters();
+        updateTitleUnreadBadge(getTotalUnreadMessages());
         return;
     }
 
@@ -262,8 +309,8 @@ function renderConversationList() {
         container.appendChild(createConversationItem(conversation));
     });
 
-    updateListSummary();
-    updateTitleUnreadBadge(adminChatState.conversations.filter((conversation) => conversation.unread_count > 0).length);
+    updateListFilters();
+    updateTitleUnreadBadge(getTotalUnreadMessages());
 }
 
 // Tạo tin nhắn element.
@@ -739,6 +786,10 @@ function initAdminChat() {
 
     document.getElementById('adminChatSearchInput')?.addEventListener('input', (event) => {
         updateChatSearch(event.target.value);
+    });
+
+    document.querySelectorAll('#chatListFilters .admin-chat-list__filter').forEach((button) => {
+        button.addEventListener('click', () => updateChatFilter(button.dataset.filter));
     });
 
     document.getElementById('chatModeBtn')?.addEventListener('click', toggleCurrentConversationMode);

@@ -8,7 +8,12 @@ jest.mock('../models/User', () => ({
     verifyPassword: jest.fn(),
     syncGoogleProfile: jest.fn(),
     generateVerificationCode: jest.fn(),
-    verifyEmailCode: jest.fn()
+    verifyEmailCode: jest.fn(),
+    updateMarketingConsent: jest.fn()
+}));
+
+jest.mock('../models/Newsletter', () => ({
+    setUserSubscription: jest.fn()
 }));
 
 jest.mock('../models/Cart', () => ({
@@ -50,6 +55,7 @@ jest.mock('multer', () => {
 });
 
 const User = require('../models/User');
+const Newsletter = require('../models/Newsletter');
 const Cart = require('../models/Cart');
 const Address = require('../models/Address');
 const emailService = require('../services/emailService');
@@ -191,6 +197,35 @@ describe('authController', () => {
         }));
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true
+        }));
+    });
+
+    it('persists email promotion notification settings', async () => {
+        User.findById.mockResolvedValue({
+            id: 9,
+            email: 'user@example.com',
+            full_name: 'Test User'
+        });
+        User.updateMarketingConsent.mockResolvedValue();
+        Newsletter.setUserSubscription.mockResolvedValue();
+
+        const req = {
+            user: { id: 9 },
+            body: {
+                setting: 'email_promotions',
+                enabled: true
+            }
+        };
+        const res = createRes();
+
+        await authController.updateNotificationSettings(req, res);
+
+        expect(User.updateMarketingConsent).toHaveBeenCalledWith(9, true);
+        expect(Newsletter.setUserSubscription).toHaveBeenCalledWith('user@example.com', 9, true);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            setting: 'email_promotions',
+            enabled: true
         }));
     });
 });

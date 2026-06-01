@@ -1,7 +1,7 @@
 {
   "name": "tmdt-nodejs",
   "version": "1.0.0",
-  "description": "E-commerce clothing website with Node.js, Express.js, PostgreSQL",
+  "description": "E-commerce clothing website with Node.js, Express.js, MySQL",
   "main": "server.js",
   "engines": {
     "node": ">=18"
@@ -9,9 +9,11 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "mcp:shop": "node scripts/mcp-shop-server.js",
     "check:inline-views": "node scripts/check-no-inline-view-assets.js",
     "chat:rag:sync": "node scripts/sync-chat-rag.js",
     "product:visual:sync": "node scripts/sync-product-image-embeddings.js",
+    "ai:automation:sync": "node scripts/sync-ai-automation.js",
     "product:category:reconcile": "node scripts/reconcile-product-category-ids.js",
     "test": "jest --coverage"
   },
@@ -20,11 +22,14 @@
     "fashion",
     "nodejs",
     "express",
-    "postgresql"
+    "mysql"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/headless": "^6.0.0",
     "adm-zip": "^0.5.17",
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
@@ -41,13 +46,14 @@
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.29.4",
     "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.6.5",
     "nodemailer": "^7.0.12",
-    "pg": "^8.21.0",
     "qrcode": "^1.5.4",
     "resend": "^6.9.1",
     "sanitize-html": "^2.17.2",
     "sharp": "^0.33.5",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "jest": "^29.7.0",

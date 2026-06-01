@@ -10,6 +10,7 @@ const MAX_CHAT_FILE_SIZE = Number.parseInt(process.env.MAX_CHAT_FILE_SIZE, 10)
     || Number.parseInt(process.env.MAX_REVIEW_FILE_SIZE, 10)
     || 30 * 1024 * 1024;
 const CHAT_UPLOAD_DIR = path.join(os.tmpdir(), 'tmdt_chat_uploads');
+const GEMINI_CLI_CHAT_MEDIA_DIR = path.resolve(__dirname, '..', '.gemini', 'chat-media');
 const CHAT_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/jpg',
@@ -49,6 +50,21 @@ function cleanupTempFile(filePath) {
 // Dọn dẹp temp tệp.
 function cleanupTempFiles(files = []) {
     files.forEach((file) => cleanupTempFile(file?.path));
+}
+
+function shouldKeepLocalChatMediaForGeminiCli() {
+    return String(process.env.AI_PROVIDER || '').trim().toLowerCase() === 'gemini_cli';
+}
+
+function prepareGeminiCliLocalMedia(file) {
+    if (!file?.path || !fs.existsSync(file.path)) {
+        return '';
+    }
+
+    fs.mkdirSync(GEMINI_CLI_CHAT_MEDIA_DIR, { recursive: true });
+    const destination = path.join(GEMINI_CLI_CHAT_MEDIA_DIR, path.basename(file.path));
+    fs.copyFileSync(file.path, destination);
+    return path.relative(path.resolve(__dirname, '..'), destination).replace(/\\/g, '/');
 }
 
 // Xử lý detect chat media type.
@@ -147,7 +163,7 @@ async function uploadChatMediaFiles(files = []) {
                 throw new Error(result.error || 'Cloudinary chat upload failed.');
             }
 
-            uploadedMedia.push({
+            const uploadedItem = {
                 mediaType,
                 mediaUrl: result.url,
                 publicId: result.public_id,
@@ -158,7 +174,16 @@ async function uploadChatMediaFiles(files = []) {
                 height: Number(result.height) || null,
                 format: result.format || null,
                 displayOrder: index
-            });
+            };
+
+            if (shouldKeepLocalChatMediaForGeminiCli() && mediaType === 'image') {
+                Object.defineProperty(uploadedItem, 'localPath', {
+                    value: prepareGeminiCliLocalMedia(file),
+                    enumerable: false
+                });
+            }
+
+            uploadedMedia.push(uploadedItem);
         }
 
         return uploadedMedia;

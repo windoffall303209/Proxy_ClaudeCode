@@ -1,18 +1,32 @@
 -- File database/seed.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
+SET FOREIGN_KEY_CHECKS = 0;
+
+TRUNCATE product_variants;
+TRUNCATE product_images;
+TRUNCATE products;
+TRUNCATE order_items;
+TRUNCATE cart_items;
+TRUNCATE voucher_usage;
+TRUNCATE reviews;
+TRUNCATE wishlist;
+
+SET FOREIGN_KEY_CHECKS = 1;
 -- =============================================================================
 -- WIND OF FALL - Real Product Image Reseed
 -- =============================================================================
--- Adapted for the current PostgreSQL schema in this project.
+-- Adapted for the current MySQL schema in this project.
 -- Source dataset: 26 products + 78 real Cloudinary product images.
 --
 -- Manual run:
---   psql -d tmdt_ecommerce -f database/seed.sql
+--   mysql -u root -p tmdt_ecommerce < database/reseed_products_cloudinary_real.sql
 --
 -- Notes:
 -- - This script keeps the category/sale structure compatible with the current app.
 -- - It clears product-dependent data before reseeding products, images, and variants.
--- - Sale windows use PostgreSQL relative dates so promotions stay active after reseed.
+-- - Sale windows use MySQL relative dates so promotions stay active after reseed.
 -- =============================================================================
+
+USE tmdt_ecommerce;
 
 START TRANSACTION;
 -- ADMIN USER (password: admin123)
@@ -27,49 +41,52 @@ INSERT INTO categories (id, name, slug, description, image_url, display_order, i
 (1, 'Thời Trang Nam', 'nam', 'Quần áo và phụ kiện nam', 'https://res.cloudinary.com/dywdkpcub/image/upload/v1773120094/tmdt_ecommerce/products/ao-polo-classic-nam-1.jpg', 1, TRUE),
 (2, 'Thời Trang Nữ', 'nu', 'Quần áo và phụ kiện nữ', 'https://res.cloudinary.com/dywdkpcub/image/upload/v1773120138/tmdt_ecommerce/products/dam-maxi-hoa-1.jpg', 2, TRUE),
 (3, 'Thời Trang Trẻ Em', 'tre-em', 'Quần áo trẻ em', 'https://res.cloudinary.com/dywdkpcub/image/upload/v1773120177/tmdt_ecommerce/products/bo-do-be-trai-1.jpg', 3, TRUE)
-ON CONFLICT (id) DO UPDATE SET
-    name = EXCLUDED.name,
-    slug = EXCLUDED.slug,
-    description = EXCLUDED.description,
-    image_url = EXCLUDED.image_url,
-    display_order = EXCLUDED.display_order,
-    is_active = EXCLUDED.is_active;
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    slug = VALUES(slug),
+    description = VALUES(description),
+    image_url = VALUES(image_url),
+    display_order = VALUES(display_order),
+    is_active = VALUES(is_active);
 
 -- -----------------------------------------------------------------------------
 -- 2. Sales
 -- -----------------------------------------------------------------------------
 -- Original durations were 7 / 20 / 15 / 30 days.
--- They are converted to relative PostgreSQL dates so sale data is usable after reseed.
+-- They are converted to relative MySQL dates so sale data is usable after reseed.
 INSERT INTO sales (id, name, description, type, value, start_date, end_date, is_active) VALUES
-(1, 'Flash Sale 30%', 'Giảm 30% cho các sản phẩm flash sale', 'percentage', 30.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '6 day', TRUE),
-(2, 'Giảm 100K', 'Giảm trực tiếp 100.000đ', 'fixed', 100000.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '19 day', TRUE),
-(3, 'Giảm Giá 21%', 'Ưu đãi giảm 21% cho các sản phẩm chọn lọc', 'percentage', 21.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '14 day', TRUE),
-(4, 'Sale Cuối Mùa', 'Sale cuối mùa giảm sâu', 'percentage', 50.00, NOW() - INTERVAL '1 day', NOW() + INTERVAL '29 day', TRUE)
-ON CONFLICT (id) DO UPDATE SET
-    name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    type = EXCLUDED.type,
-    value = EXCLUDED.value,
-    start_date = EXCLUDED.start_date,
-    end_date = EXCLUDED.end_date,
-    is_active = EXCLUDED.is_active;
-
-SELECT setval(pg_get_serial_sequence('categories', 'id'), COALESCE((SELECT MAX(id) FROM categories), 1), TRUE);
-SELECT setval(pg_get_serial_sequence('sales', 'id'), COALESCE((SELECT MAX(id) FROM sales), 1), TRUE);
+(1, 'Flash Sale 30%', 'Giảm 30% cho các sản phẩm flash sale', 'percentage', 30.00, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 6 DAY), TRUE),
+(2, 'Giảm 100K', 'Giảm trực tiếp 100.000đ', 'fixed', 100000.00, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 19 DAY), TRUE),
+(3, 'Giảm Giá 21%', 'Ưu đãi giảm 21% cho các sản phẩm chọn lọc', 'percentage', 21.00, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), TRUE),
+(4, 'Sale Cuối Mùa', 'Sale cuối mùa giảm sâu', 'percentage', 50.00, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 29 DAY), TRUE)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    description = VALUES(description),
+    type = VALUES(type),
+    value = VALUES(value),
+    start_date = VALUES(start_date),
+    end_date = VALUES(end_date),
+    is_active = VALUES(is_active);
 
 -- -----------------------------------------------------------------------------
 -- 3. Remove existing product-related data
 -- -----------------------------------------------------------------------------
-TRUNCATE TABLE
-    reviews,
-    wishlist,
-    cart_items,
-    order_items,
-    voucher_products,
-    product_variants,
-    product_images,
-    products
-RESTART IDENTITY CASCADE;
+SET FOREIGN_KEY_CHECKS = 0;
+
+TRUNCATE TABLE reviews;
+TRUNCATE TABLE wishlist;
+TRUNCATE TABLE cart_items;
+TRUNCATE TABLE order_items;
+TRUNCATE TABLE voucher_products;
+TRUNCATE TABLE product_variants;
+TRUNCATE TABLE product_images;
+TRUNCATE TABLE products;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE products AUTO_INCREMENT = 1;
+ALTER TABLE product_images AUTO_INCREMENT = 1;
+ALTER TABLE product_variants AUTO_INCREMENT = 1;
 
 -- -----------------------------------------------------------------------------
 -- 4. Product catalog
@@ -82,11 +99,12 @@ CREATE TEMPORARY TABLE tmp_product_catalog (
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
     stock_quantity INT NOT NULL,
-    sku VARCHAR(100) NOT NULL UNIQUE,
+    sku VARCHAR(100) NOT NULL,
     is_featured BOOLEAN NOT NULL,
     is_active BOOLEAN NOT NULL,
     sale_id INT NULL,
-    PRIMARY KEY (slug)
+    PRIMARY KEY (slug),
+    UNIQUE KEY uk_tmp_product_catalog_sku (sku)
 );
 
 INSERT INTO tmp_product_catalog (category_slug, name, slug, description, price, stock_quantity, sku, is_featured, is_active, sale_id) VALUES
@@ -284,9 +302,9 @@ SELECT
     tvp.color_value,
     tvp.additional_price,
     CASE pi.display_order
-        WHEN 0 THEN FLOOR(p.stock_quantity / 3.0)::int + CASE WHEN MOD(p.stock_quantity, 3) > 0 THEN 1 ELSE 0 END
-        WHEN 1 THEN FLOOR(p.stock_quantity / 3.0)::int + CASE WHEN MOD(p.stock_quantity, 3) > 1 THEN 1 ELSE 0 END
-        ELSE FLOOR(p.stock_quantity / 3.0)::int
+        WHEN 0 THEN FLOOR(p.stock_quantity / 3) + IF(MOD(p.stock_quantity, 3) > 0, 1, 0)
+        WHEN 1 THEN FLOOR(p.stock_quantity / 3) + IF(MOD(p.stock_quantity, 3) > 1, 1, 0)
+        ELSE FLOOR(p.stock_quantity / 3)
     END AS variant_stock,
     CONCAT(
         p.sku,
@@ -304,13 +322,12 @@ JOIN tmp_variant_profile tvp
 
 -- Re-sync product stock from variants for consistency
 UPDATE products p
-SET stock_quantity = pv.total_stock
-FROM (
-    SELECT product_id, SUM(stock_quantity)::int AS total_stock
+JOIN (
+    SELECT product_id, SUM(stock_quantity) AS total_stock
     FROM product_variants
     GROUP BY product_id
-) pv
-WHERE pv.product_id = p.id;
+) pv ON pv.product_id = p.id
+SET p.stock_quantity = pv.total_stock;
 
 -- -----------------------------------------------------------------------------
 -- 7. Seed a few bestseller counts for storefront visuals

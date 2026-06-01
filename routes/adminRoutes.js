@@ -65,6 +65,14 @@ router.post('/storefront/reset', adminController.resetStorefrontSettingsDraft);
 router.post('/storefront/assets', upload.single('asset'), uploadToCloud, adminController.uploadStorefrontAsset);
 router.post('/bulk-actions/verification-code', adminController.requestBulkDeleteVerification);
 
+// Runtime API key management for chatbot and integrations.
+router.get('/api-keys', adminController.getApiKeys);
+router.post('/api-keys', adminController.createApiKey);
+router.post('/api-keys/test', adminController.testApiKey);
+router.post('/api-keys/:id', adminController.updateApiKey);
+router.post('/api-keys/:id/status', adminController.toggleApiKeyStatus);
+router.post('/api-keys/:id/delete', adminController.deleteApiKey);
+
 // Nhóm route quản lý danh mục và import/export danh mục.
 router.get('/categories', adminController.getCategories);
 router.get('/categories/export', adminController.exportCategories);
@@ -111,6 +119,10 @@ router.get('/returns', adminController.getReturnRequests);
 router.put('/returns/:id/status', adminController.updateReturnRequestStatus);
 router.get('/returns/:id', adminController.getReturnRequestDetail);
 
+// Review management.
+router.get('/reviews', adminController.getReviews);
+router.get('/reviews/export', adminController.exportReviews);
+
 // Nhóm route quản lý người dùng.
 router.get('/users', adminController.getUsers);
 router.get('/users/:id', adminController.getUserDetail);
@@ -130,6 +142,7 @@ router.post('/sales', adminController.createSale);
 router.put('/sales/:id', adminController.updateSale);
 router.delete('/sales/:id', adminController.deleteSale);
 router.post('/sales/:id/email', adminController.sendSaleAnnouncementEmail);
+router.post('/sales/:id/ai-draft', adminController.generateSaleMarketingDraft);
 
 // Nhóm route quản lý mã giảm giá và bật/tắt trạng thái phát hành.
 router.get('/vouchers', adminController.getVouchers);
@@ -138,6 +151,7 @@ router.put('/vouchers/:id', adminController.updateVoucher);
 router.delete('/vouchers/:id', adminController.deleteVoucher);
 router.put('/vouchers/:id/status', adminController.updateVoucherStatus);
 router.post('/vouchers/:id/email', adminController.sendVoucherAnnouncementEmail);
+router.post('/vouchers/:id/ai-draft', adminController.generateVoucherMarketingDraft);
 
 // Route gửi email marketing thủ công từ khu quản trị.
 router.post('/email/send', adminController.sendMarketingEmail);

@@ -262,29 +262,6 @@
     </div>
 </section>
 <% } %>
-<% if (sfBool('show_home_services', true)) { %>
-<section class="home-services section-block">
-    <div class="container home-services__grid">
-        <div class="home-service-card">
-            <strong><%= sfText('service_shipping_title', 'Freeship đơn từ 499K') %></strong>
-            <p><%= sfText('service_shipping_copy', 'Thông tin ưu đãi rõ ràng ngay từ trang đầu để bạn chốt đơn nhanh hơn.') %></p>
-        </div>
-        <div class="home-service-card">
-            <strong><%= sfText('service_return_title', 'Đổi trả trong 30 ngày') %></strong>
-            <p><%= sfText('service_return_copy', 'Yên tâm thử size và đổi mẫu nếu chưa thật sự phù hợp.') %></p>
-        </div>
-        <div class="home-service-card">
-            <strong><%= sfText('service_consult_title', 'Hỗ trợ qua hotline và chat') %></strong>
-            <p><%= sfText('service_consult_copy', 'Dễ hỏi size, hỏi phối đồ và theo dõi đơn hàng khi cần.') %></p>
-        </div>
-        <div class="home-service-card">
-            <strong><%= sfText('service_payment_title', 'Thanh toán rõ ràng') %></strong>
-            <p><%= sfText('service_payment_copy', 'COD, VNPay và MoMo hiển thị sớm để người mua dễ lựa chọn.') %></p>
-        </div>
-    </div>
-</section>
-<% } %>
-
 <script src="/js/home.js"></script>
 
 <%- include('../partials/footer') %>

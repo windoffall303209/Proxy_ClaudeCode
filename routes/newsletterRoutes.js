@@ -13,7 +13,7 @@ const { optionalAuth } = require('../middleware/auth');
 router.post('/subscribe', optionalAuth, newsletterController.subscribe);
 
 // Hủy đăng ký
-router.post('/unsubscribe', newsletterController.unsubscribe);
+router.post('/unsubscribe', optionalAuth, newsletterController.unsubscribe);
 
 // Kiểm tra trạng thái (cần đăng nhập)
 router.get('/status', optionalAuth, newsletterController.checkStatus);

@@ -1,11 +1,9 @@
--- PostgreSQL migration: add payment expiry.
 ALTER TABLE orders
-    ADD COLUMN IF NOT EXISTS payment_expires_at TIMESTAMP NULL;
-
-CREATE INDEX IF NOT EXISTS orders_idx_payment_expires_at ON orders (payment_expires_at);
+    ADD COLUMN payment_expires_at DATETIME NULL AFTER payment_status,
+    ADD INDEX idx_payment_expires_at (payment_expires_at);
 
 UPDATE orders
-SET payment_expires_at = created_at + INTERVAL '24 hours'
+SET payment_expires_at = DATE_ADD(created_at, INTERVAL 24 HOUR)
 WHERE status = 'pending_payment'
   AND payment_method IN ('vnpay', 'momo')
   AND payment_status <> 'paid'

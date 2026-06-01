@@ -19,6 +19,21 @@
     margin: 0;
 }
 
+.dashboard-period-form {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.dashboard-period-form__select,
+.dashboard-period-form__input {
+    min-height: 40px;
+}
+
+.dashboard-period-form__input {
+    min-width: 150px;
+}
+
 .stats-grid .stat-card {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr);
@@ -219,6 +234,17 @@
 
     .dashboard-chart-card__canvas {
         height: 220px;
+    }
+
+    .dashboard-period-form {
+        align-items: stretch;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .dashboard-period-form__select,
+    .dashboard-period-form__input {
+        flex: 1 1 160px;
     }
 }
 

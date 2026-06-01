@@ -53,7 +53,7 @@ body.admin-body .container {
 
 .admin-sidebar {
     width: var(--admin-sidebar-width);
-    padding: 16px 14px;
+    padding: 8px 14px 14px;
     background:
         radial-gradient(circle at top left, rgba(226, 184, 75, 0.22), transparent 24%),
         linear-gradient(180deg, rgba(255, 252, 246, 0.98) 0%, rgba(247, 239, 225, 0.96) 100%);
@@ -66,14 +66,14 @@ body.admin-body .container {
 .admin-sidebar::after {
     content: "";
     position: absolute;
-    inset: 14px;
+    inset: 8px 14px 14px;
     border: 1px solid rgba(175, 154, 118, 0.18);
     border-radius: 24px;
     pointer-events: none;
 }
 
 .admin-sidebar__brand {
-    padding: 0 0 8px;
+    padding: 0 0 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     position: relative;
     z-index: 1;
@@ -115,7 +115,7 @@ body.admin-body .container {
 .admin-sidebar__section {
     flex: 1;
     min-height: 0;
-    padding: 4px 0 0;
+    padding: 2px 0 0;
     position: relative;
     z-index: 1;
     overflow-y: auto;

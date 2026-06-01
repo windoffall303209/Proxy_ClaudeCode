@@ -4,6 +4,7 @@ const adminVoucherProducts = adminVouchersBootstrap.products || [];
 const adminSubscriberCount = Number(adminVouchersBootstrap.subscriberCount || 0);
 const adminVouchers = adminVouchersBootstrap.vouchers || [];
 const adminVouchersMap = new Map(adminVouchers.map((voucher) => [Number(voucher.id), voucher]));
+const VOUCHER_DATE_RANGE_MESSAGE = 'Ngày kết thúc voucher phải sau hoặc bằng ngày bắt đầu.';
 
 // Xử lý escape html.
 function escapeHtml(value) {
@@ -101,6 +102,74 @@ function toDatetimeLocal(value) {
 
     const timezoneOffset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+function syncDateRangeValidity(form, message = VOUCHER_DATE_RANGE_MESSAGE) {
+    const startInput = form?.elements?.start_date;
+    const endInput = form?.elements?.end_date;
+
+    if (!startInput || !endInput) {
+        return true;
+    }
+
+    endInput.setCustomValidity('');
+
+    if (!startInput.value || !endInput.value) {
+        return true;
+    }
+
+    const startDate = new Date(startInput.value);
+    const endDate = new Date(endInput.value);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        return true;
+    }
+
+    if (endDate < startDate) {
+        endInput.setCustomValidity(message);
+        return false;
+    }
+
+    return true;
+}
+
+function validateDateRange(form, message = VOUCHER_DATE_RANGE_MESSAGE) {
+    const isValid = syncDateRangeValidity(form, message);
+    if (!isValid) {
+        form?.elements?.end_date?.reportValidity();
+        form?.elements?.end_date?.focus();
+    }
+
+    return isValid;
+}
+
+function bindDateRangeValidation(formId, message = VOUCHER_DATE_RANGE_MESSAGE) {
+    const form = document.getElementById(formId);
+    const startInput = form?.elements?.start_date;
+    const endInput = form?.elements?.end_date;
+
+    if (!form || !startInput || !endInput) {
+        return;
+    }
+
+    const sync = () => syncDateRangeValidity(form, message);
+    startInput.addEventListener('input', sync);
+    startInput.addEventListener('change', sync);
+    endInput.addEventListener('input', sync);
+    endInput.addEventListener('change', sync);
+}
+
+function preventInvalidDateRangeSubmit(formId, message = VOUCHER_DATE_RANGE_MESSAGE) {
+    const form = document.getElementById(formId);
+    if (!form) {
+        return;
+    }
+
+    form.addEventListener('submit', (event) => {
+        if (!validateDateRange(form, message)) {
+            event.preventDefault();
+        }
+    });
 }
 
 // Đóng modal.
@@ -213,6 +282,7 @@ function editVoucher(voucherId) {
     form.elements.start_date.value = toDatetimeLocal(voucher.start_date);
     form.elements.end_date.value = toDatetimeLocal(voucher.end_date);
     form.elements.is_active.checked = Boolean(voucher.is_active);
+    syncDateRangeValidity(form);
 
     renderProductChecklist('editVoucherProducts', voucher.product_ids || [], {
         prefix: `edit-voucher-${voucher.id}`
@@ -228,6 +298,7 @@ async function submitEditVoucher(event) {
     event.preventDefault();
 
     const form = event.currentTarget;
+    syncDateRangeValidity(form);
     if (!form.reportValidity()) {
         return;
     }
@@ -433,6 +504,9 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleMaxDiscount();
     toggleVoucherValueConstraints();
     toggleVoucherValueConstraints('editVoucherType', 'editVoucherValue', 'editVoucherValueWarning');
+    bindDateRangeValidation('createVoucherForm');
+    bindDateRangeValidation('editVoucherForm');
+    preventInvalidDateRangeSubmit('createVoucherForm');
 
     document.querySelectorAll('[data-admin-toggle="section"]').forEach((button) => {
         button.addEventListener('click', () => toggleSection(button));

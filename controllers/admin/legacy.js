@@ -10,6 +10,7 @@ const Sale = require('../../models/Sale');
 const Voucher = require('../../models/Voucher');
 const Newsletter = require('../../models/Newsletter');
 const StorefrontSetting = require('../../models/StorefrontSetting');
+const ApiKeySetting = require('../../models/ApiKeySetting');
 const pool = require('../../config/database');
 const emailService = require('../../services/emailService');
 const { attachUploadedImagesToProduct, parseVariantsPayload, syncVariants, validateVariants } = require('../../services/adminProductVariantService');
@@ -30,6 +31,9 @@ const upload = require('../../middleware/upload');
 const { invalidateStorefrontSettingsCache } = require('../../middleware/storefrontSettings');
 const { scheduleProductVisualEmbeddingSync } = require('../../services/productVisualEmbeddingService');
 const ProductImageEmbedding = require('../../models/ProductImageEmbedding');
+const { getDashboardInventoryAlerts, scheduleInventoryForecastRefresh } = require('../../services/inventoryForecastService');
+const { attachOrderRiskAssessments, assessOrderRisk, scheduleOrderRiskAssessment } = require('../../services/orderRiskService');
+const { attachLatestDrafts } = require('../../services/marketingAiDraftService');
 
 const ADMIN_PRODUCT_SELECTION_LIMIT = 20000;
 const DEFAULT_BULK_DELETE_VERIFICATION_TTL_MS = 10 * 60 * 1000;
@@ -206,7 +210,7 @@ function normalizeDiscountValueOrThrow(type, value, entityLabel = 'Giá trị') 
     }
 
     if (type === 'percentage' && parsedValue >= 100) {
-        throw new Error(`${entityLabel} phđn trm phđi nhđ hđn 100%`);
+        throw new Error(`${entityLabel} phần trăm phải nhỏ hơn 100%`);
     }
 
     return parsedValue;
@@ -226,7 +230,7 @@ function assertDateRangeValid(startDate, endDate, entityLabel = 'Khoảng thời
     }
 
     if (start > end) {
-        throw new Error(`${entityLabel} không hợp lệ`);
+        throw new Error(`${entityLabel}: ngày kết thúc phải sau hoặc bằng ngày bắt đầu.`);
     }
 }
 
@@ -243,7 +247,7 @@ function escapeHtml(value) {
 // Định dạng currency vnd.
 function formatCurrencyVnd(value) {
     const amount = Number(value) || 0;
-    return `${amount.toLocaleString('vi-VN')}`;
+    return `${amount.toLocaleString('vi-VN')}đ`;
 }
 
 // Định dạng ngày time vi.
@@ -368,7 +372,7 @@ async function attachSaleAssignments(sales, totalActiveProducts = 0) {
                 return { key: 'expired', label: 'Hết hạn', tone: 'cancelled' };
             }
 
-            return { key: 'active', label: 'Đang diễn ra', tone: 'delivered' };
+            return { key: 'active', label: 'Đang diễn ra', tone: 'delivered' };
         })()
     }));
 }
@@ -387,39 +391,55 @@ async function attachVoucherAssignments(vouchers) {
 
 // Lấy announcement recipients.
 async function getAnnouncementRecipients() {
-    const subscribers = await Newsletter.getActiveSubscribers();
+    const [subscribers, marketingUsers] = await Promise.all([
+        Newsletter.getActiveSubscribers(),
+        User.getMarketingList()
+    ]);
     const seenEmails = new Set();
+    const recipients = [];
 
-    return subscribers.reduce((list, subscriber) => {
-        const email = String(subscriber?.email || '').trim().toLowerCase();
+    const addRecipient = (emailValue, nameValue) => {
+        const email = String(emailValue || '').trim().toLowerCase();
         if (!email || seenEmails.has(email)) {
-            return list;
+            return;
         }
 
         seenEmails.add(email);
         const fallbackName = email.split('@')[0] || 'bạn';
 
-        list.push({
+        recipients.push({
             email,
-            full_name: String(subscriber?.user_name || fallbackName).trim() || 'bạn'
+            full_name: String(nameValue || fallbackName).trim() || 'bạn'
         });
+    };
 
-        return list;
-    }, []);
+    subscribers.forEach((subscriber) => {
+        addRecipient(subscriber?.email, subscriber?.user_name);
+    });
+
+    marketingUsers.forEach((user) => {
+        addRecipient(user?.email, user?.full_name);
+    });
+
+    return recipients;
+}
+
+async function countAnnouncementRecipients() {
+    return (await getAnnouncementRecipients()).length;
 }
 
 // Tạo dữ liệu mã giảm giá announcement campaign.
 function buildVoucherAnnouncementCampaign(voucher) {
     const baseUrl = String(process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
     const valueText = voucher.type === 'percentage'
-        ? `Giảm ${voucher.value}%${voucher.max_discount_amount ? `, tải a ${formatCurrencyVnd(voucher.max_discount_amount)}` : ''}`
+        ? `Giảm ${voucher.value}%${voucher.max_discount_amount ? `, tối đa ${formatCurrencyVnd(voucher.max_discount_amount)}` : ''}`
         : `Giảm ${formatCurrencyVnd(voucher.value)}`;
     const minOrderText = Number(voucher.min_order_amount || 0) > 0
-        ? `đơn tối thiểu ${formatCurrencyVnd(voucher.min_order_amount)}`
-        : 'Không yêu cầu giá trị đơn tối thiểu';
+        ? `Đơn tối thiểu ${formatCurrencyVnd(voucher.min_order_amount)}`
+        : 'Không yêu cầu giá trị đơn tối thiểu';
     const scopeText = voucher.applicable_product_count > 0
-        ? `Áp dụng cho ${voucher.applicable_product_count} sản phẩm được chọn`
-        : 'Áp dụng cho toàn bộ sản phẩm đ iều kiện';
+        ? `Áp dụng cho ${voucher.applicable_product_count} sản phẩm được chọn`
+        : 'Áp dụng cho toàn bộ sản phẩm đủ điều kiện';
     const descriptionHtml = voucher.description
         ? `<p style="margin:0 0 18px;color:#65594d;line-height:1.7;">${escapeHtml(voucher.description)}</p>`
         : '';
@@ -430,7 +450,7 @@ function buildVoucherAnnouncementCampaign(voucher) {
             <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #211d18;">
                 <div style="text-align:center; margin-bottom: 24px;">
                     <h1 style="margin:0; font-size:28px; letter-spacing:0.04em;">WIND OF FALL</h1>
-                    <p style="margin:8px 0 0; color:#7c6f60;">Thông báo đu đi mới dành cho {{name}}</p>
+                    <p style="margin:8px 0 0; color:#7c6f60;">Thông báo ưu đãi mới dành cho {{name}}</p>
                 </div>
                 <div style="background: linear-gradient(135deg, #f8e3a2, #f4c95d); border-radius: 24px; padding: 28px; margin-bottom: 20px;">
                     <p style="margin:0 0 10px; font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#7b5d1a;">Voucher mới</p>
@@ -444,7 +464,7 @@ function buildVoucherAnnouncementCampaign(voucher) {
                         <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(scopeText)}</td>
                     </tr>
                     <tr>
-                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">iều kiện</td>
+                        <td style="padding:10px 12px; border:1px solid #ead9b5; color:#7c6f60;">Điều kiện</td>
                         <td style="padding:10px 12px; border:1px solid #ead9b5; font-weight:600;">${escapeHtml(minOrderText)}</td>
                     </tr>
                     <tr>
@@ -453,7 +473,7 @@ function buildVoucherAnnouncementCampaign(voucher) {
                     </tr>
                 </table>
                 <div style="text-align:center;">
-                    <a href="${baseUrl}" style="display:inline-block; padding:14px 28px; border-radius:999px; background:#17120c; color:#fff; text-decoration:none; font-weight:700;">Mua sđm ngay</a>
+                    <a href="${baseUrl}" style="display:inline-block; padding:14px 28px; border-radius:999px; background:#17120c; color:#fff; text-decoration:none; font-weight:700;">Mua sắm ngay</a>
                 </div>
             </div>
         `
@@ -467,7 +487,7 @@ function buildSaleAnnouncementCampaign(sale) {
         ? `Giảm ${sale.value}%`
         : `Giảm ${formatCurrencyVnd(sale.value)}`;
     const scopeText = sale.assigned_product_count > 0
-        ? `ang Áp dụng cho ${sale.assigned_product_count} sản phẩm`
+        ? `Đang áp dụng cho ${sale.assigned_product_count} sản phẩm`
         : 'Chưa gán sản phẩm cụ thể';
     const descriptionHtml = sale.description
         ? `<p style="margin:0 0 18px;color:#65594d;line-height:1.7;">${escapeHtml(sale.description)}</p>`
@@ -479,10 +499,10 @@ function buildSaleAnnouncementCampaign(sale) {
             <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #211d18;">
                 <div style="text-align:center; margin-bottom: 24px;">
                     <h1 style="margin:0; font-size:28px; letter-spacing:0.04em;">WIND OF FALL</h1>
-                    <p style="margin:8px 0 0; color:#7c6f60;">đu đi mới dành cho {{name}}</p>
+                    <p style="margin:8px 0 0; color:#7c6f60;">Ưu đãi mới dành cho {{name}}</p>
                 </div>
                 <div style="background: linear-gradient(135deg, #fde3b7, #f8b35b); border-radius: 24px; padding: 28px; margin-bottom: 20px;">
-                    <p style="margin:0 0 10px; font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#9a5412;">Chđđng trảnh khuyến mãi</p>
+                    <p style="margin:0 0 10px; font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#9a5412;">Chương trình khuyến mãi</p>
                     <h2 style="margin:0 0 14px; font-size:30px; color:#1f1a13;">${escapeHtml(sale.name)}</h2>
                     <p style="margin:0; font-size:18px; font-weight:700; color:#6f2c12;">${escapeHtml(valueText)}</p>
                 </div>
@@ -498,7 +518,7 @@ function buildSaleAnnouncementCampaign(sale) {
                     </tr>
                 </table>
                 <div style="text-align:center;">
-                    <a href="${baseUrl}" style="display:inline-block; padding:14px 28px; border-radius:999px; background:#17120c; color:#fff; text-decoration:none; font-weight:700;">Khđm phđ bđ sđu tđp</a>
+                    <a href="${baseUrl}" style="display:inline-block; padding:14px 28px; border-radius:999px; background:#17120c; color:#fff; text-decoration:none; font-weight:700;">Khám phá bộ sưu tập</a>
                 </div>
             </div>
         `
@@ -525,17 +545,94 @@ async function sendSaleAnnouncement(sale) {
     return sendCampaignToSubscribers(buildSaleAnnouncementCampaign(sale));
 }
 
+function padDatePart(value) {
+    return String(value).padStart(2, '0');
+}
+
+function formatSqlDate(date) {
+    return [
+        date.getFullYear(),
+        padDatePart(date.getMonth() + 1),
+        padDatePart(date.getDate())
+    ].join('-');
+}
+
+function normalizeDashboardPeriod(query = {}) {
+    const mode = ['day', 'month', 'year'].includes(query.period_mode) ? query.period_mode : 'month';
+    const now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    let day = now.getDate();
+
+    if (mode === 'day') {
+        const match = String(query.period_date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (match) {
+            year = Number(match[1]);
+            month = Number(match[2]) - 1;
+            day = Number(match[3]);
+        }
+    } else if (mode === 'month') {
+        const match = String(query.period_month || '').match(/^(\d{4})-(\d{2})$/);
+        if (match) {
+            year = Number(match[1]);
+            month = Number(match[2]) - 1;
+        }
+        day = 1;
+    } else {
+        const parsedYear = Number.parseInt(query.period_year, 10);
+        if (Number.isInteger(parsedYear) && parsedYear >= 2000 && parsedYear <= 2100) {
+            year = parsedYear;
+        }
+        month = 0;
+        day = 1;
+    }
+
+    const startDate = new Date(year, month, day);
+    const endDate = new Date(startDate);
+    if (mode === 'day') {
+        endDate.setDate(startDate.getDate() + 1);
+    } else if (mode === 'month') {
+        endDate.setMonth(startDate.getMonth() + 1);
+    } else {
+        endDate.setFullYear(startDate.getFullYear() + 1);
+    }
+
+    const dateValue = formatSqlDate(startDate);
+    return {
+        mode,
+        date: dateValue,
+        month: `${startDate.getFullYear()}-${padDatePart(startDate.getMonth() + 1)}`,
+        year: String(startDate.getFullYear()),
+        created_from: `${dateValue} 00:00:00`,
+        created_to: `${formatSqlDate(endDate)} 00:00:00`
+    };
+}
+
+function buildDateWhereClause(alias, period, params = []) {
+    if (!period?.created_from || !period?.created_to) {
+        return '';
+    }
+
+    params.push(period.created_from, period.created_to);
+    return ` AND ${alias}.created_at >= ? AND ${alias}.created_at < ?`;
+}
+
 // Lấy tổng quan analytics.
-async function getDashboardAnalytics() {
+async function getDashboardAnalytics(period) {
+    const orderParams = [];
+    const productParams = [];
+    const orderDateClause = buildDateWhereClause('o', period, orderParams);
+    const productDateClause = buildDateWhereClause('p', period, productParams);
     const [orderStatusRows, productRows, userRows] = await Promise.all([
-        pool.query('SELECT status, COUNT(*) AS total FROM orders GROUP BY status'),
+        pool.query(`SELECT o.status, COUNT(*) AS total FROM orders o WHERE 1 = 1 ${orderDateClause} GROUP BY o.status`, orderParams),
         pool.query(`
             SELECT
-                SUM(CASE WHEN is_active = TRUE AND stock_quantity > 0 THEN 1 ELSE 0 END) AS live_products,
-                SUM(CASE WHEN is_active = TRUE AND stock_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock_products,
-                SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END) AS hidden_products
-            FROM products
-        `),
+                SUM(CASE WHEN p.is_active = TRUE AND p.stock_quantity > 0 THEN 1 ELSE 0 END) AS live_products,
+                SUM(CASE WHEN p.is_active = TRUE AND p.stock_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock_products,
+                SUM(CASE WHEN p.is_active = FALSE THEN 1 ELSE 0 END) AS hidden_products
+            FROM products p
+            WHERE 1 = 1 ${productDateClause}
+        `, productParams),
         pool.query('SELECT COUNT(*) AS total_users FROM users')
     ]);
 
@@ -566,7 +663,7 @@ async function getDashboardAnalytics() {
 
     return {
         orderStatusCounts,
-        processingOrders: orderStatusCounts.pending_payment + orderStatusCounts.confirmed + orderStatusCounts.processing + orderStatusCounts.shipping,
+        processingOrders: orderStatusCounts.confirmed + orderStatusCounts.processing + orderStatusCounts.shipping,
         productStatusCounts,
         totalUsers: Number(userRows[0]?.[0]?.total_users || 0),
         totalProducts: productStatusCounts.live + productStatusCounts.out_of_stock + productStatusCounts.hidden
@@ -582,6 +679,7 @@ exports.getDashboard = async (req, res) => {
         const allowedRecentLimits = new Set([5, 10, 15]);
         const requestedRecentLimit = Number.parseInt(req.query.recent_limit, 10);
         const recentLimit = allowedRecentLimits.has(requestedRecentLimit) ? requestedRecentLimit : 10;
+        const dashboardPeriod = normalizeDashboardPeriod(req.query);
         let dashboardCharts = {
             orderStatus: {
                 pending_payment: 0,
@@ -598,38 +696,57 @@ exports.getDashboard = async (req, res) => {
             }
         };
         let stats = {
-            total_orders: 0,        // Tổng số đơn hàng
+            total_orders: 0,        // Tổng số đơn hàng
             pending_payment_orders: 0,
-            pending_orders: 0,      // Đơn hàng chờ xử lý
-            delivered_orders: 0,    // đơn hàng đã giao
-            completed_orders: 0,    // đơn hàng đã hoàn thành
-            cancelled_orders: 0,    // đơn hàng đã hủy
+            pending_orders: 0,      // Đơn hàng chờ xử lý
+            delivered_orders: 0,    // Đơn hàng đã giao
+            completed_orders: 0,    // Đơn hàng đã hoàn thành
+            cancelled_orders: 0,    // Đơn hàng đã hủy
             total_revenue: 0,       // Tổng doanh thu
             today_revenue: 0,       // Doanh thu hôm nay
             month_revenue: 0        // Doanh thu tháng này
         };
-        let recentOrders = [];      // Danh sách đơn hàng gđn đy
+        let recentOrders = [];      // Danh sách đơn hàng gần đây
+        let inventoryAlerts = [];
         stats.total_users = 0;
         stats.total_products = 0;
         stats.processing_orders = 0;
 
         try {
-            const [orderStats, dashboardAnalytics, recentOrdersData] = await Promise.all([
+            const [orderStats, periodOrderStats, dashboardAnalytics, recentOrdersData, inventoryAlertData] = await Promise.all([
                 Order.getStatistics(),
-                getDashboardAnalytics(),
-                Order.findAll({ limit: 15, offset: 0 })
+                Order.getStatistics({
+                    created_from: dashboardPeriod.created_from,
+                    created_to: dashboardPeriod.created_to
+                }),
+                getDashboardAnalytics(dashboardPeriod),
+                Order.findAll({
+                    limit: 15,
+                    offset: 0,
+                    created_from: dashboardPeriod.created_from,
+                    created_to: dashboardPeriod.created_to
+                }),
+                getDashboardInventoryAlerts(8)
             ]);
 
             stats = {
                 ...stats,
-                ...(orderStats || {}),
+                ...(periodOrderStats || {}),
+                total_revenue: Number(orderStats?.total_revenue || 0),
+                today_revenue: Number(orderStats?.today_revenue || 0),
+                month_revenue: Number(orderStats?.month_revenue || 0),
+                period_revenue: Number(periodOrderStats?.total_revenue || 0),
                 total_users: dashboardAnalytics.totalUsers,
                 total_products: dashboardAnalytics.totalProducts,
-                completed_orders: Number(orderStats?.completed_orders || 0),
+                completed_orders: Number(periodOrderStats?.completed_orders || 0),
                 processing_orders: dashboardAnalytics.processingOrders
             };
 
             recentOrders = recentOrdersData || [];
+            inventoryAlerts = inventoryAlertData || [];
+            await attachOrderRiskAssessments(recentOrders).catch((error) => {
+                console.error('Dashboard order risk attach error:', error.message || error);
+            });
             dashboardCharts = {
                 orderStatus: {
                     pending_payment: dashboardAnalytics.orderStatusCounts.pending_payment,
@@ -647,7 +764,9 @@ exports.getDashboard = async (req, res) => {
         res.render('admin/dashboard', {
             stats,
             recentOrders,
+            inventoryAlerts,
             recentLimit,
+            dashboardPeriod,
             dashboardCharts,
             user: req.user,
             currentPage: 'dashboard'
@@ -713,7 +832,9 @@ exports.requestBulkDeleteVerification = async (req, res) => {
 exports.getCategories = async (req, res) => {
     try {
         const searchQuery = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-        await Category.resequenceDisplayOrders();
+        if (typeof Category.resequenceDisplayOrders === 'function') {
+            await Category.resequenceDisplayOrders();
+        }
         const [categories, parentCategories, allCategoriesForStats] = await Promise.all([
             Category.findAllForAdmin(searchQuery ? { search: searchQuery } : {}),
             Category.findRootCategories(),
@@ -833,8 +954,8 @@ exports.importCategories = async (req, res) => {
 
         const result = await importCategoriesFromWorkbook({ workbookPath });
         const noticeMessage = result.failedCount > 0
-            ? `Đã import ${result.createdCount} danh mục mới, cập nhật ${result.updatedCount} danh mục, lỗi ${result.failedCount} dòng.`
-            : `Đã import ${result.createdCount} danh mục mới và cập nhật ${result.updatedCount} danh mục.`;
+            ? `Đã import ${result.createdCount} danh mục mới, cập nhật ${result.updatedCount} danh mục, lỗi ${result.failedCount} dòng.`
+            : `Đã import ${result.createdCount} danh mục mới và cập nhật ${result.updatedCount} danh mục.`;
 
         return res.redirect(buildAdminNoticeRedirect(
             '/admin/categories',
@@ -893,11 +1014,11 @@ exports.deleteCategory = async (req, res) => {
         if (stats.product_count > 0 || stats.child_count > 0) {
             return res.status(400).json({
                 success: false,
-                message: `Không thể xóa: danh mục đang có ${stats.product_count} sản phẩm và ${stats.child_count} danh mục con`
+                message: `Không thể xóa: danh mục đang có ${stats.product_count} sản phẩm và ${stats.child_count} danh mục con`
             });
         }
         await Category.delete(id);
-        res.json({ success: true, message: 'Đã xóa danh mục' });
+        res.json({ success: true, message: 'Đã xóa danh mục' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
@@ -915,10 +1036,10 @@ exports.deleteAllCategories = async (req, res) => {
             blockedCount: result.blockedCategories,
             deletedProducts: result.deletedProducts,
             message: result.totalCategories === 0
-                ? 'Không có danh mục nđo trong database đ xóa.'
+                ? 'Không có danh mục nào trong database để xóa.'
                 : result.blockedCategories > 0
-                    ? `Đã xóa vĩnh viễn ${result.deletedCategories} danh mục và ${result.deletedProducts} sản phẩm liên quan. Cđn ${result.blockedCategories} danh mục không thđ xóa vđ sản phẩm cđa chàng đ nđm trong lđch sđ đơn hàng.`
-                    : `Đã xóa vĩnh viễn ${result.deletedCategories} danh mục khỏi database.`
+                    ? `Đã xóa vĩnh viễn ${result.deletedCategories} danh mục và ${result.deletedProducts} sản phẩm liên quan. Còn ${result.blockedCategories} danh mục không thể xóa vì sản phẩm của chúng đã nằm trong lịch sử đơn hàng.`
+                    : `Đã xóa vĩnh viễn ${result.deletedCategories} danh mục khỏi database.`
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -1206,10 +1327,10 @@ exports.deleteAllProducts = async (req, res) => {
             deletedCount: result.deletedProducts,
             blockedCount: result.blockedProducts,
             message: result.totalProducts === 0
-                ? 'Không có sản phẩm nđo trong database đ xóa.'
+                ? 'Không có sản phẩm nào trong database để xóa.'
                 : result.blockedProducts > 0
-                    ? `Đã xóa vĩnh viễn ${result.deletedProducts} sản phẩm. Còn ${result.blockedProducts} sản phẩm không thể xóa vđ đ nđm trong lđch sđ đơn hàng.`
-                    : `Đã xóa vĩnh viễn ${result.deletedProducts} sản phẩm khỏi database.`
+                    ? `Đã xóa vĩnh viễn ${result.deletedProducts} sản phẩm. Còn ${result.blockedProducts} sản phẩm không thể xóa vì đã nằm trong lịch sử đơn hàng.`
+                    : `Đã xóa vĩnh viễn ${result.deletedProducts} sản phẩm khỏi database.`
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -1248,6 +1369,7 @@ exports.getOrders = async (req, res) => {
                 ...(activeGroup !== 'all' ? { status_group: activeGroup } : {}),
                 ...(searchQuery ? { search: searchQuery } : {})
             });
+            await attachOrderRiskAssessments(orders);
         } catch (err) {
             console.error('Orders data error:', err);
         }
@@ -1261,7 +1383,7 @@ exports.getOrders = async (req, res) => {
             currentPage: 'orders'
         });
     } catch (error) {
-        res.status(500).render('error', { message: 'Lđi tải đơn hàng: ' + error.message, user: req.user });
+        res.status(500).render('error', { message: 'Lỗi tải đơn hàng: ' + error.message, user: req.user });
     }
 };
 
@@ -1270,14 +1392,21 @@ exports.getOrderDetail = async (req, res) => {
     try {
         const { id } = req.params;
         const order = await Order.findById(id);
+        const orderRisk = order
+            ? await assessOrderRisk(order.id).catch((error) => {
+                console.error('Order risk detail error:', error.message || error);
+                return null;
+            })
+            : null;
 
         res.render('admin/order-detail', {
             order,
+            orderRisk,
             user: req.user,
             currentPage: 'orders'
         });
     } catch (error) {
-        res.status(500).render('error', { message: 'Lđi tải đơn hàng: ' + error.message, user: req.user });
+        res.status(500).render('error', { message: 'Lỗi tải đơn hàng: ' + error.message, user: req.user });
     }
 };
 
@@ -1308,9 +1437,9 @@ exports.getUsers = async (req, res) => {
             const [statsResult] = await pool.execute(`
                 SELECT
                     COUNT(*) AS total,
-                    COALESCE(SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END), 0) AS admin,
-                    COALESCE(SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END), 0) AS active,
-                    COALESCE(SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END), 0) AS inactive
+                    COALESCE(SUM(role = 'admin'), 0) AS admin,
+                    COALESCE(SUM(is_active = TRUE), 0) AS active,
+                    COALESCE(SUM(is_active = FALSE), 0) AS inactive
                 FROM users
             `);
             const statsRow = statsResult[0] || {};
@@ -1456,9 +1585,10 @@ exports.getSales = async (req, res) => {
                 Sale.findAll(searchQuery ? { search: searchQuery } : {}),
                 Sale.findAll({}),
                 Product.findAll({ limit: ADMIN_PRODUCT_SELECTION_LIMIT, offset: 0, sort_by: 'name', sort_order: 'ASC' }),
-                Newsletter.countActive()
+                countAnnouncementRecipients()
             ]);
             sales = await attachSaleAssignments(salesData, productsData.length);
+            await attachLatestDrafts('sale', sales);
             const allSales = await attachSaleAssignments(allSalesData, productsData.length);
             saleStats = {
                 total: allSales.length,
@@ -1477,6 +1607,8 @@ exports.getSales = async (req, res) => {
             saleStats,
             subscriberCount,
             searchQuery,
+            notice: typeof req.query.notice === 'string' ? req.query.notice : '',
+            noticeType: typeof req.query.notice_type === 'string' ? req.query.notice_type : 'success',
             user: req.user,
             currentPage: 'sales'
         });
@@ -1509,20 +1641,20 @@ exports.createSale = async (req, res) => {
             const result = await sendSaleAnnouncement(createdSale);
 
             if (result.total === 0) {
-                return res.redirect(buildAdminNoticeRedirect('/admin/sales', 'đ tđo khuyến mãi nhàng hiđn chđa cđ người ng kđ nhđn thông báo.', 'warning'));
+                return res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi nhưng hiện chưa có người đăng ký nhận thông báo.', 'warning'));
             }
 
             if (result.success === result.total) {
-                return res.redirect(buildAdminNoticeRedirect('/admin/sales', `đ tđo khuyến mãi vđ gửi email thảnh cđng tải ${result.success} người ng kđ.`));
+                return res.redirect(buildAdminNoticeRedirect('/admin/sales', `Đã tạo khuyến mãi và gửi email thành công tới ${result.success} người đăng ký.`));
             }
 
             if (result.success > 0) {
-                return res.redirect(buildAdminNoticeRedirect('/admin/sales', `đ tđo khuyến mãi vĐã gửi email tới ${result.success}/${result.total} người ng kđ.`, 'warning'));
+                return res.redirect(buildAdminNoticeRedirect('/admin/sales', `Đã tạo khuyến mãi và gửi email tới ${result.success}/${result.total} người đăng ký.`, 'warning'));
             }
 
-            return res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi nhưng chưa gửi email thành công. Vui lòng kiểm tra cấu hình email.', 'error'));
+            return res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi nhưng chưa gửi email thành công. Vui lòng kiểm tra cấu hình email.', 'error'));
         }
-        res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi thành công.'));
+        res.redirect(buildAdminNoticeRedirect('/admin/sales', 'Đã tạo khuyến mãi thành công.'));
     } catch (error) {
         res.redirect(buildAdminNoticeRedirect('/admin/sales', error.message || 'Không thể tạo khuyến mãi.', 'error'));
     }
@@ -1574,7 +1706,7 @@ exports.deleteSale = async (req, res) => {
         await Sale.clearAssignedProducts(id);
         await Sale.delete(id);
 
-        res.json({ success: true, message: 'Đã ngừng khuyến mãi' });
+        res.json({ success: true, message: 'Đã ngừng khuyến mãi' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
@@ -1597,7 +1729,7 @@ exports.sendSaleAnnouncementEmail = async (req, res) => {
             return res.json({
                 success: true,
                 toastType: 'warning',
-                message: 'Hiđn chđa cđ người dđng nđo ng kđ nhđn thông báo.'
+                message: 'Hiện chưa có người dùng nào đăng ký nhận thông báo.'
             });
         }
 
@@ -1605,7 +1737,7 @@ exports.sendSaleAnnouncementEmail = async (req, res) => {
             return res.json({
                 success: true,
                 toastType: 'success',
-                message: `Đã gửi email thông báo khuyến mãi tới ${result.success} người ng kđ.`
+                message: `Đã gửi email thông báo khuyến mãi tới ${result.success} người đăng ký.`
             });
         }
 
@@ -1613,14 +1745,14 @@ exports.sendSaleAnnouncementEmail = async (req, res) => {
             return res.json({
                 success: true,
                 toastType: 'warning',
-                message: `Đã gửi email tới ${result.success}/${result.total} người ng kđ.`
+                message: `Đã gửi email tới ${result.success}/${result.total} người đăng ký.`
             });
         }
 
         return res.status(500).json({
             success: false,
             toastType: 'error',
-            message: 'Khàng gửi đđc email thông báo. Vui lđng kiđm tra cđu hảnh email.'
+            message: 'Không gửi được email thông báo. Vui lòng kiểm tra cấu hình email.'
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message, toastType: 'error' });
@@ -1718,7 +1850,7 @@ exports.uploadProductImage = async (req, res) => {
 
         res.json({
             success: true,
-            message: files.length > 1 ? `Đã tải lên ${files.length} ảnh` : 'Đã tải lên ảnh'
+            message: files.length > 1 ? `Đã tải lên ${files.length} ảnh` : 'Đã tải lên ảnh'
         });
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -1792,9 +1924,10 @@ exports.getVouchers = async (req, res) => {
             const [voucherData, productsData, totalSubscribers] = await Promise.all([
                 Voucher.findAll(searchQuery ? { search: searchQuery } : {}),
                 Product.findAll({ limit: ADMIN_PRODUCT_SELECTION_LIMIT, offset: 0, sort_by: 'name', sort_order: 'ASC' }),
-                Newsletter.countActive()
+                countAnnouncementRecipients()
             ]);
             vouchers = await attachVoucherAssignments(voucherData);
+            await attachLatestDrafts('voucher', vouchers);
             products = productsData;
             subscriberCount = totalSubscribers;
         } catch (err) {
@@ -1806,6 +1939,8 @@ exports.getVouchers = async (req, res) => {
             products,
             subscriberCount,
             searchQuery,
+            notice: typeof req.query.notice === 'string' ? req.query.notice : '',
+            noticeType: typeof req.query.notice_type === 'string' ? req.query.notice_type : 'success',
             user: req.user,
             currentPage: 'vouchers'
         });
@@ -1848,21 +1983,21 @@ exports.createVoucher = async (req, res) => {
             const result = await sendVoucherAnnouncement(voucher);
 
             if (result.total === 0) {
-                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'đ tđo voucher nhàng hiđn chđa cđ người ng kđ nhđn thông báo.', 'warning'));
+                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher nhưng hiện chưa có người đăng ký nhận thông báo.', 'warning'));
             }
 
             if (result.success === result.total) {
-                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', `đ tđo voucher vđ gửi email thảnh cđng tải ${result.success} người ng kđ.`));
+                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', `Đã tạo voucher và gửi email thành công tới ${result.success} người đăng ký.`));
             }
 
             if (result.success > 0) {
-                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', `đ tđo voucher vĐã gửi email tới ${result.success}/${result.total} người ng kđ.`, 'warning'));
+                return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', `Đã tạo voucher và gửi email tới ${result.success}/${result.total} người đăng ký.`, 'warning'));
             }
 
-            return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher nhưng chưa gửi email thành công. Vui lòng kiểm tra cấu hình email.', 'error'));
+            return res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher nhưng chưa gửi email thành công. Vui lòng kiểm tra cấu hình email.', 'error'));
         }
 
-        res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher thành công.'));
+        res.redirect(buildAdminNoticeRedirect('/admin/vouchers', 'Đã tạo voucher thành công.'));
     } catch (error) {
         console.error('Create voucher error:', error);
         res.redirect(buildAdminNoticeRedirect('/admin/vouchers', error.message || 'Không thể tạo voucher.', 'error'));
@@ -1944,7 +2079,7 @@ exports.sendVoucherAnnouncementEmail = async (req, res) => {
             return res.json({
                 success: true,
                 toastType: 'warning',
-                message: 'Hiđn chđa cđ người dđng nđo ng kđ nhđn thông báo.'
+                message: 'Hiện chưa có người dùng nào đăng ký nhận thông báo.'
             });
         }
 
@@ -1952,7 +2087,7 @@ exports.sendVoucherAnnouncementEmail = async (req, res) => {
             return res.json({
                 success: true,
                 toastType: 'success',
-                message: `Đã gửi email thông báo voucher tới ${result.success} người ng kđ.`
+                message: `Đã gửi email thông báo voucher tới ${result.success} người đăng ký.`
             });
         }
 
@@ -1960,14 +2095,14 @@ exports.sendVoucherAnnouncementEmail = async (req, res) => {
             return res.json({
                 success: true,
                 toastType: 'warning',
-                message: `Đã gửi email tới ${result.success}/${result.total} người ng kđ.`
+                message: `Đã gửi email tới ${result.success}/${result.total} người đăng ký.`
             });
         }
 
         return res.status(500).json({
             success: false,
             toastType: 'error',
-            message: 'Khàng gửi đđc email thông báo. Vui lđng kiđm tra cđu hảnh email.'
+            message: 'Không gửi được email thông báo. Vui lòng kiểm tra cấu hình email.'
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message, toastType: 'error' });
@@ -2002,12 +2137,12 @@ exports.deleteProductVariant = async (req, res) => {
         if (await Product.isVariantReferenced(req.params.variantId)) {
             return res.status(400).json({
                 success: false,
-                message: 'Khàng thĐã xóa biến thể đ đđc dđng trong giđ hàng hođc đơn hàng'
+                message: 'Không thể xóa biến thể vì đã được dùng trong giỏ hàng hoặc đơn hàng'
             });
         }
 
         await Product.deleteVariant(req.params.variantId);
-        res.json({ success: true, message: 'Đã xóa biến thể' });
+        res.json({ success: true, message: 'Đã xóa biến thể' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
@@ -2019,6 +2154,7 @@ exports.deleteProductVariant = async (req, res) => {
 exports.getStorefrontSettings = async (req, res) => {
     try {
         const settingsState = await StorefrontSetting.getAdminState();
+        const apiKeys = await ApiKeySetting.list();
         const activeSection = typeof req.query.section === 'string' ? req.query.section : '';
 
         res.render('admin/storefront', {
@@ -2026,6 +2162,8 @@ exports.getStorefrontSettings = async (req, res) => {
             settingsState,
             settingGroups: settingsState.groups,
             settingDefinitions: settingsState.definitions,
+            apiKeys,
+            providerOptions: ApiKeySetting.getProviderOptions(),
             activeSection,
             notice: typeof req.query.notice === 'string' ? req.query.notice : '',
             noticeType: typeof req.query.notice_type === 'string' ? req.query.notice_type : 'success',
@@ -2164,7 +2302,7 @@ exports.reorderBanners = async (req, res) => {
     try {
         const { items } = req.body;
         if (!Array.isArray(items)) {
-            return res.status(400).json({ success: false, message: 'Dđ liđu không hợp lệ' });
+            return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
         }
         await Banner.updateOrder(items);
         res.json({ success: true });
@@ -2227,7 +2365,7 @@ exports.updateOrderStatus = async (req, res) => {
         const requestedStatus = Order.normalizeStatus(status);
 
         if (requestedStatus === 'completed') {
-            return res.status(403).json({ message: 'Trđng thđi đã hoàn thành chđ đđc xđc nhđn bđi người mua.' });
+            return res.status(403).json({ message: 'Trạng thái đã hoàn thành chỉ được xác nhận bởi người mua.' });
         }
 
         const previousOrder = await Order.findById(id);
@@ -2237,7 +2375,7 @@ exports.updateOrderStatus = async (req, res) => {
             && previousOrder.payment_status !== 'paid'
             && !['pending_payment', 'cancelled'].includes(requestedStatus)
         ) {
-            return res.status(400).json({ message: 'Đơn thanh toán online chưa thanh toán chỉ có thể ở trạng tháii Chđ thanh tođn hođc đã hủy.' });
+            return res.status(400).json({ message: 'Đơn thanh toán online chưa thanh toán chỉ có thể ở trạng thái Chờ thanh toán hoặc Đã hủy.' });
         }
 
         const order = await Order.updateStatus(id, status, trackingPayload, {
@@ -2250,6 +2388,11 @@ exports.updateOrderStatus = async (req, res) => {
             emailService
                 .sendOrderDeliveredEmail(order)
                 .catch((emailError) => console.error('Order delivered email error:', emailError));
+        }
+
+        scheduleOrderRiskAssessment(order.id);
+        if (nextStatus === 'cancelled') {
+            scheduleInventoryForecastRefresh();
         }
 
         res.json({
@@ -2334,7 +2477,7 @@ exports.updateReturnRequestStatus = async (req, res) => {
 
         return res.json({
             success: true,
-            message: 'Đã cập nhật trạng thái yêu cầu hoàn hàng',
+            message: 'Đã cập nhật trạng thái yêu cầu hoàn hàng',
             returnRequest
         });
     } catch (error) {

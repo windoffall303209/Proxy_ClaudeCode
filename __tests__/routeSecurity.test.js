@@ -16,6 +16,7 @@ jest.mock('../controllers/authController', () => ({
     deleteAddress: jest.fn(),
     updateFullProfile: jest.fn(),
     changePassword: jest.fn(),
+    updateNotificationSettings: jest.fn(),
     handleAvatarUpload: jest.fn(),
     requestAccountDeletion: jest.fn(),
     showVerifyEmail: jest.fn(),
@@ -173,6 +174,16 @@ describe('security-sensitive routes', () => {
         expect(cancelRoute.route.stack.map((layer) => layer.handle)).toEqual([
             verifyToken,
             orderController.cancelOrder
+        ]);
+    });
+
+    it('protects notification settings updates with verifyToken', () => {
+        const notificationRoute = findRoute(authRoutes, '/notifications', 'put');
+
+        expect(notificationRoute).toBeTruthy();
+        expect(notificationRoute.route.stack.map((layer) => layer.handle)).toEqual([
+            verifyToken,
+            authController.updateNotificationSettings
         ]);
     });
 

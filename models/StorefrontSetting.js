@@ -145,7 +145,7 @@ const SETTING_DEFINITIONS = {
     chat_enabled: { group: 'chat', type: 'boolean', label: 'Bật chat widget', defaultValue: true },
     chat_title: { group: 'chat', type: 'string', label: 'Tiêu đề chat', defaultValue: 'WIND OF FALL', maxLength: 120 },
     chat_bot_name: { group: 'chat', type: 'string', label: 'Tên bot/thương hiệu trong chat', defaultValue: 'WIND OF FALL', maxLength: 120 },
-    chat_greeting: { group: 'chat', type: 'string', label: 'Lời chào đầu tiên', defaultValue: 'Xin chào! Tôi là trợ lý AI của WIND OF FALL.', maxLength: 260 },
+    chat_greeting: { group: 'chat', type: 'string', label: 'Lời chào đầu tiên', defaultValue: 'Xin chào! WIND OF FALL có thể hỗ trợ bạn tìm sản phẩm, hỏi size màu hoặc theo dõi đơn hàng.', maxLength: 260 },
     chat_prompt_text: { group: 'chat', type: 'string', label: 'Câu hỏi gợi mở', defaultValue: 'Bạn cần hỗ trợ gì?', maxLength: 180 },
     chat_position: { group: 'chat', type: 'select', label: 'Vị trí nút chat', defaultValue: 'right', options: CHAT_POSITION_OPTIONS },
 
@@ -467,10 +467,10 @@ class StorefrontSetting {
                 await connection.execute(
                     `INSERT INTO storefront_settings (setting_key, setting_value, draft_value, value_type, updated_by)
                      VALUES (?, ?, ?, ?, ?)
-                     ON CONFLICT (setting_key) DO UPDATE SET
-                        draft_value = EXCLUDED.draft_value,
-                        value_type = EXCLUDED.value_type,
-                        updated_by = EXCLUDED.updated_by`,
+                     ON DUPLICATE KEY UPDATE
+                        draft_value = VALUES(draft_value),
+                        value_type = VALUES(value_type),
+                        updated_by = VALUES(updated_by)`,
                     [key, defaultValue, draftValue, definition.type || 'string', userId || null]
                 );
             }
@@ -550,10 +550,10 @@ class StorefrontSetting {
                 await connection.execute(
                     `INSERT INTO storefront_settings (setting_key, setting_value, draft_value, value_type, published_at)
                      VALUES (?, ?, NULL, ?, CURRENT_TIMESTAMP)
-                     ON CONFLICT (setting_key) DO UPDATE SET
-                        setting_value = EXCLUDED.setting_value,
+                     ON DUPLICATE KEY UPDATE
+                        setting_value = VALUES(setting_value),
                         draft_value = NULL,
-                        value_type = EXCLUDED.value_type,
+                        value_type = VALUES(value_type),
                         published_at = CURRENT_TIMESTAMP`,
                     [key, settingValue, definition.type || 'string']
                 );

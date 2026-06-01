@@ -34,6 +34,22 @@ function buildSuggestedProductResult(product) {
     };
 }
 
+// Với query 1 ký tự, chỉ giữ gợi ý có tên sản phẩm hiển thị thật sự chứa/prefix ký tự đó.
+// Tránh trường hợp match category/description nhưng dropdown chỉ hiện tên nên nhìn như sai kết quả.
+function matchesVisibleProductName(product, query) {
+    const normalizedQuery = Product.normalizeSearchText(query).trim();
+    if (!normalizedQuery) {
+        return false;
+    }
+
+    const normalizedName = Product.normalizeSearchText(product?.name || '');
+    if (!normalizedName) {
+        return false;
+    }
+
+    return normalizedName.includes(normalizedQuery);
+}
+
 // Lay danh sach goi y bang cung ranking voi trang /products/search.
 async function getProductSuggestions(query, limit = 6) {
     const q = String(query || '').trim();
@@ -43,8 +59,15 @@ async function getProductSuggestions(query, limit = 6) {
         return [];
     }
 
-    const products = await Product.search(q, safeLimit);
-    return products.map(buildSuggestedProductResult);
+    const searchLimit = q.length === 1
+        ? Math.max(await Product.count().catch(() => safeLimit), safeLimit)
+        : safeLimit;
+    const products = await Product.search(q, searchLimit);
+    const visibleProducts = q.length === 1
+        ? products.filter((product) => matchesVisibleProductName(product, q)).slice(0, safeLimit)
+        : products;
+
+    return visibleProducts.map(buildSuggestedProductResult);
 }
 
 module.exports = {

@@ -1,13 +1,15 @@
 <%# Trung tâm quản lí trang web: cấu hình nhận diện, giao diện, nội dung và vận hành. %>
 <%- include('../partials/admin-header', {
     currentPage: 'storefront',
-    pageStyles: ['/css/admin/storefront.css']
+    pageStyles: ['/css/admin/storefront.css', '/css/admin/api-keys.css']
 }) %>
 
 <%
     const state = settingsState || {};
     const groups = Array.isArray(settingGroups) ? settingGroups : [];
     const definitions = settingDefinitions || {};
+    const keys = Array.isArray(apiKeys) ? apiKeys : [];
+    const providers = Array.isArray(providerOptions) ? providerOptions : [];
     const currentValues = state.inputValues || settings || {};
     const publishedValues = state.publishedValues || {};
     const currentActiveSection = typeof activeSection !== 'undefined' && activeSection
@@ -33,6 +35,11 @@
 
     function isLongText(definition) {
         return definition.type === 'json' || Number(definition.maxLength || 0) > 220;
+    }
+
+    function providerLabel(value) {
+        const provider = providers.find((item) => item.value === value);
+        return provider ? provider.label : value;
     }
 %>
 
@@ -76,6 +83,18 @@
                             <% } %>
                         </button>
                     <% }) %>
+                    <button
+                        type="button"
+                        class="website-management-card"
+                        data-website-section-target="api_keys"
+                    >
+                        <span>API keys</span>
+                        <% if (keys.length) { %>
+                            <em><%= keys.length %> key</em>
+                        <% } else { %>
+                            <em>Chưa cấu hình</em>
+                        <% } %>
+                    </button>
                 </div>
             </aside>
 
@@ -211,11 +230,139 @@
                         </div>
                     </section>
                 <% }) %>
+
+                <section class="admin-section website-management-panel api-key-page" data-website-section="api_keys" hidden>
+                    <div class="website-management-panel__top">
+                        <button type="button" class="admin-btn admin-btn--ghost website-management-back" data-website-back aria-label="Quay lại danh sách" title="Quay lại danh sách">&larr;</button>
+                        <div>
+                            <h3 class="admin-section__title">API keys</h3>
+                            <p class="storefront-settings__description">Quản lý key runtime cho Gemini CLI và các tích hợp server-side. Key chỉ hiển thị ở dạng đã che.</p>
+                        </div>
+                        <span class="website-management-status <%= keys.length ? '' : 'website-management-status--draft' %>">
+                            <%= keys.length ? `${keys.length} key` : 'Chưa cấu hình' %>
+                        </span>
+                    </div>
+
+                    <div class="api-key-toolbar">
+                        <div>
+                            <h2 class="admin-section__title">Thêm API key</h2>
+                            <p>Với chatbot hiện tại, dùng provider <strong>Gemini CLI</strong> và tên biến <strong>GEMINI_API_KEY</strong>.</p>
+                        </div>
+                    </div>
+
+                    <form action="/admin/api-keys" method="POST" class="admin-form api-key-form api-key-form--create">
+                        <div class="api-key-form__grid">
+                            <div class="admin-form__field">
+                                <label class="admin-form__label" for="provider">Provider</label>
+                                <select id="provider" name="provider" class="admin-form__input">
+                                    <% providers.forEach((provider) => { %>
+                                        <option value="<%= provider.value %>" <%= provider.value === 'gemini_cli' ? 'selected' : '' %>><%= provider.label %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="admin-form__field">
+                                <label class="admin-form__label" for="key_name">Tên biến</label>
+                                <input id="key_name" class="admin-form__input" type="text" name="key_name" value="GEMINI_API_KEY" maxlength="100" required>
+                            </div>
+                            <div class="admin-form__field api-key-form__secret">
+                                <label class="admin-form__label" for="key_value">API key</label>
+                                <input id="key_value" class="admin-form__input" type="password" name="key_value" placeholder="Nhập API key mới" autocomplete="new-password" required>
+                            </div>
+                            <div class="admin-form__field">
+                                <label class="admin-form__label" for="notes">Ghi chú</label>
+                                <input id="notes" class="admin-form__input" type="text" name="notes" maxlength="255" placeholder="VD: Google AI Studio key">
+                            </div>
+                        </div>
+
+                        <div class="api-key-form__actions">
+                            <input type="hidden" name="is_active" value="false">
+                            <label class="api-key-toggle">
+                                <input type="checkbox" name="is_active" value="true" checked>
+                                <span>Đang bật</span>
+                            </label>
+                            <button type="submit" class="admin-btn admin-btn--primary">Lưu API key</button>
+                        </div>
+                    </form>
+
+                    <div class="api-key-toolbar api-key-toolbar--list">
+                        <div>
+                            <h2 class="admin-section__title">Danh sách API key</h2>
+                            <p>Nhập key mới nếu muốn thay đổi giá trị. Nếu để trống, hệ thống chỉ cập nhật provider, tên biến, trạng thái và ghi chú.</p>
+                        </div>
+                    </div>
+
+                    <% if (!keys.length) { %>
+                        <div class="api-key-empty">
+                            <strong>Chưa có API key nào.</strong>
+                            <span>Hãy thêm GEMINI_API_KEY để chatbot có thể dùng API key thay cho Google login khi Gemini CLI hỗ trợ.</span>
+                        </div>
+                    <% } else { %>
+                        <div class="api-key-table-wrapper">
+                            <% keys.forEach((item) => { %>
+                                <form id="api-key-update-<%= item.id %>" action="/admin/api-keys/<%= item.id %>" method="POST"></form>
+                                <form id="api-key-delete-<%= item.id %>" action="/admin/api-keys/<%= item.id %>/delete" method="POST"></form>
+                            <% }) %>
+
+                            <table class="api-key-table">
+                                <thead>
+                                    <tr>
+                                        <th>Provider</th>
+                                        <th>Tên biến</th>
+                                        <th>Key đã che</th>
+                                        <th>Trạng thái</th>
+                                        <th>Ghi chú</th>
+                                        <th>Key mới</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% keys.forEach((item) => { %>
+                                        <tr>
+                                            <td data-label="Provider">
+                                                <select id="provider-<%= item.id %>" name="provider" class="admin-form__input api-key-table__control" form="api-key-update-<%= item.id %>">
+                                                    <% providers.forEach((provider) => { %>
+                                                        <option value="<%= provider.value %>" <%= provider.value === item.provider ? 'selected' : '' %>><%= provider.label %></option>
+                                                    <% }) %>
+                                                </select>
+                                            </td>
+                                            <td data-label="Tên biến">
+                                                <input id="key-name-<%= item.id %>" class="admin-form__input api-key-table__control api-key-table__mono" type="text" name="key_name" value="<%= item.key_name %>" maxlength="100" required form="api-key-update-<%= item.id %>">
+                                            </td>
+                                            <td data-label="Key đã che">
+                                                <code class="api-key-masked"><%= item.masked_value || 'Chưa có giá trị' %></code>
+                                            </td>
+                                            <td data-label="Trạng thái">
+                                                <input type="hidden" name="is_active" value="false" form="api-key-update-<%= item.id %>">
+                                                <label class="api-key-switch">
+                                                    <input type="checkbox" name="is_active" value="true" <%= item.is_active ? 'checked' : '' %> form="api-key-update-<%= item.id %>">
+                                                    <span aria-hidden="true"></span>
+                                                    <strong><%= item.is_active ? 'Đang bật' : 'Đang tắt' %></strong>
+                                                </label>
+                                            </td>
+                                            <td data-label="Ghi chú">
+                                                <input id="notes-<%= item.id %>" class="admin-form__input api-key-table__control" type="text" name="notes" value="<%= item.notes || '' %>" maxlength="255" placeholder="Không có ghi chú" form="api-key-update-<%= item.id %>">
+                                            </td>
+                                            <td data-label="Key mới">
+                                                <input id="key-value-<%= item.id %>" class="admin-form__input api-key-table__control" type="password" name="key_value" placeholder="Để trống nếu không đổi" autocomplete="new-password" form="api-key-update-<%= item.id %>">
+                                            </td>
+                                            <td data-label="Thao tác">
+                                                <div class="api-key-table__actions">
+                                                    <button type="submit" class="admin-btn admin-btn--primary api-key-action-btn" form="api-key-update-<%= item.id %>">Cập nhật</button>
+                                                    <button type="submit" class="admin-btn admin-btn--ghost api-key-delete-btn api-key-action-btn" form="api-key-delete-<%= item.id %>" onclick="return confirm('Xóa API key này?');">Xóa</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } %>
+                </section>
             </div>
         </div>
     </div>
 </div>
 
-<script src="/js/admin/storefront.js?v=website-management-20260426"></script>
+<script src="/js/admin/storefront.js?v=api-keys-20260601"></script>
 
 <%- include('../partials/admin-footer') %>

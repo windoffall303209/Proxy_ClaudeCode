@@ -74,6 +74,7 @@
                             <th>Sản phẩm</th>
                             <th class="text-right">Tổng tiền</th>
                             <th class="text-center">Thanh toán</th>
+                            <th class="text-center">Rủi ro</th>
                             <th class="text-center">Trạng thái</th>
                             <th class="text-center">Ngày đặt</th>
                             <th class="text-center">Thao tác</th>
@@ -96,7 +97,7 @@
                                     <div class="order-customer">
                                         <span class="order-customer__name"><%= order.user_name || order.recipient_name || 'N/A' %></span>
                                         <% if (order.recipient_phone) { %>
-                                            <span class="order-customer__phone"><%= privacy.maskPhone(order.recipient_phone) %></span>
+                                            <span class="order-customer__phone"><%= order.recipient_phone %></span>
                                         <% } else if (order.user_email) { %>
                                             <span class="order-customer__phone"><%= privacy.maskEmail(order.user_email) %></span>
                                         <% } %>
@@ -121,6 +122,15 @@
                                 </td>
                                 <td class="text-center">
                                     <span class="admin-table__badge <%= paymentStatusClass %>"><%= paymentStatusText %></span>
+                                </td>
+                                <td class="text-center">
+                                    <% if (order.risk_assessment) { %>
+                                        <span class="admin-table__badge admin-table__badge--<%= order.risk_assessment.risk_level === 'high' ? 'cancelled' : (order.risk_assessment.risk_level === 'medium' ? 'pending' : 'delivered') %>" title="<%= order.risk_assessment.ai_summary || '' %>">
+                                            <%= order.risk_assessment.risk_level %> · <%= order.risk_assessment.risk_score %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="admin-table__badge admin-table__badge--processing">đang tính</span>
+                                    <% } %>
                                 </td>
                                 <td class="text-center">
                                     <select data-order-id="<%= order.id %>" class="order-status-select order-status-select--<%= order.status %>">

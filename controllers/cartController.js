@@ -13,6 +13,7 @@
 
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const { recordProductEvent } = require('../services/recommendationService');
 
 // Chuyển giá trị đầu vào về số nguyên.
 function parseInteger(value) {
@@ -265,6 +266,12 @@ exports.addToCart = async (req, res) => {
 
         // Thêm sản phẩm vào giỏ hàng
         await Cart.addItem(cart.id, productId, quantityNumber, safeVariantId);
+        recordProductEvent(req, {
+            productId,
+            eventType: 'add_cart',
+            weight: 4 * quantityNumber,
+            metadata: { variantId: safeVariantId, quantity: quantityNumber }
+        });
 
         // Lấy số lượng sản phẩm mới trong giỏ để cập nhật UI
         const cartCount = await Cart.getCartCount(cart.id);

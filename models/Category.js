@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu danh mục trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu danh mục trong MySQL.
 const pool = require('../config/database');
 
 class Category {

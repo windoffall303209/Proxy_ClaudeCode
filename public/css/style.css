@@ -1880,6 +1880,8 @@ body.logout-confirm-open {
 
 .footer {
     margin-top: 30px;
+    border-top: 2px solid rgba(200, 174, 112, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .footer-newsletter {
@@ -2027,17 +2029,27 @@ body.logout-confirm-open {
     letter-spacing: -0.03em;
 }
 
-.footer-branding__logo span {
+.footer-branding__logo-mark {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 16px;
-    background: var(--accent);
+    width: auto;
+    height: clamp(44px, 5vw, 60px);
+    max-width: min(170px, 34vw);
+    border-radius: 0;
+    background: transparent;
+    border: none;
     color: var(--accent-ink);
+    overflow: visible;
     font-size: 15px;
     letter-spacing: 0.12em;
+}
+
+.footer-branding__logo-mark img {
+    display: block;
+    width: auto;
+    height: 100%;
+    object-fit: contain;
 }
 
 .footer-branding__text {

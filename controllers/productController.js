@@ -17,6 +17,8 @@ const Category = require('../models/Category');
 const Banner = require('../models/Banner');
 const { deleteFromCloudinary } = require('../config/cloudinary');
 const { getProductSuggestions } = require('../services/productSuggestService');
+const { getPersonalizedRecommendations, recordProductEvent } = require('../services/recommendationService');
+const { scheduleReviewInsightAnalysis } = require('../services/reviewAiInsightService');
 
 const DESCRIPTION_ALLOWED_TAGS = [
     'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
@@ -924,7 +926,7 @@ exports.createProductReview = async (req, res) => {
             return res.redirect(buildProductReviewRedirect(product.slug || fallbackSlug, 'not-eligible'));
         }
 
-        await Product.createReview({
+        const createdReview = await Product.createReview({
             productId: product.id,
             userId: req.user.id,
             orderId: reviewContext.eligibleOrder.id,
@@ -933,6 +935,13 @@ exports.createProductReview = async (req, res) => {
             isVerified: true,
             isApproved: true,
             media: uploadedMedia
+        });
+        scheduleReviewInsightAnalysis(createdReview.id);
+        recordProductEvent(req, {
+            productId: product.id,
+            eventType: 'review',
+            weight: 6,
+            metadata: { rating }
         });
 
         return res.redirect(buildProductReviewRedirect(product.slug || fallbackSlug, 'submitted'));
@@ -999,6 +1008,7 @@ exports.updateProductReview = async (req, res) => {
         }
 
         await cleanupUploadedReviewMedia(updatedReview.removedMedia || []);
+        scheduleReviewInsightAnalysis(existingReview.id);
         return res.redirect(buildProductReviewRedirect(product.slug || fallbackSlug, 'updated'));
     } catch (error) {
         console.error('Update product review error:', error);
@@ -1187,7 +1197,7 @@ exports.getProducts = async (req, res) => {
 exports.getForYou = async (req, res) => {
     try {
         const recommendations = req.user
-            ? await Product.getForYouRecommendations(req.user.id, 30)
+            ? await getPersonalizedRecommendations(req.user.id, 30)
             : [];
 
         res.render('products/for-you', {
@@ -1241,6 +1251,12 @@ exports.getProductDetail = async (req, res) => {
                 user: req.user || null
             });
         }
+
+        recordProductEvent(req, {
+            productId: product.id,
+            eventType: 'view',
+            metadata: { slug: product.slug || slug }
+        });
 
         // Lấy sản phẩm liên quan (cùng danh mục)
         product.descriptionHtml = formatProductDescription(product.description);

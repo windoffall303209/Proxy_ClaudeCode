@@ -120,7 +120,7 @@
                     </div>
                     <div>
                         <span>Điện thoại</span>
-                        <strong><%= order.shipping_phone ? privacy.maskPhone(order.shipping_phone) : 'N/A' %></strong>
+                        <strong><%= order.shipping_phone || 'N/A' %></strong>
                     </div>
                     <div class="return-order-summary__wide">
                         <span>Địa chỉ giao hàng</span>

@@ -1,55 +1,41 @@
--- PostgreSQL migration: add payment completion and returns.
-ALTER TABLE orders DROP CONSTRAINT IF EXISTS chk_orders_status;
+-- File migrations/011_add_payment_completion_and_returns.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 ALTER TABLE orders
-    ALTER COLUMN status TYPE VARCHAR(50),
-    ALTER COLUMN status SET DEFAULT 'pending';
-ALTER TABLE orders ADD CONSTRAINT chk_orders_status CHECK (status IN ('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled'));
+    MODIFY status ENUM('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled') DEFAULT 'pending';
 
-ALTER TABLE shipments DROP CONSTRAINT IF EXISTS chk_shipments_current_status;
 ALTER TABLE shipments
-    ALTER COLUMN current_status TYPE VARCHAR(50),
-    ALTER COLUMN current_status SET DEFAULT 'pending';
-ALTER TABLE shipments ADD CONSTRAINT chk_shipments_current_status CHECK (current_status IN ('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled'));
+    MODIFY current_status ENUM('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled') DEFAULT 'pending';
 
-ALTER TABLE order_tracking_events DROP CONSTRAINT IF EXISTS chk_order_tracking_events_status;
-ALTER TABLE order_tracking_events DROP CONSTRAINT IF EXISTS chk_order_tracking_events_source;
 ALTER TABLE order_tracking_events
-    ALTER COLUMN status TYPE VARCHAR(50),
-    ALTER COLUMN status SET NOT NULL,
-    ALTER COLUMN source TYPE VARCHAR(50),
-    ALTER COLUMN source SET DEFAULT 'system';
-ALTER TABLE order_tracking_events ADD CONSTRAINT chk_order_tracking_events_status CHECK (status IN ('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled'));
-ALTER TABLE order_tracking_events ADD CONSTRAINT chk_order_tracking_events_source CHECK (source IN ('system', 'admin', 'carrier', 'user'));
+    MODIFY status ENUM('pending_payment', 'pending', 'confirmed', 'processing', 'shipping', 'delivered', 'completed', 'cancelled') NOT NULL,
+    MODIFY source ENUM('system', 'admin', 'carrier', 'user') DEFAULT 'system';
 
 CREATE TABLE IF NOT EXISTS order_return_requests (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     user_id INT NOT NULL,
     reason TEXT NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'resolved')),
+    status ENUM('pending', 'approved', 'rejected', 'resolved') DEFAULT 'pending',
     admin_note TEXT NULL,
     reviewed_by INT NULL,
-    reviewed_at TIMESTAMP NULL,
+    reviewed_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE INDEX IF NOT EXISTS order_return_requests_idx_order ON order_return_requests (order_id);
-CREATE INDEX IF NOT EXISTS order_return_requests_idx_user ON order_return_requests (user_id);
-CREATE INDEX IF NOT EXISTS order_return_requests_idx_status ON order_return_requests (status);
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_return_order (order_id),
+    INDEX idx_return_user (user_id),
+    INDEX idx_return_status (status)
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS order_return_media (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     return_request_id INT NOT NULL,
-    media_type VARCHAR(50) NOT NULL CHECK (media_type IN ('image', 'video')),
+    media_type ENUM('image', 'video') NOT NULL,
     media_url VARCHAR(500) NOT NULL,
     public_id VARCHAR(255) NULL,
     display_order INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (return_request_id) REFERENCES order_return_requests(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS order_return_media_idx_request ON order_return_media (return_request_id);
+    FOREIGN KEY (return_request_id) REFERENCES order_return_requests(id) ON DELETE CASCADE,
+    INDEX idx_return_media_request (return_request_id)
+) ENGINE=InnoDB;

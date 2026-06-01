@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu đơn hàng trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu đơn hàng trong MySQL.
 const crypto = require("crypto");
 const pool = require("../config/database");
 const StorefrontSetting = require("./StorefrontSetting");
@@ -659,7 +659,7 @@ class Order {
         `SELECT o.id
                  FROM orders o
                  WHERE o.status = 'delivered'
-                   AND o.updated_at <= NOW() - INTERVAL '7 days'
+                   AND o.updated_at <= DATE_SUB(NOW(), INTERVAL 7 DAY)
                    AND NOT EXISTS (
                        SELECT 1
                        FROM order_return_requests rr
@@ -684,7 +684,7 @@ class Order {
                      FROM orders
                      WHERE id = ?
                        AND status = 'delivered'
-                       AND updated_at <= NOW() - INTERVAL '7 days'
+                       AND updated_at <= DATE_SUB(NOW(), INTERVAL 7 DAY)
                      LIMIT 1
                      FOR UPDATE`,
           [row.id],
@@ -1448,6 +1448,16 @@ class Order {
       params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
+    if (filters.created_from) {
+      query += " AND o.created_at >= ?";
+      params.push(filters.created_from);
+    }
+
+    if (filters.created_to) {
+      query += " AND o.created_at < ?";
+      params.push(filters.created_to);
+    }
+
     query += " ORDER BY o.created_at DESC";
 
     if (filters.limit) {
@@ -1560,8 +1570,21 @@ class Order {
   }
 
   // Lấy statistics.
-  static async getStatistics() {
+  static async getStatistics(filters = {}) {
     await this.autoCompleteDeliveredOrders();
+    const params = [];
+    let whereClause = "";
+
+    if (filters.created_from) {
+      whereClause += " AND created_at >= ?";
+      params.push(filters.created_from);
+    }
+
+    if (filters.created_to) {
+      whereClause += " AND created_at < ?";
+      params.push(filters.created_to);
+    }
+
     const [stats] = await pool.execute(`
             SELECT
                 COUNT(*) AS total_orders,
@@ -1571,10 +1594,11 @@ class Order {
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_orders,
                 SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders,
                 SUM(CASE WHEN status = 'completed' THEN final_amount ELSE 0 END) AS total_revenue,
-                SUM(CASE WHEN status = 'completed' AND DATE(created_at) = CURRENT_DATE THEN final_amount ELSE 0 END) AS today_revenue,
-                SUM(CASE WHEN status = 'completed' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE::timestamp) THEN final_amount ELSE 0 END) AS month_revenue
+                SUM(CASE WHEN status = 'completed' AND DATE(created_at) = CURDATE() THEN final_amount ELSE 0 END) AS today_revenue,
+                SUM(CASE WHEN status = 'completed' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) THEN final_amount ELSE 0 END) AS month_revenue
             FROM orders
-        `);
+            WHERE 1 = 1 ${whereClause}
+        `, params);
 
     return stats[0];
   }

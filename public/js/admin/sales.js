@@ -4,6 +4,7 @@ const adminSaleProducts = adminSalesBootstrap.products || [];
 const adminSubscriberCount = Number(adminSalesBootstrap.subscriberCount || 0);
 const adminSales = adminSalesBootstrap.sales || [];
 const adminSalesMap = new Map(adminSales.map((sale) => [Number(sale.id), sale]));
+const SALE_DATE_RANGE_MESSAGE = 'Ngày kết thúc khuyến mãi phải sau hoặc bằng ngày bắt đầu.';
 
 // Xử lý escape html.
 function escapeHtml(value) {
@@ -114,6 +115,74 @@ function toDatetimeLocal(value) {
     return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
 }
 
+function syncDateRangeValidity(form, message = SALE_DATE_RANGE_MESSAGE) {
+    const startInput = form?.elements?.start_date;
+    const endInput = form?.elements?.end_date;
+
+    if (!startInput || !endInput) {
+        return true;
+    }
+
+    endInput.setCustomValidity('');
+
+    if (!startInput.value || !endInput.value) {
+        return true;
+    }
+
+    const startDate = new Date(startInput.value);
+    const endDate = new Date(endInput.value);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        return true;
+    }
+
+    if (endDate < startDate) {
+        endInput.setCustomValidity(message);
+        return false;
+    }
+
+    return true;
+}
+
+function validateDateRange(form, message = SALE_DATE_RANGE_MESSAGE) {
+    const isValid = syncDateRangeValidity(form, message);
+    if (!isValid) {
+        form?.elements?.end_date?.reportValidity();
+        form?.elements?.end_date?.focus();
+    }
+
+    return isValid;
+}
+
+function bindDateRangeValidation(formId, message = SALE_DATE_RANGE_MESSAGE) {
+    const form = document.getElementById(formId);
+    const startInput = form?.elements?.start_date;
+    const endInput = form?.elements?.end_date;
+
+    if (!form || !startInput || !endInput) {
+        return;
+    }
+
+    const sync = () => syncDateRangeValidity(form, message);
+    startInput.addEventListener('input', sync);
+    startInput.addEventListener('change', sync);
+    endInput.addEventListener('input', sync);
+    endInput.addEventListener('change', sync);
+}
+
+function preventInvalidDateRangeSubmit(formId, message = SALE_DATE_RANGE_MESSAGE) {
+    const form = document.getElementById(formId);
+    if (!form) {
+        return;
+    }
+
+    form.addEventListener('submit', (event) => {
+        if (!validateDateRange(form, message)) {
+            event.preventDefault();
+        }
+    });
+}
+
 // Đồng bộ percentage warning.
 function syncPercentageWarning(selectId, inputId, warningId) {
     const typeElement = document.getElementById(selectId);
@@ -197,6 +266,7 @@ function editSale(saleId) {
     form.elements.start_date.value = toDatetimeLocal(sale.start_date);
     form.elements.end_date.value = toDatetimeLocal(sale.end_date);
     form.elements.is_active.checked = Boolean(sale.is_active);
+    syncDateRangeValidity(form);
     toggleSaleValueConstraints('editSaleType', 'editSaleValue', 'editSaleValueWarning');
 
     renderProductChecklist('editSaleProducts', sale.product_ids || [], {
@@ -212,6 +282,7 @@ async function submitEditSale(event) {
     event.preventDefault();
 
     const form = event.currentTarget;
+    syncDateRangeValidity(form);
     if (!form.reportValidity()) {
         return;
     }
@@ -391,6 +462,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     toggleSaleValueConstraints('createSaleType', 'createSaleValue', 'createSaleValueWarning');
     toggleSaleValueConstraints('editSaleType', 'editSaleValue', 'editSaleValueWarning');
+    bindDateRangeValidation('createSaleForm');
+    bindDateRangeValidation('editSaleForm');
+    preventInvalidDateRangeSubmit('createSaleForm');
 
     document.querySelectorAll('[data-admin-toggle="section"]').forEach((button) => {
         button.addEventListener('click', () => toggleSection(button));

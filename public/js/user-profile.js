@@ -550,16 +550,64 @@ function initAccountAddressListActions() {
 
 // Khởi tạo cài đặt thông báo.
 function initNotificationSettings() {
+    const serverBackedSettings = new Set(['email_promotions']);
+
     document.querySelectorAll('[data-notification-setting]').forEach((input) => {
+        const settingName = input.dataset.notificationSetting;
+        if (!settingName) {
+            return;
+        }
+
+        if (input.disabled) {
+            if (settingName.startsWith('sms_')) {
+                input.checked = false;
+            }
+            return;
+        }
+
+        const isServerBacked = serverBackedSettings.has(settingName);
         const key = `account_notification_${input.dataset.notificationSetting}`;
-        const saved = localStorage.getItem(key);
-        if (saved !== null) {
+        const saved = isServerBacked ? null : localStorage.getItem(key);
+        if (!isServerBacked && saved !== null) {
             input.checked = saved === 'true';
         }
 
-        input.addEventListener('change', () => {
-            localStorage.setItem(key, String(input.checked));
-            showProfileAlert('Đã cập nhật cài đặt thông báo');
+        input.addEventListener('change', async () => {
+            const nextChecked = input.checked;
+
+            if (!isServerBacked) {
+                localStorage.setItem(key, String(nextChecked));
+                showProfileAlert('Đã cập nhật cài đặt thông báo');
+                return;
+            }
+
+            input.disabled = true;
+
+            try {
+                const response = await fetch('/auth/notifications', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        setting: settingName,
+                        enabled: nextChecked
+                    })
+                });
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Không thể cập nhật cài đặt thông báo');
+                }
+
+                showProfileAlert(result.message || 'Đã cập nhật cài đặt thông báo');
+            } catch (error) {
+                input.checked = !nextChecked;
+                showProfileAlert(error.message || 'Không thể cập nhật cài đặt thông báo', 'error');
+            } finally {
+                input.disabled = false;
+            }
         });
     });
 

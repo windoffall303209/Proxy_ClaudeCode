@@ -5,6 +5,7 @@
  */
 
 const Newsletter = require('../models/Newsletter');
+const User = require('../models/User');
 const emailService = require('../services/emailService');
 
 /**
@@ -37,6 +38,10 @@ exports.subscribe = async (req, res) => {
 
         if (!result.success) {
             return res.status(400).json(result);
+        }
+
+        if (userId) {
+            await User.updateMarketingConsent(userId, true);
         }
 
         // Gửi email xác nhận đăng ký nhận tin
@@ -76,6 +81,10 @@ exports.unsubscribe = async (req, res) => {
 
         if (!result.success) {
             return res.status(400).json(result);
+        }
+
+        if (req.user && String(req.user.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase()) {
+            await User.updateMarketingConsent(req.user.id, false);
         }
 
         res.json(result);

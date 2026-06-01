@@ -1,0 +1,1087 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=3cm,right=2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{vietnamese}
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\setmonofont{Consolas}
+
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.multipart,fit,calc}
+\graphicspath{{report-images/}{../public/uploads/}}
+
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{3pt}
+\setlist[itemize]{leftmargin=1.25cm,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.25cm,itemsep=2pt,topsep=3pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\centering\fontsize{16}{20}\selectfont}
+  {Chương \Roman{chapter}}
+  {0.5em}
+  {\MakeUppercase}
+
+\titleformat{\section}
+  {\normalfont\bfseries\fontsize{14}{18}\selectfont}
+  {\thesection}
+  {0.75em}
+  {}
+
+\titleformat{\subsection}
+  {\normalfont\bfseries\fontsize{13}{16}\selectfont}
+  {\thesubsection}
+  {0.75em}
+  {}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.25}
+
+\lstdefinestyle{codestyle}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    tabsize=2
+}
+\lstset{style=codestyle}
+
+\newcommand{\reportimage}[3]{
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{#1}
+    \caption{#2}
+    \label{#3}
+\end{figure}
+}
+
+\tikzset{
+    reportbox/.style={draw, rounded corners, align=center, minimum height=0.9cm, text width=3.3cm, fill=gray!8},
+    process/.style={draw, rounded corners, align=center, minimum height=0.85cm, text width=3.2cm, fill=blue!8},
+    datastore/.style={draw, cylinder, shape border rotate=90, aspect=0.22, align=center, minimum height=1.2cm, text width=2.8cm, fill=yellow!12},
+    actor/.style={draw, ellipse, align=center, minimum height=0.8cm, text width=2.5cm, fill=green!8},
+    flow/.style={-Latex, thick}
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    {\bfseries\fontsize{16}{20}\selectfont HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG\par}
+    \vspace{0.4cm}
+    {\bfseries\fontsize{15}{19}\selectfont KHOA CÔNG NGHỆ THÔNG TIN 1\par}
+    \vspace{2.2cm}
+    {\bfseries\fontsize{22}{26}\selectfont BÀI TẬP LỚN\par}
+    \vspace{0.7cm}
+    {\bfseries\fontsize{16}{20}\selectfont MÔN PHÁT TRIỂN HỆ THỐNG TMĐT\par}
+    \vspace{1.5cm}
+    {\bfseries\fontsize{18}{22}\selectfont Đề tài: Xây dựng website thương mại điện tử thời trang WIND OF FALL\par}
+    \vspace{2cm}
+    \begin{flushleft}
+        \hspace{2.8cm}\textbf{LỚP:} \dotfill\\[0.35cm]
+        \hspace{2.8cm}\textbf{Số thứ tự nhóm:} \dotfill\\[0.35cm]
+        \hspace{2.8cm}\textbf{GVHD:} TS. Lê Văn Vịnh\\[0.35cm]
+        \hspace{2.8cm}\textbf{SVTH:} \dotfill\\[0.35cm]
+        \hspace{4.2cm}\dotfill\\[0.35cm]
+        \hspace{4.2cm}\dotfill
+    \end{flushleft}
+    \vfill
+    {\bfseries HÀ NỘI, Tháng 5, Năm 2026\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\chapter{Mô tả, khảo sát và xác định yêu cầu bài toán}
+
+\section{Mô tả bài toán}
+
+Thương mại điện tử trong lĩnh vực thời trang là bài toán kết hợp giữa trưng bày sản phẩm trực quan, quản lý biến thể hàng hóa và xử lý quy trình mua bán trực tuyến. Một website bán thời trang không chỉ cần hiển thị sản phẩm đẹp, dễ tìm kiếm, mà còn phải quản lý chính xác size, màu, ảnh, tồn kho, chương trình khuyến mãi, voucher, đơn hàng, thanh toán, giao nhận, đổi trả và chăm sóc khách hàng sau bán.
+
+Project WIND OF FALL được xây dựng để giải quyết bài toán trên bằng một hệ thống thương mại điện tử thời trang chạy trên nền Node.js, Express.js, EJS và MySQL. Hệ thống có hai không gian sử dụng chính: khu vực khách hàng để mua sắm và khu vực quản trị để vận hành cửa hàng. Người dùng có thể xem sản phẩm, tìm kiếm, lọc theo danh mục, xem chi tiết, thêm vào giỏ, đặt hàng, thanh toán, theo dõi đơn, đánh giá, đổi trả và chat hỗ trợ. Quản trị viên có thể quản lý sản phẩm, danh mục, banner, sale, voucher, đơn hàng, người dùng, đánh giá, yêu cầu đổi trả, chat, email marketing và cấu hình giao diện website.
+
+Điểm đáng chú ý của project là ngoài các nghiệp vụ thương mại điện tử cơ bản, hệ thống còn có nhiều chức năng mở rộng: thanh toán COD, VNPay, MoMo; chatbot AI có RAG; tìm sản phẩm bằng hình ảnh; upload media qua Cloudinary; gửi email qua Resend; cấu hình storefront động; maintenance mode; xác thực bằng JWT cookie; bảo vệ request thay đổi trạng thái bằng same-origin guard; và bộ kiểm thử Jest cho nhiều module quan trọng.
+
+\reportimage{home.png}{Giao diện trang chủ thực tế của website WIND OF FALL}{fig:home-screenshot-intro}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.23\textwidth}
+        \includegraphics[width=\linewidth,height=4.2cm,keepaspectratio]{photo-1541099649105-f69ad21f3246.jpg}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.23\textwidth}
+        \includegraphics[width=\linewidth,height=4.2cm,keepaspectratio]{photo-1581655353564-df123a1eb820.jpg}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.23\textwidth}
+        \includegraphics[width=\linewidth,height=4.2cm,keepaspectratio]{photo-1595777457583-95e059d581b8.jpg}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.23\textwidth}
+        \includegraphics[width=\linewidth,height=4.2cm,keepaspectratio]{photo-1618517351616-38fb9c5210c6.jpg}
+    \end{minipage}
+    \caption{Một số ảnh sản phẩm/tài nguyên upload được dùng trong project}
+    \label{fig:sample-product-images}
+\end{figure}
+
+\section{Khảo sát và xác định yêu cầu bài toán}
+
+\subsection{Khảo sát nghiệp vụ cửa hàng thời trang trực tuyến}
+
+Qua phân tích một cửa hàng thời trang trực tuyến, có thể thấy quy trình vận hành thường gồm các nhóm công việc sau:
+
+\begin{itemize}
+    \item Quản lý danh mục sản phẩm theo nhóm khách hàng hoặc loại hàng, ví dụ nam, nữ, trẻ em, áo, quần, váy, phụ kiện.
+    \item Quản lý từng sản phẩm với ảnh, mô tả, giá, SKU, trạng thái hiển thị, số lượng tồn, số lượt xem, số lượng đã bán và chương trình sale đang áp dụng.
+    \item Quản lý biến thể sản phẩm theo size, màu, giá cộng thêm và tồn kho riêng.
+    \item Cho phép khách hàng tìm kiếm, xem chi tiết, chọn biến thể, thêm vào giỏ và đặt hàng.
+    \item Xử lý thanh toán bằng nhiều phương thức, bao gồm thanh toán khi nhận hàng và cổng thanh toán trực tuyến.
+    \item Theo dõi đơn hàng qua các trạng thái: chờ thanh toán, chờ xác nhận, đã xác nhận, đang xử lý, đang giao, đã giao, hoàn thành, đã hủy.
+    \item Cho phép khách hàng đánh giá sản phẩm, gửi ảnh/video minh chứng và tạo yêu cầu đổi trả.
+    \item Cho phép admin quản trị dữ liệu vận hành, cấu hình giao diện, gửi email marketing và hỗ trợ khách hàng.
+\end{itemize}
+
+\subsection{Đối tượng sử dụng}
+
+\begin{longtable}{|p{3.2cm}|p{4.2cm}|p{7cm}|}
+\hline
+\textbf{Tác nhân} & \textbf{Vai trò} & \textbf{Nhu cầu chính} \\
+\hline
+Khách vãng lai & Người chưa đăng nhập & Xem trang chủ, xem danh mục, tìm kiếm sản phẩm, xem chi tiết, thêm giỏ theo session, đăng ký nhận tin, chat tư vấn. \\
+\hline
+Khách hàng & Người dùng đã có tài khoản & Quản lý hồ sơ, địa chỉ, giỏ hàng, đặt hàng, thanh toán, lịch sử đơn, tracking, hủy đơn, xác nhận nhận hàng, đổi trả, đánh giá. \\
+\hline
+Quản trị viên & Người vận hành website & Quản lý catalog, đơn hàng, người dùng, banner, sale, voucher, review, returns, chat, email marketing và cấu hình storefront. \\
+\hline
+Cổng thanh toán & Hệ thống ngoài & Nhận yêu cầu thanh toán và trả callback/IPN để xác nhận kết quả giao dịch. \\
+\hline
+Dịch vụ AI & Hệ thống ngoài & Sinh câu trả lời, tạo embedding văn bản, phân tích ảnh và hỗ trợ gợi ý sản phẩm. \\
+\hline
+Dịch vụ email/media & Hệ thống ngoài & Gửi email giao dịch/marketing và lưu trữ ảnh, video upload. \\
+\hline
+\end{longtable}
+
+\subsection{Yêu cầu chức năng}
+
+\begin{longtable}{|p{4cm}|p{10.8cm}|}
+\hline
+\textbf{Nhóm chức năng} & \textbf{Yêu cầu} \\
+\hline
+Tài khoản người dùng & Đăng ký, đăng nhập, đăng xuất, Google OAuth, xác thực email, quên mật khẩu, cập nhật hồ sơ, đổi mật khẩu, quản lý địa chỉ, yêu cầu xóa mềm tài khoản. \\
+\hline
+Catalog sản phẩm & Hiển thị sản phẩm theo danh mục, tìm kiếm, gợi ý, lọc, phân trang, xem chi tiết, ảnh sản phẩm, biến thể size/màu, sale, review. \\
+\hline
+Giỏ hàng & Hỗ trợ giỏ hàng cho cả khách và user đăng nhập, thêm/cập nhật/xóa sản phẩm, đếm số lượng, tính tổng tiền theo biến thể. \\
+\hline
+Đặt hàng & Checkout từ giỏ hàng hoặc mua ngay, chọn địa chỉ, áp dụng voucher, tính phí vận chuyển, tạo đơn hàng, snapshot địa chỉ giao hàng. \\
+\hline
+Thanh toán & Hỗ trợ COD, VNPay và MoMo; tạo bản ghi payment; tạo URL/QR thanh toán; nhận callback; xác minh dữ liệu; cập nhật trạng thái đơn. \\
+\hline
+Theo dõi đơn hàng & Xem lịch sử đơn, trang confirmation, timeline tracking, hủy đơn, thanh toán lại đơn online còn hạn, xác nhận đã nhận hàng. \\
+\hline
+Đổi trả và đánh giá & Gửi yêu cầu đổi trả kèm ảnh/video, admin duyệt yêu cầu, khách đánh giá sản phẩm sau mua và upload media. \\
+\hline
+Chatbot và chăm sóc khách & Chat widget, lưu hội thoại, AI trả lời tự động, RAG từ dữ liệu sản phẩm/knowledge, gửi ảnh để tìm sản phẩm tương tự, admin tiếp quản chat thủ công. \\
+\hline
+Quản trị hệ thống & Dashboard, CRUD sản phẩm/danh mục/banner/sale/voucher, import/export, quản lý đơn, người dùng, review, returns, storefront settings, email marketing. \\
+\hline
+\end{longtable}
+
+\subsection{Yêu cầu phi chức năng}
+
+\begin{itemize}
+    \item \textbf{Bảo mật:} mật khẩu được hash bằng bcryptjs; người dùng xác thực qua JWT cookie; route admin yêu cầu role admin; request POST/PUT/PATCH/DELETE được kiểm tra same-origin; Helmet CSP được cấu hình trong Express app.
+    \item \textbf{Toàn vẹn dữ liệu:} CSDL MySQL dùng khóa chính, khóa ngoại và index cho các quan hệ trọng yếu như user--order, product--category, order--payment, review--product.
+    \item \textbf{Khả năng bảo trì:} project tách rõ route, controller, model, service, middleware, view và public assets; schema có file tổng hợp và migration đánh số.
+    \item \textbf{Hiệu năng:} storefront settings được cache ngắn hạn; các bảng có index trên email, slug, status, user\_id, product\_id, order\_code; asset tĩnh được tách riêng theo trang.
+    \item \textbf{Khả năng mở rộng:} các tích hợp thanh toán, email, upload, AI và import được đặt trong service/middleware riêng để dễ thay thế hoặc bổ sung.
+    \item \textbf{Khả năng sử dụng:} giao diện server-render bằng EJS, có CSS/JS riêng cho từng trang, có khu vực user và admin rõ ràng.
+\end{itemize}
+
+\section{Phạm vi hệ thống}
+
+Phạm vi phía người dùng gồm đăng ký, đăng nhập, xác thực email, quên mật khẩu, hồ sơ cá nhân, địa chỉ, trang chủ, danh mục, danh sách sản phẩm, tìm kiếm, chi tiết sản phẩm, giỏ hàng, checkout, mua ngay, voucher, thanh toán, lịch sử đơn, tracking, hủy đơn, xác nhận nhận hàng, đổi trả, review, newsletter và chatbot.
+
+Phạm vi phía admin gồm đăng nhập admin, dashboard, quản lý sản phẩm, ảnh, biến thể, danh mục, import/export, đơn hàng, trạng thái đơn, người dùng, banner, sale, voucher, review, yêu cầu đổi trả, chat, email marketing, cấu hình storefront, cấu hình phương thức thanh toán, phí ship, maintenance mode và upload tài nguyên giao diện.
+
+\chapter{Kiến thức áp dụng}
+
+\section{Phân tích và thiết kế hệ thống}
+
+Hệ thống được thiết kế theo hướng MVC mở rộng. Route tiếp nhận URL và middleware, controller xử lý request/response, model truy vấn dữ liệu, service đảm nhiệm nghiệp vụ phức tạp hoặc tích hợp ngoài, view EJS render HTML, còn public assets chứa CSS/JS phía trình duyệt. Cách tổ chức này phù hợp với ứng dụng thương mại điện tử server-render vì vừa dễ theo dõi nghiệp vụ, vừa thuận tiện khi chia module theo chức năng.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.96\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.4cm]
+        \node[actor] (user) {Khách hàng\\Admin};
+        \node[process, right=1.6cm of user] (browser) {Trình duyệt\\HTML/CSS/JS};
+        \node[process, right=1.6cm of browser] (express) {Express App\\app.js};
+        \node[process, below=1.0cm of express] (routes) {Routes};
+        \node[process, right=1.5cm of routes] (controllers) {Controllers};
+        \node[process, right=1.5cm of controllers] (services) {Services};
+        \node[datastore, below=1.0cm of controllers] (mysql) {MySQL};
+        \node[process, below=1.0cm of services] (external) {Cloudinary\\Resend\\VNPay/MoMo\\AI Provider};
+        \node[process, above=1.0cm of controllers] (views) {EJS Views\\Public assets};
+
+        \draw[flow] (user) -- (browser);
+        \draw[flow] (browser) -- (express);
+        \draw[flow] (express) -- (routes);
+        \draw[flow] (routes) -- (controllers);
+        \draw[flow] (controllers) -- (services);
+        \draw[flow] (controllers) -- (mysql);
+        \draw[flow] (services) -- (mysql);
+        \draw[flow] (services) -- (external);
+        \draw[flow] (controllers) -- (views);
+        \draw[flow] (views) -- (browser);
+    \end{tikzpicture}}
+    \caption{Kiến trúc tổng thể của project theo mô hình Express MVC mở rộng}
+    \label{fig:system-architecture}
+\end{figure}
+
+\subsection{Biểu đồ phân cấp chức năng BFD}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.15cm]
+        \node[reportbox, fill=yellow!18, text width=4.2cm] (root) {WIND OF FALL\\E-commerce};
+        \node[reportbox, below left=1.3cm and 5.4cm of root] (acc) {Tài khoản\\Auth, Profile, Address};
+        \node[reportbox, right=0.55cm of acc] (catalog) {Catalog\\Product, Category, Review};
+        \node[reportbox, right=0.55cm of catalog] (cart) {Giỏ hàng\\Cart, Checkout};
+        \node[reportbox, right=0.55cm of cart] (order) {Đơn hàng\\Payment, Tracking};
+        \node[reportbox, right=0.55cm of order] (after) {Hậu mãi\\Return, Review};
+        \node[reportbox, right=0.55cm of after] (chat) {Chat AI\\RAG, Vision};
+        \node[reportbox, right=0.55cm of chat] (admin) {Admin\\CRUD, Settings};
+
+        \foreach \x in {acc,catalog,cart,order,after,chat,admin}
+            \draw[flow] (root.south) |- (\x.north);
+    \end{tikzpicture}}
+    \caption{Biểu đồ phân cấp chức năng cấp cao của hệ thống}
+    \label{fig:bfd}
+\end{figure}
+
+\begin{longtable}{|p{4.1cm}|p{10.7cm}|}
+\hline
+\textbf{Cấp chức năng} & \textbf{Chức năng con} \\
+\hline
+1. Quản lý tài khoản & Đăng ký, đăng nhập, đăng xuất, Google OAuth, xác thực email, quên mật khẩu, hồ sơ, địa chỉ, đổi mật khẩu, xóa mềm tài khoản. \\
+\hline
+2. Quản lý mua sắm & Trang chủ, danh mục, danh sách sản phẩm, tìm kiếm, gợi ý, chi tiết sản phẩm, review, sản phẩm liên quan. \\
+\hline
+3. Giỏ hàng và checkout & Thêm sản phẩm vào giỏ, cập nhật số lượng, xóa khỏi giỏ, mua ngay, chọn địa chỉ, áp voucher, tính phí ship. \\
+\hline
+4. Thanh toán và đơn hàng & COD, VNPay, MoMo, callback, IPN, retry payment, lịch sử đơn, confirmation, tracking, hủy đơn, xác nhận nhận hàng. \\
+\hline
+5. Hậu mãi & Đánh giá sản phẩm, upload ảnh/video đánh giá, yêu cầu đổi trả, admin xét duyệt yêu cầu. \\
+\hline
+6. Chat và tư vấn & Chat widget, conversation/message, AI/RAG, gửi ảnh, tìm sản phẩm tương tự, admin chat, chuyển AI/manual. \\
+\hline
+7. Quản trị hệ thống & Dashboard, CRUD catalog, import/export, quản lý order, user, banner, sale, voucher, review, returns, settings, email marketing. \\
+\hline
+\end{longtable}
+
+\subsection{Biểu đồ luồng dữ liệu DFD}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.9\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.4cm]
+        \node[actor] (customer) {Khách hàng};
+        \node[actor, below=1.4cm of customer] (admin) {Admin};
+        \node[process, right=2.2cm of $(customer)!0.5!(admin)$, text width=4.2cm, fill=blue!10] (system) {Hệ thống WIND OF FALL\\Express/EJS};
+        \node[datastore, right=2.4cm of system] (db) {MySQL\\Database};
+        \node[process, above=1.1cm of db] (payment) {VNPay\\MoMo};
+        \node[process, below=1.1cm of db] (ai) {AI/RAG\\Cloudinary\\Resend};
+
+        \draw[flow] (customer) -- node[above, sloped]{xem, mua, chat} (system);
+        \draw[flow] (admin) -- node[below, sloped]{quản trị dữ liệu} (system);
+        \draw[flow] (system) -- node[above]{đọc/ghi} (db);
+        \draw[flow] (system) -- node[left]{tạo/callback} (payment);
+        \draw[flow] (system) -- node[left]{upload, email, AI} (ai);
+        \draw[flow] (payment) -- (system);
+        \draw[flow] (ai) -- (system);
+    \end{tikzpicture}}
+    \caption{DFD mức ngữ cảnh của hệ thống WIND OF FALL}
+    \label{fig:dfd-context}
+\end{figure}
+
+Ở mức ngữ cảnh, hệ thống WIND OF FALL là tiến trình trung tâm giao tiếp với năm nhóm đối tượng: khách hàng, quản trị viên, CSDL MySQL, dịch vụ thanh toán và các dịch vụ ngoài như Cloudinary, Resend, AI provider. Khách hàng gửi yêu cầu xem sản phẩm, tạo giỏ, đặt hàng, thanh toán và chat. Quản trị viên gửi yêu cầu quản lý dữ liệu và cấu hình website. Hệ thống đọc/ghi dữ liệu vào MySQL, upload media lên Cloudinary, gửi email qua Resend, tạo giao dịch qua VNPay/MoMo và gửi truy vấn đến dịch vụ AI.
+
+Ở mức 1, hệ thống có các tiến trình chính:
+
+\begin{enumerate}
+    \item \textbf{Xác thực và tài khoản:} nhận dữ liệu đăng ký/đăng nhập, kiểm tra user, hash/verify mật khẩu, sinh JWT, gửi mã xác thực hoặc reset password.
+    \item \textbf{Catalog sản phẩm:} đọc danh mục, sản phẩm, ảnh, biến thể, sale, review; trả danh sách hoặc chi tiết sản phẩm.
+    \item \textbf{Giỏ hàng:} tạo hoặc tìm giỏ theo user/session, thêm/cập nhật/xóa cart item, tính tổng số lượng.
+    \item \textbf{Đặt hàng:} kiểm tra địa chỉ, voucher, tồn kho, tạo order, order item, shipment và payment.
+    \item \textbf{Thanh toán:} tạo link/QR, nhận callback, xác minh chữ ký, cập nhật payment và order.
+    \item \textbf{Hậu mãi:} xử lý review, media review, return request và media đổi trả.
+    \item \textbf{Chat:} lưu conversation/message, gọi RAG, gọi AI, trả product cards hoặc chuyển admin xử lý thủ công.
+    \item \textbf{Quản trị:} quản lý catalog, đơn hàng, người dùng, banner, sale, voucher, settings, review, returns và email marketing.
+\end{enumerate}
+
+\section{Quản trị hệ thống}
+
+Khu vực quản trị nằm dưới prefix \path{/admin}. Các route đăng nhập admin được mở riêng, sau đó toàn bộ route quản trị đi qua middleware \path{verifyToken} và \path{isAdmin}. Điều này bảo đảm chỉ tài khoản đã xác thực và có quyền admin mới truy cập được dữ liệu vận hành.
+
+Admin có thể thao tác trực tiếp trên dữ liệu nghiệp vụ thông qua giao diện web thay vì sửa CSDL thủ công. Các chức năng import/export sản phẩm và danh mục giúp xử lý dữ liệu số lượng lớn. Storefront settings cho phép quản trị viên thay đổi giao diện, nội dung, payment, phí ship và maintenance mode theo dạng cấu hình key--value, có cơ chế draft/publish để chuẩn bị thay đổi trước khi áp dụng.
+
+\section{Cơ sở dữ liệu}
+
+Project sử dụng MySQL với thư viện \path{mysql2/promise}. File \path{database/schema.sql} là schema tổng hợp để tạo database mới, còn thư mục \path{migrations} chứa các thay đổi tăng dần từ \path{001} đến \path{017}. Thiết kế CSDL được chia thành các nhóm:
+
+\begin{itemize}
+    \item Nhóm tài khoản: \path{users}, \path{addresses}, token xác thực/reset cũ.
+    \item Nhóm catalog: \path{categories}, \path{products}, \path{product_images}, \path{product_variants}, \path{sales}, \path{vouchers}, \path{voucher_products}.
+    \item Nhóm giỏ hàng và đơn hàng: \path{cart}, \path{cart_items}, \path{orders}, \path{order_items}, \path{payments}, \path{shipments}, \path{order_tracking_events}.
+    \item Nhóm hậu mãi: \path{reviews}, \path{review_media}, \path{order_return_requests}, \path{order_return_media}.
+    \item Nhóm marketing và cấu hình: \path{banners}, \path{storefront_settings}, \path{newsletter_subscribers}, \path{email_campaigns}.
+    \item Nhóm chat/AI: \path{chat_conversations}, \path{chat_messages}, \path{chat_rag_chunks}, \path{chat_rag_sync_state}, \path{product_image_embeddings}.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.1cm]
+        \node[reportbox, text width=2.9cm, fill=green!10] (users) {users\\addresses};
+        \node[reportbox, text width=2.9cm, right=1.2cm of users, fill=blue!10] (catalog) {categories\\products\\variants\\images};
+        \node[reportbox, text width=2.9cm, right=1.2cm of catalog, fill=orange!12] (cart) {cart\\cart\_items};
+        \node[reportbox, text width=2.9cm, below=1.1cm of cart, fill=red!8] (orders) {orders\\order\_items\\payments};
+        \node[reportbox, text width=2.9cm, left=1.2cm of orders, fill=purple!8] (after) {reviews\\returns\\tracking};
+        \node[reportbox, text width=2.9cm, left=1.2cm of after, fill=yellow!14] (chat) {chat\\RAG\\embeddings};
+        \node[reportbox, text width=3.2cm, below=1.1cm of after, fill=gray!10] (settings) {storefront settings\\banners\\newsletter};
+
+        \draw[flow] (users) -- node[above]{tạo giỏ} (cart);
+        \draw[flow] (catalog) -- node[above]{sản phẩm} (cart);
+        \draw[flow] (cart) -- node[right]{checkout} (orders);
+        \draw[flow] (users) |- node[left]{đặt hàng} (orders);
+        \draw[flow] (catalog) |- node[right]{order item/review} (after);
+        \draw[flow] (orders) -- (after);
+        \draw[flow] (catalog) |- (chat);
+        \draw[flow] (settings) -- (catalog);
+    \end{tikzpicture}}
+    \caption{ERD rút gọn thể hiện các cụm bảng chính và quan hệ nghiệp vụ}
+    \label{fig:erd-summary}
+\end{figure}
+
+\section{Ngôn ngữ lập trình và công nghệ}
+
+\begin{longtable}{|p{4cm}|p{10.8cm}|}
+\hline
+\textbf{Công nghệ} & \textbf{Vai trò trong project} \\
+\hline
+Node.js & Môi trường chạy JavaScript phía server, yêu cầu phiên bản từ 18 trở lên. \\
+\hline
+Express.js & Framework web xử lý route, middleware, request, response và mount các module chức năng. \\
+\hline
+EJS & Template engine render giao diện HTML phía server cho storefront và admin. \\
+\hline
+MySQL & Hệ quản trị CSDL quan hệ lưu dữ liệu người dùng, sản phẩm, đơn hàng, thanh toán, chat và cấu hình. \\
+\hline
+JWT và session & Cơ chế xác thực user/admin, duy trì phiên và phân quyền. \\
+\hline
+Multer, Sharp, Cloudinary & Xử lý upload, resize/tối ưu ảnh và lưu trữ media. \\
+\hline
+VNPay, MoMo & Tích hợp thanh toán trực tuyến sandbox/production qua callback. \\
+\hline
+Resend & Gửi email xác thực, giao dịch hoặc marketing. \\
+\hline
+OpenAI-compatible/Gemini & Cung cấp AI chat, vision, embedding và RAG. \\
+\hline
+Jest & Kiểm thử tự động controller, service, model, security route và startup. \\
+\hline
+\end{longtable}
+
+\chapter{Phân tích thiết kế hệ thống}
+
+\section{Phân tích thiết kế cơ sở dữ liệu}
+
+\subsection{Các bảng chính}
+
+\begin{longtable}{|p{4cm}|p{10.8cm}|}
+\hline
+\textbf{Bảng} & \textbf{Ý nghĩa} \\
+\hline
+\path{users} & Lưu tài khoản khách hàng/admin, email, mật khẩu hash, thông tin cá nhân, role, trạng thái xác thực, mã OTP, trạng thái xóa mềm. \\
+\hline
+\path{addresses} & Lưu địa chỉ giao hàng của user, gồm tên người nhận, số điện thoại, địa chỉ, phường/xã, quận/huyện, tỉnh/thành. \\
+\hline
+\path{categories} & Lưu danh mục sản phẩm, hỗ trợ parent\_id để tạo cấu trúc cha-con. \\
+\hline
+\path{products} & Lưu sản phẩm, danh mục, sale, slug, mô tả, giá, tồn kho, SKU, trạng thái, featured, view count và sold count. \\
+\hline
+\path{product_images} & Lưu nhiều ảnh cho một sản phẩm, có ảnh chính và thứ tự hiển thị. \\
+\hline
+\path{product_variants} & Lưu biến thể size/màu, giá cộng thêm, tồn kho và SKU riêng. \\
+\hline
+\path{cart}, \path{cart_items} & Lưu giỏ hàng theo user hoặc session và các dòng sản phẩm trong giỏ. \\
+\hline
+\path{orders}, \path{order_items} & Lưu đơn hàng, snapshot địa chỉ, tổng tiền, voucher, phí ship, trạng thái đơn, phương thức thanh toán và các sản phẩm trong đơn. \\
+\hline
+\path{payments} & Lưu thông tin giao dịch thanh toán, mã giao dịch, số tiền, trạng thái và dữ liệu callback. \\
+\hline
+\path{shipments}, \path{order_tracking_events} & Lưu trạng thái vận chuyển hiện tại và timeline tracking của đơn. \\
+\hline
+\path{vouchers}, \path{voucher_usage}, \path{voucher_products} & Quản lý mã giảm giá, điều kiện dùng, số lượt dùng, sản phẩm áp dụng và lịch sử sử dụng. \\
+\hline
+\path{reviews}, \path{review_media} & Lưu đánh giá sau mua, số sao, bình luận, trạng thái duyệt và ảnh/video đính kèm. \\
+\hline
+\path{order_return_requests}, \path{order_return_media} & Lưu yêu cầu đổi trả, lý do, trạng thái duyệt, ghi chú admin và media minh chứng. \\
+\hline
+\path{storefront_settings} & Lưu cấu hình website dạng key--value, hỗ trợ draft value và published\_at. \\
+\hline
+\path{chat_conversations}, \path{chat_messages} & Lưu hội thoại chat, trạng thái, mode AI/manual, tin nhắn text/media/product cards. \\
+\hline
+\path{chat_rag_chunks}, \path{product_image_embeddings} & Lưu dữ liệu embedding phục vụ RAG văn bản và tìm sản phẩm bằng hình ảnh. \\
+\hline
+\end{longtable}
+
+\subsection{Quan hệ dữ liệu quan trọng}
+
+\begin{itemize}
+    \item Một user có nhiều địa chỉ, nhiều giỏ hàng/đơn hàng, nhiều review và nhiều yêu cầu đổi trả.
+    \item Một danh mục có nhiều sản phẩm; danh mục có thể có danh mục cha.
+    \item Một sản phẩm có nhiều ảnh, nhiều biến thể, nhiều review và có thể thuộc một sale.
+    \item Một giỏ hàng có nhiều cart item; mỗi cart item trỏ đến sản phẩm và có thể trỏ đến biến thể.
+    \item Một đơn hàng có nhiều order item, một payment, một shipment và nhiều tracking event.
+    \item Một voucher có thể áp dụng cho nhiều sản phẩm và có nhiều lượt sử dụng.
+    \item Một review hoặc return request có thể có nhiều media đi kèm.
+    \item Một conversation có nhiều message; message có thể do customer, admin hoặc bot gửi.
+\end{itemize}
+
+\subsection{Thiết kế trạng thái đơn hàng}
+
+Bảng \path{orders} dùng trường \path{status} với các trạng thái:
+
+\begin{itemize}
+    \item \path{pending_payment}: đơn online đang chờ thanh toán.
+    \item \path{pending}: đơn đã tạo và chờ admin xác nhận.
+    \item \path{confirmed}: đơn đã được xác nhận.
+    \item \path{processing}: đơn đang được xử lý/đóng gói.
+    \item \path{shipping}: đơn đang giao.
+    \item \path{delivered}: đơn đã giao đến khách.
+    \item \path{completed}: đơn hoàn thành.
+    \item \path{cancelled}: đơn đã hủy.
+\end{itemize}
+
+Trạng thái thanh toán được tách riêng trong \path{payment_status} với các giá trị \path{unpaid}, \path{paid}, \path{refunded}. Cách tách này giúp hệ thống biểu diễn được các trường hợp thực tế như đơn COD đã xác nhận nhưng chưa thu tiền, đơn online đang chờ thanh toán, hoặc đơn hoàn tiền sau đổi trả.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.96\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.05cm]
+        \node[process] (pp) {pending\_payment};
+        \node[process, right=1.1cm of pp] (p) {pending};
+        \node[process, right=1.1cm of p] (c) {confirmed};
+        \node[process, right=1.1cm of c] (pr) {processing};
+        \node[process, below=1.05cm of pr] (s) {shipping};
+        \node[process, left=1.1cm of s] (d) {delivered};
+        \node[process, left=1.1cm of d] (co) {completed};
+        \node[process, below=1.05cm of c, fill=red!10] (x) {cancelled};
+
+        \draw[flow] (pp) -- node[above]{paid} (p);
+        \draw[flow] (p) -- (c);
+        \draw[flow] (c) -- (pr);
+        \draw[flow] (pr) -- (s);
+        \draw[flow] (s) -- (d);
+        \draw[flow] (d) -- (co);
+        \draw[flow] (p) -- (x);
+        \draw[flow] (pp) |- (x);
+    \end{tikzpicture}}
+    \caption{Sơ đồ trạng thái đơn hàng trong hệ thống}
+    \label{fig:order-status}
+\end{figure}
+
+\section{Phân tích thiết kế chức năng}
+
+\subsection{Luồng khởi động hệ thống}
+
+\begin{enumerate}
+    \item \path{server.js} nạp \path{app.js}, mở HTTP server và thiết lập graceful shutdown.
+    \item \path{app.js} tạo Express app, cấu hình Helmet CSP, body parser, cookie parser, session, static file, same-origin guard, auth locals và storefront settings.
+    \item \path{routes/index.js} mount các route con: \path{/auth}, \path{/products}, \path{/cart}, \path{/orders}, \path{/admin}, \path{/newsletter}, \path{/chat}.
+    \item \path{server.js} chạy job định kỳ để ẩn danh tài khoản đã yêu cầu xóa sau khi hết thời hạn khôi phục.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.92\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.2cm]
+        \node[process] (server) {server.js};
+        \node[process, right=1.3cm of server] (app) {app.js\\Middleware};
+        \node[process, right=1.3cm of app] (index) {routes/index.js};
+        \node[process, below=1.0cm of index] (modules) {auth/products/cart\\orders/admin/chat};
+        \node[process, left=1.3cm of modules] (controllers) {controllers};
+        \node[process, left=1.3cm of controllers] (models) {models/services};
+        \node[datastore, below=1.0cm of controllers] (db) {MySQL};
+
+        \draw[flow] (server) -- (app);
+        \draw[flow] (app) -- (index);
+        \draw[flow] (index) -- (modules);
+        \draw[flow] (modules) -- (controllers);
+        \draw[flow] (controllers) -- (models);
+        \draw[flow] (models) -- (db);
+    \end{tikzpicture}}
+    \caption{Luồng khởi động và điều phối request trong project}
+    \label{fig:start-flow}
+\end{figure}
+
+\subsection{Route map}
+
+\begin{longtable}{|p{2.8cm}|p{4.2cm}|p{7.8cm}|}
+\hline
+\textbf{Prefix} & \textbf{Route file} & \textbf{Chức năng} \\
+\hline
+\path{/} & \path{routes/index.js} & Trang chủ, API tỉnh/thành, quận/huyện, phường/xã, reverse geocode và mount route module. \\
+\hline
+\path{/auth} & \path{routes/authRoutes.js} & Đăng ký, đăng nhập, Google OAuth, profile, địa chỉ, verify email, forgot password, xóa tài khoản. \\
+\hline
+\path{/products} & \path{routes/productRoutes.js} & Danh sách, For You, tìm kiếm, danh mục, chi tiết sản phẩm, tạo/sửa review. \\
+\hline
+\path{/cart} & \path{routes/cartRoutes.js} & Xem giỏ, thêm, cập nhật, xóa, lấy số lượng sản phẩm trong giỏ. \\
+\hline
+\path{/orders} & \path{routes/orderRoutes.js} & Checkout, mua ngay, validate voucher, lịch sử, tracking, retry payment, hủy, xác nhận nhận hàng, đổi trả, callback payment. \\
+\hline
+\path{/admin} & \path{routes/adminRoutes.js} & Login admin, dashboard, storefront, category, product, order, return, review, user, banner, sale, voucher, email marketing. \\
+\hline
+\path{/newsletter} & \path{routes/newsletterRoutes.js} & Đăng ký nhận tin, hủy đăng ký, kiểm tra trạng thái đăng ký. \\
+\hline
+\path{/chat} & \path{routes/chatRoutes.js} & Chat khách hàng, gửi media, unread count, admin chat, reply, chuyển mode, đóng/mở conversation. \\
+\hline
+\end{longtable}
+
+\subsection{Chức năng tài khoản}
+
+Chức năng tài khoản nằm trong \path{authRoutes.js}, \path{authController.js}, \path{models/User.js}, \path{models/Address.js} và middleware \path{auth.js}. User có thể đăng ký bằng email/mật khẩu, đăng nhập, đăng nhập Google OAuth, xác thực email, quên mật khẩu bằng mã reset, cập nhật hồ sơ, upload avatar, đổi mật khẩu, cập nhật thông báo, quản lý địa chỉ và yêu cầu xóa mềm tài khoản.
+
+Xóa mềm tài khoản được thiết kế theo hướng không xóa ngay dữ liệu liên quan đến đơn hàng. User có trường \path{account_deleted_at} và \path{account_delete_expires_at}. Trong thời hạn khôi phục, người dùng có thể đăng nhập lại để phục hồi; sau thời hạn, job định kỳ trong \path{server.js} gọi model để ẩn danh thông tin cá nhân.
+
+\subsection{Chức năng sản phẩm và catalog}
+
+Các chức năng catalog dùng \path{productController.js}, \path{models/Product.js}, \path{models/Category.js}, các view trong \path{views/products} và partial \path{product-card.ejs}. Hệ thống hỗ trợ:
+
+\begin{itemize}
+    \item Trang chủ với banner, danh mục, sản phẩm mới, bán chạy và nội dung editorial.
+    \item Danh sách sản phẩm có toolbar, sidebar lọc, phân trang và card sản phẩm.
+    \item Trang danh mục theo slug.
+    \item Tìm kiếm theo từ khóa và gợi ý tìm kiếm.
+    \item Trang For You/gợi ý sản phẩm.
+    \item Trang chi tiết với gallery ảnh, biến thể, sale, tồn kho, mô tả và review.
+\end{itemize}
+
+\subsection{Chức năng giỏ hàng và checkout}
+
+Giỏ hàng nằm trong \path{cartRoutes.js}, \path{cartController.js}, \path{models/Cart.js}, \path{views/cart/index.ejs} và \path{public/js/cart.js}. Route dùng \path{optionalAuth}, vì vậy cả khách vãng lai và user đăng nhập đều có thể dùng giỏ hàng. Nếu chưa đăng nhập, giỏ được gắn với session; nếu đã đăng nhập, giỏ gắn với user.
+
+Checkout nằm trong \path{orderRoutes.js} và \path{orderController.js}. Người dùng đăng nhập mới được checkout hoặc mua ngay. Hệ thống kiểm tra địa chỉ, voucher, phí ship, phương thức thanh toán, tổng tiền và tạo order/order item/payment/shipment tương ứng.
+
+\subsection{Chức năng thanh toán}
+
+Project hỗ trợ ba phương thức:
+
+\begin{itemize}
+    \item \textbf{COD:} tạo đơn và chờ admin xác nhận, trạng thái thanh toán ban đầu là chưa thanh toán.
+    \item \textbf{VNPay:} tạo URL thanh toán, nhận IPN/callback qua \path{/orders/payment/vnpay/ipn} và \path{/orders/payment/vnpay/callback}.
+    \item \textbf{MoMo:} tạo thanh toán sandbox, nhận callback GET/POST qua \path{/orders/payment/momo/callback}.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.94\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.1cm]
+        \node[actor] (user) {User};
+        \node[process, right=1.2cm of user] (checkout) {Checkout\\orderController};
+        \node[process, right=1.2cm of checkout] (payment) {paymentService};
+        \node[process, right=1.2cm of payment] (gateway) {VNPay/MoMo};
+        \node[datastore, below=1.1cm of payment] (db) {orders\\payments};
+        \node[process, below=1.1cm of gateway] (callback) {Callback/IPN};
+
+        \draw[flow] (user) -- node[above]{chọn phương thức} (checkout);
+        \draw[flow] (checkout) -- node[above]{tạo payment} (payment);
+        \draw[flow] (payment) -- node[above]{URL/QR} (gateway);
+        \draw[flow] (checkout) -- (db);
+        \draw[flow] (gateway) -- (callback);
+        \draw[flow] (callback) -- node[below]{xác minh chữ ký} (payment);
+        \draw[flow] (payment) -- (db);
+    \end{tikzpicture}}
+    \caption{Luồng xử lý thanh toán online qua VNPay/MoMo}
+    \label{fig:payment-flow}
+\end{figure}
+
+Dịch vụ thanh toán được tách vào \path{services/paymentService.js}. Dữ liệu payment được lưu trong bảng \path{payments}, còn trạng thái tổng quan được cập nhật vào bảng \path{orders}. Project cũng có chức năng retry payment qua route \path{/:orderCode/pay} cho đơn online còn hạn.
+
+\subsection{Chức năng admin}
+
+Admin route tập trung trong \path{adminRoutes.js}. Controller admin được gom qua \path{controllers/admin/index.js}; một phần logic cũ còn ở \path{controllers/admin/legacy.js}, các controller nhỏ đóng vai trò export module. Các chức năng admin chính:
+
+\begin{itemize}
+    \item Dashboard tổng quan vận hành.
+    \item Quản lý storefront settings, draft, publish, discard, reset và upload asset cấu hình.
+    \item Quản lý danh mục: CRUD, import, export, template, xóa toàn bộ.
+    \item Quản lý sản phẩm: CRUD, upload ảnh, quản lý ảnh, biến thể, import/export, job import.
+    \item Quản lý đơn hàng: danh sách, chi tiết, cập nhật trạng thái.
+    \item Quản lý yêu cầu đổi trả: danh sách, chi tiết, cập nhật trạng thái duyệt.
+    \item Quản lý review và export review.
+    \item Quản lý user và trạng thái user.
+    \item Quản lý banner, sale, voucher và gửi email công bố khuyến mãi.
+    \item Gửi email marketing thủ công.
+\end{itemize}
+
+\subsection{Chức năng chatbot, RAG và tìm sản phẩm bằng ảnh}
+
+Chat được tổ chức trong \path{routes/chatRoutes.js}, \path{controllers/chat}, \path{models/Chat.js}, \path{services/chatRagService.js}, \path{services/chatEmbeddingService.js}, \path{services/chatVisionService.js}, \path{services/productVisualEmbeddingService.js}. Người dùng có thể gửi tin nhắn text hoặc media từ chat widget. Tin nhắn được lưu vào conversation, sau đó hệ thống có thể gọi AI để trả lời tự động hoặc trả về product cards.
+
+RAG dùng bảng \path{chat_rag_chunks} để lưu các đoạn tri thức có embedding. Dữ liệu có thể đồng bộ bằng script \path{scripts/sync-chat-rag.js}. Tìm sản phẩm bằng ảnh dùng bảng \path{product_image_embeddings} và script \path{scripts/sync-product-image-embeddings.js}. Admin có giao diện chat để xem hội thoại, trả lời khách, chuyển mode AI/manual, đóng hoặc mở lại conversation.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.95\textwidth}{!}{
+    \begin{tikzpicture}[node distance=1.15cm]
+        \node[actor] (customer) {Khách hàng};
+        \node[process, right=1.2cm of customer] (widget) {Chat widget};
+        \node[process, right=1.2cm of widget] (controller) {Chat controller};
+        \node[datastore, below=1.0cm of controller] (chatdb) {chat\\messages};
+        \node[process, right=1.2cm of controller] (rag) {RAG service\\embedding};
+        \node[process, right=1.2cm of rag] (ai) {AI provider};
+        \node[actor, below=1.0cm of rag] (admin) {Admin chat};
+
+        \draw[flow] (customer) -- (widget);
+        \draw[flow] (widget) -- (controller);
+        \draw[flow] (controller) -- (chatdb);
+        \draw[flow] (controller) -- (rag);
+        \draw[flow] (rag) -- (ai);
+        \draw[flow] (ai) -- (controller);
+        \draw[flow] (admin) -- (controller);
+    \end{tikzpicture}}
+    \caption{Luồng xử lý chatbot AI/RAG và hỗ trợ thủ công}
+    \label{fig:chat-rag-flow}
+\end{figure}
+
+\section{Các chức năng chưa làm được hoặc còn hạn chế}
+
+\begin{itemize}
+    \item Chưa có tích hợp đơn vị vận chuyển thật để tạo vận đơn và đồng bộ tracking realtime.
+    \item Same-origin guard đã có, nhưng chưa có CSRF token riêng cho từng form quan trọng.
+    \item Session store mặc định của \path{express-session} chưa thay bằng Redis/MySQL store cho môi trường nhiều instance.
+    \item Chưa có tài liệu OpenAPI/Swagger đầy đủ cho các endpoint JSON.
+    \item Các chức năng VNPay, MoMo, Resend, Cloudinary, AI/RAG và visual embedding phụ thuộc API key bên ngoài nên khi demo cần cấu hình môi trường đầy đủ.
+    \item Chưa có benchmark hiệu năng, logging tập trung, monitoring uptime và pipeline CI/CD production hoàn chỉnh.
+    \item Một phần controller admin/chat vẫn còn file legacy lớn, có thể tiếp tục tách nhỏ để dễ bảo trì hơn.
+\end{itemize}
+
+\chapter{Cài đặt và hướng dẫn sử dụng}
+
+\section{Cài đặt cơ sở dữ liệu}
+
+Yêu cầu môi trường:
+
+\begin{itemize}
+    \item Node.js từ phiên bản 18 trở lên.
+    \item MySQL từ phiên bản 5.7 trở lên.
+    \item npm.
+\end{itemize}
+
+Tạo database mới từ schema tổng hợp:
+
+\begin{lstlisting}[language=bash]
+mysql -u root -p < database/schema.sql
+\end{lstlisting}
+
+Nếu đã có database cũ, chạy migration trong thư mục \path{migrations} theo đúng thứ tự từ \path{001} đến \path{017}. Sau khi tạo schema, có thể import dữ liệu mẫu:
+
+\begin{lstlisting}[language=bash]
+mysql -u root -p tmdt_ecommerce < database/seed.sql
+\end{lstlisting}
+
+Project có file mẫu import sản phẩm tại \path{sample-data/wind-of-fall-product-import-example.xlsx}.
+
+\section{Cài đặt giả lập môi trường server hosting}
+
+Các bước cài đặt project:
+
+\begin{enumerate}
+    \item Cài dependency:
+\begin{lstlisting}[language=bash]
+npm install
+\end{lstlisting}
+    \item Tạo file môi trường từ mẫu:
+\begin{lstlisting}[language=bash]
+cp .env.example .env
+\end{lstlisting}
+    \item Cấu hình database: \path{DB_HOST}, \path{DB_USER}, \path{DB_PASSWORD}, \path{DB_NAME}, \path{DB_PORT}.
+    \item Cấu hình auth/session: \path{JWT_SECRET}, \path{JWT_EXPIRE}, \path{SESSION_SECRET}.
+    \item Cấu hình Cloudinary nếu cần upload ảnh thật.
+    \item Cấu hình Resend nếu cần email.
+    \item Cấu hình VNPay/MoMo sandbox nếu cần demo thanh toán online.
+    \item Cấu hình AI provider nếu cần chatbot/RAG/visual search.
+\end{enumerate}
+
+Chạy development:
+
+\begin{lstlisting}[language=bash]
+npm run dev
+\end{lstlisting}
+
+Chạy production:
+
+\begin{lstlisting}[language=bash]
+npm start
+\end{lstlisting}
+
+Ứng dụng mặc định chạy tại \url{http://localhost:3000}.
+
+\section{Biến môi trường quan trọng}
+
+\begin{longtable}{|p{4.5cm}|p{10.3cm}|}
+\hline
+\textbf{Nhóm} & \textbf{Biến cấu hình} \\
+\hline
+Server/database & \path{PORT}, \path{NODE_ENV}, \path{BASE_URL}, \path{DB_HOST}, \path{DB_USER}, \path{DB_PASSWORD}, \path{DB_NAME}, \path{DB_PORT}. \\
+\hline
+Auth/session & \path{JWT_SECRET}, \path{JWT_EXPIRE}, \path{SESSION_SECRET}, \path{GOOGLE_CLIENT_ID}, \path{GOOGLE_CLIENT_SECRET}, \path{GOOGLE_CALLBACK_URL}. \\
+\hline
+Email/upload & \path{RESEND_API_KEY}, \path{RESEND_FROM}, \path{CLOUDINARY_CLOUD_NAME}, \path{CLOUDINARY_API_KEY}, \path{CLOUDINARY_API_SECRET}, \path{MAX_FILE_SIZE}, \path{MAX_IMPORT_FILE_SIZE}, \path{MAX_CHAT_FILE_SIZE}. \\
+\hline
+Payment & \path{VNPAY_TMN_CODE}, \path{VNPAY_HASH_SECRET}, \path{VNPAY_URL}, \path{VNPAY_RETURN_URL}, \path{MOMO_PARTNER_CODE}, \path{MOMO_ACCESS_KEY}, \path{MOMO_SECRET_KEY}, \path{MOMO_ENDPOINT}, \path{MOMO_RETURN_URL}, \path{MOMO_NOTIFY_URL}. \\
+\hline
+AI & \path{AI_PROVIDER}, \path{OPENAI_API_KEY}, \path{OPENAI_BASE_URL}, \path{OPENAI_MODEL}, \path{OPENAI_VISION_MODEL}, \path{OPENAI_EMBEDDING_MODEL}, \path{GEMINI_API_KEY}, \path{PRODUCT_VISUAL_EMBED_MODEL}. \\
+\hline
+\end{longtable}
+
+\section{Giao diện User}
+
+\subsection{Giao diện trang chủ}
+
+Trang chủ render từ \path{views/home/index.ejs}. Nội dung hiển thị gồm banner, headline thương hiệu, danh mục nổi bật, sản phẩm mới, sản phẩm bán chạy, nội dung editorial, các khối dịch vụ, newsletter và footer. Header dùng \path{views/partials/header.ejs}, lấy danh mục qua middleware \path{headerCategories.js} và lấy cấu hình storefront qua \path{storefrontSettings.js}.
+
+\reportimage{home.png}{Ảnh chụp giao diện trang chủ}{fig:ui-home}
+
+\reportimage{user-home-logged-in.png}{Ảnh chụp trang chủ khi người dùng đã đăng nhập}{fig:ui-user-home-logged-in}
+
+\subsection{Giao diện trang sản phẩm}
+
+Trang danh sách sản phẩm render từ \path{views/products/list.ejs}. Giao diện có grid sản phẩm, card sản phẩm dùng lại từ \path{views/partials/product-card.ejs}, toolbar catalog, sidebar lọc và phân trang. Người dùng có thể chuyển trang, xem nhanh thông tin giá, sale, ảnh chính và trạng thái sản phẩm.
+
+\reportimage{products.png}{Ảnh chụp giao diện danh sách sản phẩm}{fig:ui-products}
+
+\reportimage{search-results.png}{Ảnh chụp giao diện kết quả tìm kiếm sản phẩm}{fig:ui-search-results}
+
+\reportimage{category-nu.png}{Ảnh chụp giao diện danh mục sản phẩm nữ}{fig:ui-category-nu}
+
+\reportimage{for-you.png}{Ảnh chụp giao diện gợi ý For You}{fig:ui-for-you}
+
+\subsection{Giao diện trang chi tiết sản phẩm}
+
+Trang chi tiết render từ \path{views/products/detail.ejs}, script \path{public/js/product-detail.js} và CSS \path{public/css/product-detail.css}. Trang hiển thị gallery ảnh, tên sản phẩm, giá, sale, mô tả, lựa chọn size/màu, tồn kho, nút thêm giỏ, nút mua ngay, đánh giá và sản phẩm liên quan. Đây là màn hình quyết định mua hàng nên dữ liệu biến thể và tồn kho cần được hiển thị rõ ràng.
+
+\reportimage{product-detail.png}{Ảnh chụp giao diện chi tiết sản phẩm}{fig:ui-product-detail}
+
+\subsection{Giao diện trang tìm kiếm}
+
+Tìm kiếm dùng route \path{/products/search}, view \path{views/products/search-results.ejs} và script \path{public/js/search-suggest.js}. Người dùng nhập từ khóa ở header, hệ thống trả kết quả theo query, kết hợp phân trang và hiển thị giống danh sách sản phẩm để tiếp tục xem chi tiết.
+
+\subsection{Giao diện trang đăng ký tài khoản}
+
+Trang đăng ký render từ \path{views/auth/register.ejs}, xử lý bởi \path{authController.register}. Người dùng nhập họ tên, email, mật khẩu và thông tin cần thiết. Sau đăng ký, hệ thống hỗ trợ gửi mã xác thực email để kích hoạt tài khoản.
+
+\reportimage{register.png}{Ảnh chụp giao diện đăng ký tài khoản}{fig:ui-register}
+
+\subsection{Giao diện trang đăng nhập}
+
+Trang đăng nhập render từ \path{views/auth/login.ejs}, xử lý bởi \path{authController.login}. Hệ thống hỗ trợ đăng nhập email/mật khẩu và Google OAuth. Sau đăng nhập thành công, JWT được lưu bằng cookie để dùng cho các route cần xác thực.
+
+\reportimage{login.png}{Ảnh chụp giao diện đăng nhập người dùng}{fig:ui-login}
+
+\subsection{Giao diện hồ sơ người dùng}
+
+Trang hồ sơ người dùng render từ \path{views/user/profile.ejs}, kết hợp \path{public/js/user-profile.js} và \path{public/css/user-profile.css}. Màn hình này cho phép người dùng xem/cập nhật thông tin cá nhân, avatar, số điện thoại, ngày sinh, địa chỉ giao hàng, mật khẩu và các tùy chọn thông báo.
+
+\reportimage{user-profile.png}{Ảnh chụp giao diện hồ sơ người dùng}{fig:ui-user-profile}
+
+\subsection{Giao diện trang giỏ hàng}
+
+Trang giỏ hàng render từ \path{views/cart/index.ejs}. Người dùng có thể xem sản phẩm đã thêm, biến thể, đơn giá, số lượng, tổng tiền, cập nhật số lượng hoặc xóa sản phẩm. Script \path{public/js/cart.js} gọi các endpoint \path{/cart/add}, \path{/cart/update}, \path{/cart/remove}, \path{/cart/count}.
+
+\reportimage{cart.png}{Ảnh chụp giao diện giỏ hàng}{fig:ui-cart}
+
+\reportimage{checkout.png}{Ảnh chụp giao diện checkout từ giỏ hàng}{fig:ui-checkout}
+
+\reportimage{buy-now.png}{Ảnh chụp giao diện mua ngay một sản phẩm}{fig:ui-buy-now}
+
+\reportimage{user-orders.png}{Ảnh chụp giao diện lịch sử đơn hàng người dùng}{fig:ui-user-orders}
+
+\reportimage{user-order-tracking.png}{Ảnh chụp giao diện theo dõi/tracking đơn hàng}{fig:ui-user-order-tracking}
+
+\subsection{Giao diện trang xác nhận đặt hàng}
+
+Sau khi tạo đơn, hệ thống điều hướng đến trang confirmation tại \path{/orders/:orderCode/confirmation}. Trang này hiển thị mã đơn, thông tin đơn, trạng thái thanh toán, phương thức thanh toán và hướng dẫn tiếp theo cho khách.
+
+\subsection{Giao diện trang thanh toán}
+
+Checkout render từ \path{views/checkout/index.ejs}; mua ngay render từ \path{views/checkout/buy-now.ejs}. Người dùng chọn địa chỉ, xem danh sách sản phẩm, áp voucher, xem phí ship, tổng tiền và chọn phương thức thanh toán. Phần địa chỉ có thể dùng API tỉnh/thành, quận/huyện, phường/xã từ \path{routes/index.js}.
+
+\subsection{Giao diện trang hình thức thanh toán}
+
+Hệ thống hỗ trợ COD, VNPay và MoMo. Với COD, đơn chuyển sang chờ xử lý. Với VNPay/MoMo, hệ thống tạo URL hoặc trang thanh toán trung gian, sau đó callback cập nhật trạng thái payment. Riêng MoMo có view \path{views/checkout/momo-payment.ejs} để hỗ trợ trải nghiệm thanh toán.
+
+\subsection{Giao diện trang giải đáp thắc mắc}
+
+Project không có một trang FAQ tĩnh riêng tách biệt, nhưng chức năng giải đáp được triển khai thông qua chat widget và dữ liệu knowledge trong \path{config/chatRagKnowledge.js}. Người dùng có thể hỏi về sản phẩm, thanh toán, giao hàng, đổi trả, chính sách cửa hàng và nhận câu trả lời từ AI hoặc admin.
+
+\subsection{Giao diện trang liên hệ}
+
+Thông tin liên hệ được cấu hình trong \path{storefront_settings}, gồm hotline, email, địa chỉ, giờ mở cửa và liên kết mạng xã hội. Các thông tin này được render ở footer và các khu vực liên hệ trong storefront.
+
+\subsection{Giao diện trang Chatbot}
+
+Chatbot nằm trong partial \path{views/partials/chat-widget.ejs}, CSS \path{public/css/chat-widget.css} và script \path{public/js/chat-widget.js}. Widget hỗ trợ gửi text, media, hiển thị tin nhắn rich message và product cards qua \path{public/js/chat-rich-message.js}. Người dùng có thể gửi ảnh để hệ thống tìm sản phẩm tương tự.
+
+\reportimage{chat-widget.png}{Ảnh chụp giao diện chatbot trên storefront}{fig:ui-chat-widget}
+
+\subsection{Giao diện khu vực liên kết mạng xã hội}
+
+Footer storefront có các liên kết Facebook, Instagram, TikTok, Zalo theo các key cấu hình \path{facebook_url}, \path{instagram_url}, \path{tiktok_url}, \path{zalo_url}. Admin có thể thay đổi các đường dẫn này qua storefront settings.
+
+\section{Giao diện Admin}
+
+\subsection{Giao diện đăng nhập phần Admin}
+
+Admin login có route \path{/admin/login} và \path{/admin/auth/login}, view \path{views/admin/login.ejs}, controller \path{adminAuthController.js}. Sau đăng nhập, hệ thống kiểm tra token và role admin trước khi cho truy cập dashboard.
+
+\reportimage{admin-login.png}{Ảnh chụp giao diện đăng nhập quản trị}{fig:ui-admin-login}
+
+\reportimage{admin-dashboard.png}{Ảnh chụp giao diện dashboard quản trị}{fig:ui-admin-dashboard}
+
+\reportimage{admin-products.png}{Ảnh chụp giao diện quản lý sản phẩm admin}{fig:ui-admin-products}
+
+\reportimage{admin-categories.png}{Ảnh chụp giao diện quản lý danh mục admin}{fig:ui-admin-categories}
+
+\reportimage{admin-orders.png}{Ảnh chụp giao diện quản lý đơn hàng admin}{fig:ui-admin-orders}
+
+\reportimage{admin-users.png}{Ảnh chụp giao diện quản lý tài khoản người dùng admin}{fig:ui-admin-users}
+
+\reportimage{admin-banners.png}{Ảnh chụp giao diện quản lý banner admin}{fig:ui-admin-banners}
+
+\reportimage{admin-sales.png}{Ảnh chụp giao diện quản lý chương trình sale admin}{fig:ui-admin-sales}
+
+\reportimage{admin-vouchers.png}{Ảnh chụp giao diện quản lý voucher admin}{fig:ui-admin-vouchers}
+
+\reportimage{admin-reviews.png}{Ảnh chụp giao diện quản lý đánh giá admin}{fig:ui-admin-reviews}
+
+\reportimage{admin-returns.png}{Ảnh chụp giao diện quản lý yêu cầu đổi trả admin}{fig:ui-admin-returns}
+
+\reportimage{admin-storefront.png}{Ảnh chụp giao diện cấu hình storefront admin}{fig:ui-admin-storefront}
+
+\reportimage{admin-chat.png}{Ảnh chụp giao diện chat admin}{fig:ui-admin-chat}
+
+\subsection{Giao diện trang chủ Admin}
+
+Dashboard admin render từ \path{views/admin/dashboard.ejs}, controller \path{admin/dashboardController.js} hoặc logic tương ứng trong \path{legacy.js}. Đây là màn hình tổng quan để điều hướng đến sản phẩm, đơn hàng, user, banner, sale, voucher, chat và storefront.
+
+\subsection{Giao diện thêm mới sản phẩm}
+
+Trang quản lý sản phẩm \path{views/admin/products.ejs} cho phép admin tạo sản phẩm mới, chọn danh mục, nhập giá, mô tả, SKU, trạng thái, upload ảnh và thêm biến thể. Upload dùng \path{middleware/upload.js} và Cloudinary nếu cấu hình đầy đủ.
+
+\subsection{Giao diện sửa sản phẩm}
+
+Admin có thể cập nhật thông tin sản phẩm qua route \path{PUT /admin/products/:id}. Giao diện hỗ trợ sửa dữ liệu cơ bản, ảnh, ảnh chính và biến thể. Logic biến thể được hỗ trợ bởi \path{services/adminProductVariantService.js}.
+
+\subsection{Giao diện xóa sản phẩm}
+
+Admin có thể xóa từng sản phẩm qua \path{DELETE /admin/products/:id} hoặc xóa toàn bộ qua \path{POST /admin/products/delete-all}. Với dữ liệu quan hệ, hệ thống cần bảo đảm không làm hỏng các bản ghi order item lịch sử.
+
+\subsection{Giao diện quản lý tài khoản người dùng}
+
+Trang user admin render từ \path{views/admin/users.ejs}. Admin xem danh sách user, chi tiết user và cập nhật trạng thái hoạt động qua \path{PUT /admin/users/:id/status}. Hệ thống phân biệt user thường và admin bằng trường \path{role}.
+
+\subsection{Giao diện trang thống kê}
+
+Dashboard admin đóng vai trò thống kê tổng quan. Ngoài ra, dữ liệu đơn hàng, payment, user, sản phẩm bán chạy và voucher là cơ sở để mở rộng báo cáo doanh thu, tồn kho, hiệu quả khuyến mãi trong các phiên bản sau.
+
+\subsection{Giao diện quản lý banner}
+
+Banner admin render từ \path{views/admin/banners.ejs}. Admin có thể thêm, sửa, xóa, bật/tắt và sắp xếp banner. Banner gồm tiêu đề, mô tả, ảnh, link, button text, thứ tự hiển thị, ngày bắt đầu/kết thúc và trạng thái.
+
+\subsection{Giao diện quản lý Menu}
+
+Menu storefront được hình thành từ danh mục active và các key cấu hình như nhãn trang chủ, tất cả sản phẩm, sale, For You. Admin quản lý danh mục tại \path{/admin/categories} và quản lý nhãn/menu phụ qua \path{/admin/storefront}.
+
+\subsection{Giao diện quản lý Sales}
+
+Trang sales render từ \path{views/admin/sales.ejs}. Admin tạo chương trình giảm giá theo phần trăm, số tiền cố định hoặc dạng bogo, cấu hình giá trị, thời gian bắt đầu/kết thúc, trạng thái và có thể gửi email thông báo sale.
+
+\subsection{Giao diện quản lý Voucher}
+
+Trang vouchers render từ \path{views/admin/vouchers.ejs}. Admin tạo mã giảm giá, kiểu giảm, giá trị, điều kiện đơn tối thiểu, giới hạn số lần dùng, giới hạn theo user, thời gian hiệu lực, trạng thái và gửi email công bố voucher.
+
+\subsection{Giao diện quản lý đơn hàng}
+
+Trang orders render từ \path{views/admin/orders.ejs}; chi tiết đơn render từ \path{views/admin/order-detail.ejs}. Admin xem danh sách, lọc trạng thái, xem sản phẩm trong đơn, thông tin thanh toán, địa chỉ giao hàng và cập nhật trạng thái đơn.
+
+\subsection{Giao diện quản lý review và đổi trả}
+
+Admin có view \path{views/admin/reviews.ejs}, \path{views/admin/returns.ejs}, \path{views/admin/return-detail.ejs}. Review giúp kiểm soát nội dung đánh giá; returns giúp duyệt yêu cầu đổi trả, ghi chú admin và cập nhật trạng thái xử lý.
+
+\subsection{Giao diện quản lý Chat}
+
+Admin chat render từ \path{views/admin/chat.ejs}. Admin xem danh sách hội thoại, tin nhắn, trả lời khách, gửi media, chuyển handling mode giữa AI và manual, đóng hoặc mở lại conversation. Chức năng này giúp kết hợp tự động hóa AI với chăm sóc khách hàng thủ công.
+
+\section{Kiểm thử}
+
+Repository có bộ kiểm thử Jest trong thư mục \path{__tests__}. Các file test hiện có gồm admin controller, auth controller, cart controller, product controller, order controller, product model, chat controller, RAG service, bulk import, route security, app security headers, header navigation và startup.
+
+Lệnh chạy test:
+
+\begin{lstlisting}[language=bash]
+npm test
+\end{lstlisting}
+
+Khi chỉ muốn import app/model mà không probe MySQL thật trong môi trường CI:
+
+\begin{lstlisting}[language=bash]
+SKIP_DB_CONNECTION_PROBE=true npm test
+\end{lstlisting}
+
+PowerShell:
+
+\begin{lstlisting}[language=bash]
+$env:SKIP_DB_CONNECTION_PROBE="true"; npm test
+\end{lstlisting}
+
+Bảng test thủ công đề xuất:
+
+\begin{longtable}{|p{1cm}|p{6.5cm}|p{7.2cm}|}
+\hline
+\textbf{STT} & \textbf{Luồng kiểm thử} & \textbf{Kết quả mong đợi} \\
+\hline
+1 & Đăng ký tài khoản và xác thực email & User được tạo, nhận mã, xác thực thành công. \\
+\hline
+2 & Đăng nhập user và truy cập profile & JWT hợp lệ, profile hiển thị đúng thông tin. \\
+\hline
+3 & Tìm kiếm và xem chi tiết sản phẩm & Kết quả đúng từ khóa, trang chi tiết có ảnh, biến thể, giá, review. \\
+\hline
+4 & Thêm sản phẩm vào giỏ và cập nhật số lượng & Giỏ hàng cập nhật đúng số lượng và tổng tiền. \\
+\hline
+5 & Checkout COD & Đơn được tạo, trạng thái thanh toán chưa trả, trạng thái đơn chờ xử lý. \\
+\hline
+6 & Checkout VNPay/MoMo sandbox & URL/QR được tạo, callback cập nhật payment nếu dữ liệu hợp lệ. \\
+\hline
+7 & Hủy đơn khi còn được phép & Đơn chuyển cancelled và tracking event được ghi. \\
+\hline
+8 & Admin cập nhật trạng thái đơn & User xem được timeline tracking mới. \\
+\hline
+9 & User gửi yêu cầu đổi trả & Return request được tạo kèm media. \\
+\hline
+10 & Chatbot hỏi thông tin giao hàng/thanh toán & Bot trả lời dựa trên knowledge, có thể gợi ý sản phẩm khi phù hợp. \\
+\hline
+\end{longtable}
+
+\section{Triển khai}
+
+Khi triển khai production, hệ thống cần server Node.js, MySQL, domain HTTPS, biến môi trường đầy đủ, API key cho Cloudinary, Resend, VNPay, MoMo và AI provider. Nên dùng process manager như PM2 hoặc systemd, reverse proxy như Nginx, bật cookie secure khi \path{NODE_ENV=production}, cấu hình allowed origins chính xác và chuyển session store sang Redis/MySQL nếu chạy nhiều instance. Ảnh/media nên lưu trên Cloudinary hoặc CDN thay vì chỉ dùng local upload folder.
+
+\chapter*{Kết luận}
+\addcontentsline{toc}{chapter}{Kết luận}
+
+Project WIND OF FALL đã xây dựng được một hệ thống thương mại điện tử thời trang tương đối đầy đủ, bao phủ cả phía người dùng và phía quản trị. Phía khách hàng có các luồng quan trọng như xem sản phẩm, tìm kiếm, giỏ hàng, checkout, thanh toán, lịch sử đơn, tracking, đổi trả, review và chat tư vấn. Phía quản trị có các chức năng vận hành thực tế như quản lý sản phẩm, danh mục, ảnh, biến thể, đơn hàng, người dùng, banner, sale, voucher, review, returns, chat, email marketing và cấu hình storefront.
+
+Về kỹ thuật, project có kiến trúc rõ ràng theo Express MVC mở rộng, tách route, controller, model, service, middleware, view và asset tĩnh. CSDL MySQL có khóa ngoại, index, schema tổng hợp và migration. Các tích hợp VNPay, MoMo, Cloudinary, Resend, AI/RAG và visual embedding cho thấy hệ thống không chỉ dừng ở CRUD cơ bản mà đã tiếp cận nhiều bài toán thương mại điện tử thực tế. Các lớp bảo mật như JWT, phân quyền admin, Helmet CSP, same-origin guard, xác thực email và kiểm soát upload góp phần nâng cao độ an toàn.
+
+Tuy vậy, trước khi dùng ở quy mô production lớn, hệ thống vẫn cần hoàn thiện thêm về tích hợp vận chuyển thật, CSRF token per-form, session store production, tài liệu API, benchmark hiệu năng, monitoring và CI/CD. Đây là các điểm quan trọng cho hướng phát triển tiếp theo.
+
+\chapter*{Hướng phát triển}
+\addcontentsline{toc}{chapter}{Hướng phát triển}
+
+\begin{itemize}
+    \item Tích hợp đơn vị vận chuyển thật để tính phí ship động, tạo vận đơn và đồng bộ tracking realtime.
+    \item Bổ sung CSRF token cho form quan trọng, rate limiting, audit log admin và 2FA cho admin.
+    \item Chuyển session store sang Redis/MySQL, bổ sung cache Redis cho catalog và storefront settings.
+    \item Xây dựng tài liệu OpenAPI/Swagger cho các endpoint JSON, nhất là admin API và payment callback.
+    \item Hoàn thiện CI/CD, Dockerfile, migration pipeline, logging tập trung và monitoring uptime.
+    \item Phát triển recommendation cá nhân hóa dựa trên lịch sử xem, giỏ hàng, đơn hàng và sản phẩm tương tự.
+    \item Nâng cấp chatbot bằng giao diện quản trị knowledge base, lưu feedback và handoff rõ hơn sang nhân viên.
+    \item Bổ sung báo cáo doanh thu, tồn kho, hiệu quả voucher/sale và hành vi người dùng cho dashboard admin.
+    \item Chuẩn hóa kiểm thử end-to-end cho đăng ký, checkout, thanh toán, đổi trả và admin CRUD.
+\end{itemize}
+
+\chapter*{Tài liệu tham khảo}
+\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
+
+\begin{enumerate}
+    \item Node.js Documentation: \url{https://nodejs.org/docs}
+    \item Express.js Documentation: \url{https://expressjs.com}
+    \item EJS Documentation: \url{https://ejs.co}
+    \item MySQL Documentation: \url{https://dev.mysql.com/doc}
+    \item Helmet Documentation: \url{https://helmetjs.github.io}
+    \item OWASP Cheat Sheet Series: \url{https://cheatsheetseries.owasp.org}
+    \item VNPay Payment Gateway Documentation: \url{https://sandbox.vnpayment.vn/apis/docs}
+    \item MoMo Payment API Documentation: \url{https://developers.momo.vn}
+    \item Cloudinary Node.js SDK Documentation: \url{https://cloudinary.com/documentation/node_integration}
+    \item Resend Documentation: \url{https://resend.com/docs}
+    \item Tài liệu nội bộ project: \path{README.md}, \path{DESIGN.md}, \path{database/schema.sql}, \path{routes/}, \path{controllers/}, \path{models/}, \path{services/}, \path{middleware/}.
+\end{enumerate}
+
+\chapter*{Phân công công việc}
+\addcontentsline{toc}{chapter}{Phân công công việc}
+
+\begin{longtable}{|p{1cm}|p{2.6cm}|p{4cm}|p{6.4cm}|p{1.4cm}|}
+\hline
+\textbf{STT} & \textbf{Mã SV} & \textbf{Họ và tên SV} & \textbf{Công việc} & \textbf{Xác nhận} \\
+\hline
+1 & [Mã SV] & \textbf{[Họ tên nhóm trưởng]} & Phân tích yêu cầu, thiết kế CSDL, xây dựng backend auth/order/payment, tổng hợp báo cáo. & \\
+\hline
+2 & [Mã SV] & [Họ tên thành viên] & Xây dựng giao diện storefront, catalog, giỏ hàng, checkout, profile người dùng. & \\
+\hline
+3 & [Mã SV] & [Họ tên thành viên] & Xây dựng admin dashboard, quản lý sản phẩm, danh mục, sale, voucher, banner. & \\
+\hline
+4 & [Mã SV] & [Họ tên thành viên] & Xây dựng chatbot/RAG, upload media, review, đổi trả, kiểm thử và hoàn thiện demo. & \\
+\hline
+\end{longtable}
+
+\noindent\textit{Ghi chú: Nhóm cần cập nhật lớp, số thứ tự nhóm và danh sách sinh viên thực tế trước khi nộp.}
+
+\end{document}

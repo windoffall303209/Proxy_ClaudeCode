@@ -3,7 +3,7 @@
  * Mỗi sản phẩm có 5-6 ảnh từ Unsplash (miễn phí)
  * Chạy: node scripts/add-products.js
  */
-const pool = require('../config/database');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const productsData = {
@@ -137,7 +137,13 @@ const imagesByCategory = {
 async function main() {
   console.log('🚀 Bắt đầu thêm 90 sản phẩm mới...\n');
 
-  const connection = await pool.getConnection();
+  const connection = await mysql.createConnection({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'tmdt_ecommerce',
+    port: process.env.DB_PORT || 3306
+  });
 
   try {
     const categoryMap = { nam: 1, nu: 2, 'tre-em': 3 };
@@ -169,7 +175,7 @@ async function main() {
           await connection.execute(
             `INSERT INTO product_images (product_id, image_url, is_primary, display_order)
              VALUES (?, ?, ?, ?)`,
-            [productId, imageUrl, j === 0, j]
+            [productId, imageUrl, j === 0 ? 1 : 0, j]
           );
         }
 
@@ -183,8 +189,7 @@ async function main() {
   } catch (error) {
     console.error('❌ Lỗi:', error.message);
   } finally {
-    connection.release();
-    await pool.end();
+    await connection.end();
   }
 }
 

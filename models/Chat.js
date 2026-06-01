@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu chat trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu chat trong MySQL.
 const pool = require('../config/database');
 
 class Chat {
@@ -261,14 +261,20 @@ class Chat {
                     ) AS last_message_id,
                     (
                         SELECT COUNT(*)
-                        FROM chat_messages
-                        WHERE conversation_id = cc.id
-                          AND sender_type = 'customer'
-                          AND is_read = FALSE
+                        FROM chat_messages cm_unread
+                        WHERE cm_unread.conversation_id = cc.id
+                          AND cm_unread.sender_type = 'customer'
+                          AND cm_unread.is_read = FALSE
+                          AND cm_unread.id > COALESCE((
+                              SELECT MAX(cm_read_boundary.id)
+                              FROM chat_messages cm_read_boundary
+                              WHERE cm_read_boundary.conversation_id = cc.id
+                                AND cm_read_boundary.sender_type IN ('admin', 'bot')
+                          ), 0)
                     ) AS unread_count
              FROM chat_conversations cc
              LEFT JOIN users u ON cc.user_id = u.id
-             ORDER BY cc.last_message_at DESC, cc.id DESC
+             ORDER BY unread_count > 0 DESC, cc.last_message_at DESC, cc.id DESC
              LIMIT ${safeLimit} OFFSET ${offset}`
         );
 
@@ -280,15 +286,21 @@ class Chat {
         };
     }
 
-    // Lấy unread count.
+    // Lấy tổng số tin nhắn khách hàng mới mà admin/AI chưa phản hồi trong các cuộc trò chuyện đang mở.
     static async getUnreadCount() {
         const [rows] = await pool.execute(
-            `SELECT COUNT(DISTINCT cm.conversation_id) AS count
+            `SELECT COUNT(*) AS count
              FROM chat_messages cm
              JOIN chat_conversations cc ON cm.conversation_id = cc.id
              WHERE cm.sender_type = 'customer'
                AND cm.is_read = FALSE
-               AND cc.status = 'active'`
+               AND cc.status = 'active'
+               AND cm.id > COALESCE((
+                   SELECT MAX(cm_reply.id)
+                   FROM chat_messages cm_reply
+                   WHERE cm_reply.conversation_id = cm.conversation_id
+                     AND cm_reply.sender_type IN ('admin', 'bot')
+               ), 0)`
         );
 
         return rows[0].count;

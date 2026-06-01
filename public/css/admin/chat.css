@@ -75,14 +75,36 @@ body.admin-body.admin-body--chat {
     color: var(--admin-text-primary);
 }
 
-.admin-chat-list__header p {
-    margin: 4px 0 0 0;
-    font-size: 13px;
-    color: var(--admin-text-muted);
+.admin-chat-list__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.admin-chat-list__filter {
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--admin-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    padding: 7px 9px;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.admin-chat-list__filter:hover,
+.admin-chat-list__filter.active {
+    border-color: rgba(226, 184, 75, 0.58);
+    background: linear-gradient(135deg, #f7d77c, #f3e2ad);
+    color: #1a1611;
 }
 
 .admin-chat-list__search {
-    margin-top: 14px;
+    margin-top: 10px;
 }
 
 .admin-chat-list__search .admin-form__input {
@@ -107,9 +129,9 @@ body.admin-body.admin-body--chat {
 .admin-chat-list__item {
     width: 100%;
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 14px 18px;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 10px 16px;
     border: none;
     border-bottom: 1px solid var(--admin-border);
     background: transparent;
@@ -132,8 +154,8 @@ body.admin-body.admin-body--chat {
 }
 
 .admin-chat-list__avatar {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: var(--admin-bg);
     color: var(--admin-text-secondary);
@@ -159,7 +181,7 @@ body.admin-body.admin-body--chat {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .admin-chat-list__name {
@@ -196,17 +218,20 @@ body.admin-body.admin-body--chat {
 .admin-chat-list__preview {
     font-size: 12px;
     color: var(--admin-text-muted);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    display: block;
     overflow: hidden;
-    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
 }
 
 .admin-chat-list__meta {
-    margin-top: 6px;
-    font-size: 11px;
+    margin-top: 3px;
+    font-size: 10.5px;
     color: var(--admin-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .admin-chat-list__badge {

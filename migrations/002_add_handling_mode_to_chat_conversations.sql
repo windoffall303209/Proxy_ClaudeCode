@@ -1,10 +1,3 @@
--- PostgreSQL migration: add chat handling mode.
+-- File migrations/002_add_handling_mode_to_chat_conversations.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
 ALTER TABLE chat_conversations
-    ADD COLUMN IF NOT EXISTS handling_mode VARCHAR(50) NOT NULL DEFAULT 'ai';
-
-ALTER TABLE chat_conversations
-    DROP CONSTRAINT IF EXISTS chk_chat_conversations_handling_mode;
-
-ALTER TABLE chat_conversations
-    ADD CONSTRAINT chk_chat_conversations_handling_mode
-    CHECK (handling_mode IN ('ai', 'manual'));
+ADD COLUMN handling_mode ENUM('ai', 'manual') NOT NULL DEFAULT 'ai' AFTER status;

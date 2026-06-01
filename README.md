@@ -1,19 +1,20 @@
 # WIND OF FALL - Fashion E-commerce
 
-Website thương mại điện tử thời trang xây bằng Node.js, Express, EJS và PostgreSQL.
+Website thương mại điện tử thời trang xây bằng Node.js, Express, EJS và MySQL.
 
-README này dùng như bản đồ project: mỗi thư mục làm gì, route chính nằm ở đâu, và khi muốn sửa một chức năng thì nên mở file nào trước.
+README này dùng như bản đồ project: mỗi thư mục làm gì, route chính nằm ở đâu, database cần chuẩn bị thế nào, và khi muốn sửa một chức năng thì nên mở file nào trước.
 
 ## Công nghệ chính
 
 - Backend: Node.js, Express.js
 - View server-side: EJS
-- Database: PostgreSQL, `pg`
+- Database: MySQL, `mysql2/promise`
 - Auth: JWT cookie, Express session, Google OAuth
 - Upload/media: Multer, Cloudinary, Sharp
 - Email: Resend
 - Thanh toán: COD, VNPay, MoMo
 - AI chat: OpenAI-compatible API hoặc Gemini, RAG text, vision, visual image embedding
+- Bảo mật: Helmet CSP, JWT, session cookie, same-origin guard cho request đổi trạng thái
 - Test: Jest
 
 ## Chạy project
@@ -21,7 +22,7 @@ README này dùng như bản đồ project: mỗi thư mục làm gì, route ch�
 Yêu cầu:
 
 - Node.js >= 18
-- PostgreSQL >= 13
+- MySQL >= 5.7
 - npm
 
 Cài dependency:
@@ -30,39 +31,54 @@ Cài dependency:
 npm install
 ```
 
-Tạo database:
+Tạo database mới:
 
 ```bash
-createdb tmdt_ecommerce
-psql -d tmdt_ecommerce -f database/schema.sql
+mysql -u root -p < database/schema.sql
+```
+
+`database/schema.sql` là schema reset đầy đủ, đã gom các bảng/cột hiện đang dùng trong code. Với database cũ đã tồn tại, chạy các migration bổ sung theo đúng thứ tự số:
+
+```bash
+mysql -u root -p tmdt_ecommerce < migrations/001_add_image_id_to_variants.sql
+mysql -u root -p tmdt_ecommerce < migrations/002_add_handling_mode_to_chat_conversations.sql
+mysql -u root -p tmdt_ecommerce < migrations/003_create_voucher_products.sql
+mysql -u root -p tmdt_ecommerce < migrations/004_create_review_media.sql
+mysql -u root -p tmdt_ecommerce < migrations/005_create_order_tracking_tables.sql
+mysql -u root -p tmdt_ecommerce < migrations/006_snapshot_order_shipping_address.sql
+mysql -u root -p tmdt_ecommerce < migrations/007_add_rich_media_to_chat_messages.sql
+mysql -u root -p tmdt_ecommerce < migrations/008_create_chat_rag_tables.sql
+mysql -u root -p tmdt_ecommerce < migrations/009_create_product_image_embeddings.sql
+mysql -u root -p tmdt_ecommerce < migrations/010_create_storefront_settings.sql
+mysql -u root -p tmdt_ecommerce < migrations/011_add_payment_completion_and_returns.sql
+mysql -u root -p tmdt_ecommerce < migrations/012_add_order_payment_expiry.sql
+mysql -u root -p tmdt_ecommerce < migrations/013_add_website_management_settings.sql
+mysql -u root -p tmdt_ecommerce < migrations/014_expand_storefront_settings_management.sql
+mysql -u root -p tmdt_ecommerce < migrations/015_fix_storefront_settings_vietnamese_accents.sql
+mysql -u root -p tmdt_ecommerce < migrations/016_add_shipping_fee_setting.sql
+mysql -u root -p tmdt_ecommerce < migrations/017_add_account_soft_delete.sql
+mysql -u root -p tmdt_ecommerce < migrations/018_create_api_key_settings.sql
+mysql -u root -p tmdt_ecommerce < migrations/019_create_ai_automation_tables.sql
 ```
 
 Import dữ liệu mẫu nếu cần:
 
 ```bash
-psql -d tmdt_ecommerce -f database/seed.sql
+mysql -u root -p tmdt_ecommerce < database/seed.sql
 ```
 
-Chạy migration bổ sung theo thứ tự số nếu database chưa có các bảng/cột mới:
-
-```bash
-psql -d tmdt_ecommerce -f migrations/001_add_image_id_to_variants.sql
-psql -d tmdt_ecommerce -f migrations/002_add_handling_mode_to_chat_conversations.sql
-psql -d tmdt_ecommerce -f migrations/003_create_voucher_products.sql
-psql -d tmdt_ecommerce -f migrations/004_create_review_media.sql
-psql -d tmdt_ecommerce -f migrations/005_create_order_tracking_tables.sql
-psql -d tmdt_ecommerce -f migrations/006_snapshot_order_shipping_address.sql
-psql -d tmdt_ecommerce -f migrations/007_add_rich_media_to_chat_messages.sql
-psql -d tmdt_ecommerce -f migrations/008_create_chat_rag_tables.sql
-psql -d tmdt_ecommerce -f migrations/009_create_product_image_embeddings.sql
-psql -d tmdt_ecommerce -f migrations/010_create_storefront_settings.sql
-psql -d tmdt_ecommerce -f migrations/011_add_payment_completion_and_returns.sql
-```
+File import sản phẩm mẫu nằm ở `sample-data/wind-of-fall-product-import-example.xlsx`.
 
 Tạo `.env`:
 
 ```bash
 cp .env.example .env
+```
+
+Nếu dùng PowerShell:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
 Chạy development:
@@ -97,16 +113,19 @@ App mặc định chạy ở `http://localhost:3000`.
 server.js
   -> require app.js
   -> app.js tạo Express app
-  -> app.js gắn middleware dùng chung
+  -> app.js gắn middleware bảo mật, session, static, same-origin, auth, storefront settings
   -> app.js mount routes/index.js tại "/"
   -> routes/index.js mount từng nhóm route
+  -> server.js chạy job định kỳ dọn tài khoản đã yêu cầu xóa quá hạn
 ```
 
 File quan trọng:
 
-- `server.js`: mở HTTP server, graceful shutdown.
-- `app.js`: cấu hình Express, Helmet CSP, body parser, session, static file, `res.locals`, 404/error handler.
+- `server.js`: mở HTTP server, graceful shutdown, job 6 giờ/lần để ẩn danh tài khoản đã hết hạn khôi phục 14 ngày.
+- `app.js`: cấu hình Express, Helmet CSP, body parser, session, static file, same-origin guard, `res.locals`, 404/error handler.
 - `routes/index.js`: route trang chủ, API tỉnh/thành/geocode, và mount các route con.
+- `.env.example`: danh sách biến môi trường đang được code đọc.
+- `DESIGN.md`: ghi chú design system storefront hiện tại.
 
 ## Cấu trúc thư mục
 
@@ -116,6 +135,7 @@ TMDT_nodejs/
 |-- server.js                      # Start/stop HTTP server
 |-- package.json                   # Script npm và dependency
 |-- .env.example                   # Mẫu biến môi trường
+|-- DESIGN.md                      # Ghi chú design system storefront
 |-- config/                        # Database, Cloudinary, kiến thức RAG
 |-- controllers/                   # Điều phối request, gọi model/service, render view
 |   |-- admin/                     # Controller admin tách theo module
@@ -124,7 +144,7 @@ TMDT_nodejs/
 |   |-- cartController.js
 |   |-- orderController.js
 |   |-- productController.js
-|-- models/                        # Query PostgreSQL và chuẩn hóa dữ liệu
+|-- models/                        # Query MySQL và chuẩn hóa dữ liệu
 |-- routes/                        # Khai báo URL -> controller
 |-- services/                      # Logic ngoài controller: email, payment, AI, import
 |-- middleware/                    # Auth, upload, dữ liệu header/storefront
@@ -144,9 +164,9 @@ TMDT_nodejs/
 |   |-- uploads/
 |-- database/                      # schema.sql, seed.sql, dữ liệu SQL phụ
 |-- migrations/                    # Migration SQL bổ sung
+|-- sample-data/                   # File mẫu import sản phẩm
 |-- scripts/                       # Script seed, sync, repair, utility
 |-- __tests__/                     # Jest tests
-|-- archive/                       # Code cũ/backup, không phải luồng chính
 |-- coverage/                      # Output coverage của Jest
 |-- output/                        # Output sinh ra khi chạy tool
 ```
@@ -159,7 +179,7 @@ TMDT_nodejs/
 | `/auth` | `routes/authRoutes.js` | `controllers/authController.js` | Đăng ký, đăng nhập, profile, địa chỉ, verify email, forgot password |
 | `/products` | `routes/productRoutes.js` | `controllers/productController.js` | Danh sách, tìm kiếm, danh mục, chi tiết, review |
 | `/cart` | `routes/cartRoutes.js` | `controllers/cartController.js` | Giỏ hàng guest/user |
-| `/orders` | `routes/orderRoutes.js` | `controllers/orderController.js` | Checkout, mua ngay, thanh toán, lịch sử, tracking, hủy, hoàn hàng |
+| `/orders` | `routes/orderRoutes.js` | `controllers/orderController.js` | Checkout, mua ngay, thanh toán, thử thanh toán lại, lịch sử, tracking, hủy, hoàn hàng |
 | `/admin` | `routes/adminRoutes.js` | `controllers/admin/index.js` + `controllers/adminAuthController.js` | Login admin, dashboard, CRUD quản trị |
 | `/newsletter` | `routes/newsletterRoutes.js` | `controllers/newsletterController.js` | Đăng ký nhận tin |
 | `/chat` | `routes/chatRoutes.js` | `controllers/chat/index.js` | Chat khách hàng và admin chat |
@@ -180,6 +200,7 @@ TMDT_nodejs/
 | JS shell admin | `public/js/admin/admin-shell.js` |
 | Danh mục hiện trên header | `middleware/headerCategories.js`, `models/Category.js` |
 | Cấu hình storefront dùng toàn site | `middleware/storefrontSettings.js`, `models/StorefrontSetting.js` |
+| Maintenance mode | `middleware/storefrontSettings.js`, `views/maintenance.ejs`, `models/StorefrontSetting.js` |
 
 ### Trang chủ và storefront
 
@@ -248,6 +269,10 @@ TMDT_nodejs/
 | Lịch sử đơn hàng user | `views/user/orders.ejs`, `public/css/orders.css` |
 | Theo dõi đơn hàng | `views/user/order-tracking.ejs`, `public/css/tracking.css` |
 | Nút hủy/xác nhận nhận hàng | `public/js/order-actions.js` |
+| Thanh toán lại đơn online đang chờ | route `GET /orders/:orderCode/pay`, `controllers/orderController.js`, `services/paymentService.js` |
+| Thời hạn thanh toán online | `models/StorefrontSetting.js` key `payment_window_hours`, `models/Order.js` |
+| Bật/tắt COD/VNPay/MoMo | `models/StorefrontSetting.js` các key `payment_*_enabled`, `views/admin/storefront.ejs` |
+| Phí ship và ngưỡng freeship | `models/StorefrontSetting.js` key `shipping_fee_amount`, `free_shipping_min_amount`, `controllers/orderController.js` |
 | Auto hoàn thành sau khi giao quá N ngày | `models/Order.js`, hàm `autoCompleteDeliveredOrders()` |
 
 Ghi chú: thời gian tự động chuyển `delivered` sang `completed` đang nằm trong `models/Order.js` tại 2 câu SQL `INTERVAL 7 DAY`. Nếu đổi số ngày, đổi cả nội dung tracking event gần đó để text hiển thị đúng.
@@ -278,6 +303,9 @@ Ghi chú: thời gian tự động chuyển `delivered` sang `completed` đang n
 | Profile user | `views/user/profile.ejs`, `public/js/user-profile.js`, `public/css/user-profile.css` |
 | Verify email | `views/auth/verify-email.ejs`, `public/js/verify-email.js` |
 | Forgot password | `views/auth/forgot-password.ejs`, `public/js/auth/forgot-password.js` |
+| Yêu cầu xóa tài khoản mềm | `controllers/authController.js`, `models/User.js`, `server.js` |
+
+Tài khoản user bị xóa mềm có cửa sổ khôi phục 14 ngày khi đăng nhập lại. Sau thời hạn này, job trong `server.js` gọi `User.purgeExpiredDeletedAccounts()` để ẩn danh thông tin cá nhân.
 
 ### Chat AI, RAG, tìm sản phẩm bằng ảnh
 
@@ -318,19 +346,56 @@ Hiện code email dùng Resend. Các biến SMTP/Gmail cũ nếu còn trong môi
 | Upload review | `middleware/reviewUpload.js` |
 | Upload đổi trả | `middleware/returnUpload.js` |
 | Upload file import sản phẩm/danh mục | `middleware/productImportUpload.js` |
-| Giới hạn file | `.env`, biến `MAX_FILE_SIZE`, `MAX_CHAT_FILE_SIZE` |
+| Giới hạn file | `.env`, biến `MAX_FILE_SIZE`, `MAX_IMPORT_FILE_SIZE`, `MAX_CHAT_FILE_SIZE` |
+
+### Bảo mật, session, vận hành
+
+| Muốn sửa | File nên mở |
+| --- | --- |
+| JWT, phân quyền, bắt buộc verify email | `middleware/auth.js`, `models/StorefrontSetting.js` |
+| Session cookie | `app.js`, biến `SESSION_SECRET` |
+| CSP/Helmet | `app.js` |
+| Chặn request đổi trạng thái không cùng origin | `middleware/sameOrigin.js`, biến `CSRF_ALLOWED_ORIGINS` nếu chạy sau proxy/domain phụ |
+| Maintenance mode | `middleware/storefrontSettings.js`, `views/maintenance.ejs`, `models/StorefrontSetting.js` |
+| Cache storefront settings | `middleware/storefrontSettings.js` |
+| Xóa mềm và ẩn danh tài khoản | `models/User.js`, `controllers/authController.js`, `server.js` |
 
 ### Database, seed, migration
 
 | Muốn sửa | File nên mở |
 | --- | --- |
-| Kết nối PostgreSQL | `config/database.js` |
+| Kết nối MySQL | `config/database.js` |
 | Schema gốc | `database/schema.sql` |
 | Dữ liệu mẫu | `database/seed.sql` |
 | Seed sản phẩm số lượng lớn | `database/reseed_products_20_each.sql`, `scripts/seed-all.js`, `scripts/run-seed.js` |
 | Thay đổi schema mới | tạo file mới trong `migrations/` theo số tiếp theo |
 | Sửa dữ liệu tracking cũ | `scripts/repair-tracking-text.js` |
 | Kiểm tra DB nhanh | `scripts/check-db.js` |
+| Backfill AI automation | `npm run ai:automation:sync` |
+
+Migration hiện tại:
+
+| File | Nội dung chính |
+| --- | --- |
+| `001_add_image_id_to_variants.sql` | Liên kết biến thể với ảnh sản phẩm |
+| `002_add_handling_mode_to_chat_conversations.sql` | Chế độ AI/manual cho chat |
+| `003_create_voucher_products.sql` | Gán voucher theo sản phẩm |
+| `004_create_review_media.sql` | Ảnh/video trong review |
+| `005_create_order_tracking_tables.sql` | Bảng shipment và tracking event |
+| `006_snapshot_order_shipping_address.sql` | Snapshot địa chỉ giao hàng vào đơn |
+| `007_add_rich_media_to_chat_messages.sql` | Metadata tin nhắn chat giàu nội dung |
+| `008_create_chat_rag_tables.sql` | Bảng RAG text cho chatbot |
+| `009_create_product_image_embeddings.sql` | Embedding ảnh sản phẩm |
+| `010_create_storefront_settings.sql` | Key-value cấu hình storefront |
+| `011_add_payment_completion_and_returns.sql` | Trạng thái completed và đổi trả |
+| `012_add_order_payment_expiry.sql` | Hạn thanh toán đơn online |
+| `013_add_website_management_settings.sql` | Settings quản trị website ban đầu |
+| `014_expand_storefront_settings_management.sql` | Draft/publish và nhóm settings mở rộng |
+| `015_fix_storefront_settings_vietnamese_accents.sql` | Sửa dữ liệu tiếng Việt trong settings |
+| `016_add_shipping_fee_setting.sql` | Cấu hình phí ship |
+| `017_add_account_soft_delete.sql` | Xóa mềm tài khoản và thời hạn khôi phục |
+| `018_create_api_key_settings.sql` | Cấu hình API key runtime |
+| `019_create_ai_automation_tables.sql` | Bảng AI automation cho event, gợi ý, review insight, risk, inventory và marketing draft |
 
 ### Frontend asset theo trang
 
@@ -352,18 +417,18 @@ Hiện code email dùng Resend. Các biến SMTP/Gmail cũ nếu còn trong môi
 
 | Model | Dữ liệu phụ trách |
 | --- | --- |
-| `User.js` | User, admin/user status, auth helpers |
+| `User.js` | User, admin/user status, auth helpers, xóa mềm và ẩn danh tài khoản |
 | `Address.js` | Địa chỉ giao hàng |
 | `Product.js` | Sản phẩm, ảnh, biến thể, review, listing |
 | `Category.js` | Danh mục |
 | `Cart.js` | Giỏ hàng |
-| `Order.js` | Đơn hàng, trạng thái, tracking, auto complete |
+| `Order.js` | Đơn hàng, trạng thái, tracking, hạn thanh toán, auto complete |
 | `Payment.js` | Bản ghi thanh toán |
 | `ReturnRequest.js` | Yêu cầu đổi trả |
 | `Voucher.js` | Mã giảm giá |
 | `Sale.js` | Chương trình giảm giá |
 | `Banner.js` | Banner storefront |
-| `StorefrontSetting.js` | Cấu hình hiển thị storefront |
+| `StorefrontSetting.js` | Cấu hình hiển thị storefront, draft/publish, payment, security, maintenance |
 | `Chat.js` | Conversation/message chat |
 | `ChatRag.js` | Chunk RAG và trạng thái sync |
 | `ProductImageEmbedding.js` | Embedding ảnh sản phẩm |
@@ -378,11 +443,13 @@ PORT=3000
 NODE_ENV=development
 BASE_URL=http://localhost:3000
 DB_HOST=localhost
-DB_USER=postgres
+DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=tmdt_ecommerce
-DB_PORT=5432
-# DATABASE_URL=postgres://postgres:your_password@localhost:5432/tmdt_ecommerce
+DB_PORT=3306
+# Optional
+DB_CONNECT_TIMEOUT_MS=60000
+SKIP_DB_CONNECTION_PROBE=true
 ```
 
 Nhóm auth/session:
@@ -394,6 +461,8 @@ SESSION_SECRET=your_session_secret
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+# Optional khi có proxy/domain phụ gửi form hợp lệ
+CSRF_ALLOWED_ORIGINS=admin.example.com,shop.example.com
 ```
 
 Nhóm email/upload:
@@ -405,6 +474,7 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 MAX_FILE_SIZE=5242880
+MAX_IMPORT_FILE_SIZE=209715200
 MAX_CHAT_FILE_SIZE=31457280
 ```
 
@@ -435,6 +505,11 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 # GEMINI_API_KEY=your_gemini_api_key
 # GEMINI_MODEL=gemini-2.0-flash
 PRODUCT_VISUAL_EMBED_MODEL=nvidia/nvclip
+# Optional nếu visual embedding dùng key/base URL riêng
+PRODUCT_VISUAL_NVIDIA_API_KEY=nvapi_xxxxxxxxx
+PRODUCT_VISUAL_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
+PRODUCT_VISUAL_SYNC_DELAY_MS=400
+PRODUCT_VISUAL_SYNC_LOG_EVERY=20
 ```
 
 Nếu dùng NVIDIA NIM tại `https://integrate.api.nvidia.com/v1`, nên tách rõ:
@@ -463,6 +538,18 @@ Chạy toàn bộ test:
 npm test
 ```
 
+Trong CI hoặc khi chỉ muốn import app/model mà không probe MySQL thật:
+
+```bash
+SKIP_DB_CONNECTION_PROBE=true npm test
+```
+
+PowerShell:
+
+```powershell
+$env:SKIP_DB_CONNECTION_PROBE="true"; npm test
+```
+
 Chạy kiểm tra asset inline:
 
 ```bash
@@ -489,9 +576,11 @@ Sau khi sửa tính năng lớn, nên kiểm tra thủ công các luồng:
 
 - `app.js` không tự mở port, giúp Jest có thể import app mà không side effect.
 - `server.js` chịu trách nhiệm start server và graceful shutdown.
+- `server.js` còn chạy job 6 giờ/lần để ẩn danh tài khoản đã yêu cầu xóa sau khi hết 14 ngày khôi phục.
+- `middleware/sameOrigin.js` là lớp CSRF guard hiện tại cho POST/PUT/PATCH/DELETE; webhook MoMo được đăng ký trước guard trong `app.js`.
+- `middleware/storefrontSettings.js` cache settings trong 30 giây và render `views/maintenance.ejs` khi `maintenance_mode=true`, trừ admin, payment callback và favicon.
 - `controllers/admin/index.js` gom nhiều controller admin; một phần logic cũ vẫn ở `controllers/admin/legacy.js`.
-- `controllers/chat/index.js` gom chat customer/admin; luồng chat chính hiện nằm nhiều trong `controllers/chat/legacy.js`.
-- `archive/` là code backup/cũ, không phải luồng chạy chính.
+- `controllers/chat/index.js` gom chat customer/admin; `controllers/chat/legacy.js` là lớp tương thích để import cũ vẫn chạy.
 - `coverage/`, `output/`, `node_modules/` là output/phụ thuộc, không sửa tay cho logic app.
 
 ## License

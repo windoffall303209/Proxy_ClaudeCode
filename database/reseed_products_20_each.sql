@@ -1,4 +1,6 @@
 -- File database/reseed_products_20_each.sql: dinh nghia thay doi hoac cau truc du lieu cho he thong.
+USE tmdt_ecommerce;
+
 START TRANSACTION;
 
 -- Ensure required categories exist
@@ -15,14 +17,16 @@ SELECT 'Thoi Trang Tre Em', 'tre-em', 'Quan ao tre em', 'https://images.unsplash
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE slug = 'tre-em');
 
 -- Delete product-related data so products can be recreated cleanly
-TRUNCATE TABLE
-    cart_items,
-    order_items,
-    voucher_products,
-    product_variants,
-    product_images,
-    products
-RESTART IDENTITY CASCADE;
+DELETE FROM cart_items;
+DELETE FROM order_items;
+DELETE FROM voucher_products;
+DELETE FROM product_variants;
+DELETE FROM product_images;
+DELETE FROM products;
+
+ALTER TABLE products AUTO_INCREMENT = 1;
+ALTER TABLE product_images AUTO_INCREMENT = 1;
+ALTER TABLE product_variants AUTO_INCREMENT = 1;
 
 DROP TEMPORARY TABLE IF EXISTS tmp_numbers;
 CREATE TEMPORARY TABLE tmp_numbers (
@@ -54,7 +58,7 @@ SELECT
     0,
     CONCAT('NEW-NAM-', LPAD(t.n, 2, '0')),
     TRUE,
-    CASE WHEN t.n <= 6 THEN TRUE ELSE FALSE END
+    IF(t.n <= 6, TRUE, FALSE)
 FROM tmp_numbers t
 JOIN categories c ON c.slug = 'nam';
 
@@ -79,7 +83,7 @@ SELECT
     0,
     CONCAT('NEW-NU-', LPAD(t.n, 2, '0')),
     TRUE,
-    CASE WHEN t.n <= 6 THEN TRUE ELSE FALSE END
+    IF(t.n <= 6, TRUE, FALSE)
 FROM tmp_numbers t
 JOIN categories c ON c.slug = 'nu';
 
@@ -104,7 +108,7 @@ SELECT
     0,
     CONCAT('NEW-KID-', LPAD(t.n, 2, '0')),
     TRUE,
-    CASE WHEN t.n <= 6 THEN TRUE ELSE FALSE END
+    IF(t.n <= 6, TRUE, FALSE)
 FROM tmp_numbers t
 JOIN categories c ON c.slug = 'tre-em';
 
@@ -134,7 +138,7 @@ INSERT INTO product_images (product_id, image_url, is_primary, display_order)
 SELECT
     p.id,
     CONCAT(tc.base_url, '&sig=', p.id * 10 + tc.image_order),
-    CASE WHEN tc.image_order = 0 THEN TRUE ELSE FALSE END,
+    IF(tc.image_order = 0, TRUE, FALSE),
     tc.image_order
 FROM products p
 JOIN categories c ON c.id = p.category_id

@@ -8,6 +8,7 @@
         products: { label: 'Sản phẩm', group: 'Danh mục bán hàng' },
         orders: { label: 'Đơn hàng', group: 'Vận hành bán hàng' },
         returns: { label: 'Hoàn hàng', group: 'Vận hành bán hàng' },
+        reviews: { label: 'Đánh giá', group: 'Chăm sóc khách hàng' },
         users: { label: 'Người dùng', group: 'Quản trị tài khoản' },
         banners: { label: 'Banner', group: 'Nội dung hiển thị' },
         storefront: { label: 'Quản lí trang web', group: 'Nội dung hiển thị' },
@@ -32,6 +33,8 @@
     const adminSiteName = adminWebsiteSettings.site_name || 'WIND OF FALL';
     const adminLogoUrl = adminWebsiteSettings.admin_logo_url || adminWebsiteSettings.logo_url || '/favicon.png';
     const adminFaviconUrl = adminWebsiteSettings.favicon_url || '/favicon.png';
+    const adminInitialChatUnreadCount = Number(typeof unreadCount !== 'undefined' ? unreadCount : 0) || 0;
+    const adminInitialChatUnreadLabel = adminInitialChatUnreadCount > 99 ? '99+' : String(adminInitialChatUnreadCount);
 %>
 <head>
     <meta charset="UTF-8">
@@ -121,6 +124,14 @@
                         <strong>Hoàn hàng</strong>
                     </span>
                 </a>
+                <a href="/admin/reviews" class="<%= currentPage === 'reviews' ? 'active' : '' %>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                    <span class="admin-sidebar__nav-copy">
+                        <strong>Đánh giá</strong>
+                    </span>
+                </a>
                 <a href="/admin/users" class="<%= currentPage === 'users' ? 'active' : '' %>">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -187,6 +198,11 @@
                     <span class="admin-sidebar__nav-copy">
                         <strong>Chat</strong>
                     </span>
+                    <span
+                        id="adminSidebarChatUnreadBadge"
+                        class="admin-sidebar__chat-badge"
+                        <%= adminInitialChatUnreadCount > 0 ? '' : 'hidden' %>
+                    ><%= adminInitialChatUnreadLabel %></span>
                 </a>
             </nav>
         </div>

@@ -61,6 +61,30 @@
     border-left: 3px solid transparent;
 }
 
+.admin-sidebar__nav-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.admin-sidebar__chat-badge {
+    flex: 0 0 auto;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 11px;
+    line-height: 22px;
+    font-weight: 800;
+    text-align: center;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.9);
+}
+
+.admin-sidebar__chat-badge[hidden] {
+    display: none;
+}
+
 .admin-sidebar__nav a:hover {
     color: white;
     background: rgba(255, 255, 255, 0.08);

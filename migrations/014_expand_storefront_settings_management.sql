@@ -1,19 +1,9 @@
 ALTER TABLE storefront_settings
-    ALTER COLUMN setting_value TYPE TEXT,
-    ALTER COLUMN setting_value SET NOT NULL,
-    ALTER COLUMN value_type TYPE VARCHAR(50),
-    ALTER COLUMN value_type SET NOT NULL,
-    ALTER COLUMN value_type SET DEFAULT 'string',
-    ADD COLUMN IF NOT EXISTS draft_value TEXT NULL,
-    ADD COLUMN IF NOT EXISTS updated_by INT NULL,
-    ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL;
-
-ALTER TABLE storefront_settings
-    DROP CONSTRAINT IF EXISTS chk_storefront_settings_value_type;
-
-ALTER TABLE storefront_settings
-    ADD CONSTRAINT chk_storefront_settings_value_type
-    CHECK (value_type IN ('int', 'string', 'boolean', 'json', 'color', 'url', 'image', 'select'));
+    MODIFY COLUMN setting_value TEXT NOT NULL,
+    MODIFY COLUMN value_type ENUM('int', 'string', 'boolean', 'json', 'color', 'url', 'image', 'select') NOT NULL DEFAULT 'string',
+    ADD COLUMN draft_value TEXT NULL AFTER setting_value,
+    ADD COLUMN updated_by INT NULL AFTER value_type,
+    ADD COLUMN published_at TIMESTAMP NULL AFTER updated_by;
 
 UPDATE storefront_settings
 SET published_at = COALESCE(published_at, updated_at, CURRENT_TIMESTAMP)
@@ -135,5 +125,5 @@ VALUES
     ('otp_expire_minutes', '10', 'int', CURRENT_TIMESTAMP),
     ('maintenance_mode', 'false', 'boolean', CURRENT_TIMESTAMP),
     ('maintenance_message', 'Website đang bảo trì, vui lòng quay lại sau.', 'string', CURRENT_TIMESTAMP)
-ON CONFLICT (setting_key) DO UPDATE SET
-    value_type = EXCLUDED.value_type;
+ON DUPLICATE KEY UPDATE
+    value_type = VALUES(value_type);

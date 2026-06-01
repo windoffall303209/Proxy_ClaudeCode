@@ -1,19 +1,18 @@
--- PostgreSQL migration: create storefront settings.
+-- File migrations/010_create_storefront_settings.sql: định nghĩa thay đổi hoặc cấu trúc dữ liệu cho hệ thống.
 CREATE TABLE IF NOT EXISTS storefront_settings (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     setting_key VARCHAR(100) NOT NULL UNIQUE,
-    setting_value TEXT NOT NULL,
-    value_type VARCHAR(50) NOT NULL DEFAULT 'int' CHECK (value_type IN ('int', 'string', 'boolean', 'json')),
+    setting_value VARCHAR(255) NOT NULL,
+    value_type ENUM('int', 'string', 'boolean', 'json') NOT NULL DEFAULT 'int',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS storefront_settings_idx_key ON storefront_settings (setting_key);
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_storefront_settings_key (setting_key)
+) ENGINE=InnoDB;
 
 INSERT INTO storefront_settings (setting_key, setting_value, value_type)
 VALUES
     ('product_grid_columns', '5', 'int'),
     ('home_category_showcase_count', '3', 'int')
-ON CONFLICT (setting_key) DO UPDATE SET
-    setting_value = EXCLUDED.setting_value,
-    value_type = EXCLUDED.value_type;
+ON DUPLICATE KEY UPDATE
+    setting_value = VALUES(setting_value),
+    value_type = VALUES(value_type);

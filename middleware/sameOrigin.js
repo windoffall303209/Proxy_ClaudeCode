@@ -72,7 +72,7 @@ function rejectRequest(req, res) {
     if (preferJsonResponse(req)) {
         return res.status(403).json({
             success: false,
-            message: 'Yeu cau bi tu choi vi khong cung nguon goc.',
+            message: 'Yêu cầu bị từ chối vì không cùng nguồn gốc.',
             code: 'CSRF_BLOCKED'
         });
     }

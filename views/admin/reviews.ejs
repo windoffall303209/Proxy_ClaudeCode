@@ -1,0 +1,260 @@
+<%- include('../partials/admin-header', {
+    currentPage: 'reviews',
+    pageStyles: ['/css/admin/reviews.css?v=review-report-ajax-20260521']
+}) %>
+
+<%
+    const currentFilters = typeof filters !== 'undefined' && filters ? filters : {};
+    const currentStats = typeof reviewStats !== 'undefined' && reviewStats ? reviewStats : {};
+    const productOptions = Array.isArray(reviewProducts) ? reviewProducts : [];
+    const selectedProductIds = Array.isArray(currentFilters.product_ids)
+        ? currentFilters.product_ids.map((id) => String(id))
+        : (currentFilters.product_id ? [String(currentFilters.product_id)] : []);
+    const selectedRatings = Array.isArray(currentFilters.ratings)
+        ? currentFilters.ratings.map((rating) => String(rating))
+        : (currentFilters.rating ? [String(currentFilters.rating)] : []);
+    const selectedSentiment = currentFilters.sentiment || '';
+    const currentPagination = typeof pagination !== 'undefined' && pagination ? pagination : {
+        totalItems: Array.isArray(reviews) ? reviews.length : 0,
+        totalPages: 1,
+        currentPage: 1,
+        limit: 20
+    };
+    const ratingOptions = ['5', '4', '3', '2', '1'];
+    const queryBase = new URLSearchParams();
+
+    selectedProductIds.forEach((id) => queryBase.append('product_ids', id));
+    selectedRatings.forEach((rating) => queryBase.append('ratings', rating));
+    if (selectedSentiment) queryBase.set('sentiment', selectedSentiment);
+    if (currentFilters.search) queryBase.set('search', currentFilters.search);
+
+    const hasActiveFilter = Boolean(selectedProductIds.length || selectedRatings.length || selectedSentiment || currentFilters.search);
+    const exportQuery = queryBase.toString();
+    const filteredExportUrl = exportQuery ? `/admin/reviews/export?${exportQuery}` : '/admin/reviews/export';
+
+    function pageUrl(pageNumber) {
+        const params = new URLSearchParams(queryBase);
+        params.set('page', pageNumber);
+        return `/admin/reviews?${params.toString()}`;
+    }
+%>
+
+<div class="admin-page admin-reviews-page">
+    <div class="container">
+        <div class="admin-page-header">
+            <div class="admin-page-header__left">
+                <h1>Quản lý đánh giá</h1>
+                <p data-review-total-label><%= currentPagination.totalItems || 0 %> đánh giá theo bộ lọc hiện tại</p>
+            </div>
+            <div class="review-admin-export-actions" data-review-export-actions>
+                <a href="<%= filteredExportUrl %>" class="admin-btn admin-btn--primary">Xuất bộ lọc hiện tại</a>
+                <a href="/admin/reviews/export" class="admin-btn admin-btn--ghost">Xuất toàn bộ</a>
+            </div>
+        </div>
+
+        <% if (notice) { %>
+            <div class="review-admin-notice review-admin-notice--<%= noticeType === 'error' ? 'error' : 'success' %>">
+                <%= notice %>
+            </div>
+        <% } %>
+
+        <div class="stats-grid" data-review-stats>
+            <div class="stat-card stat-card--blue">
+                <h3 class="stat-card__label">Tổng đánh giá</h3>
+                <p class="stat-card__value"><%= currentStats.total || 0 %></p>
+            </div>
+            <div class="stat-card stat-card--green">
+                <h3 class="stat-card__label">Sản phẩm có review</h3>
+                <p class="stat-card__value"><%= currentStats.reviewedProducts || 0 %></p>
+            </div>
+            <div class="stat-card stat-card--pink">
+                <h3 class="stat-card__label">Đã mua hàng</h3>
+                <p class="stat-card__value"><%= currentStats.verified || 0 %></p>
+            </div>
+            <div class="stat-card stat-card--purple">
+                <h3 class="stat-card__label">Điểm trung bình</h3>
+                <p class="stat-card__value"><%= Number(currentStats.averageRating || 0).toFixed(1) %></p>
+            </div>
+        </div>
+
+        <div class="admin-toolbar review-admin-toolbar">
+            <div class="admin-toolbar__info">
+                <p class="admin-toolbar__title">Lọc đánh giá</p>
+                <p class="admin-toolbar__text">Chọn sản phẩm để xem hoặc xuất riêng review của sản phẩm đó.</p>
+            </div>
+            <form action="/admin/reviews" method="GET" class="review-admin-filters" data-review-filter-form>
+                <details class="review-filter-picker" data-review-picker>
+                    <summary class="admin-form__input review-product-picker__summary" data-review-summary="product_ids">
+                        <% if (selectedProductIds.length) { %>
+                            Đã chọn <%= selectedProductIds.length %> sản phẩm
+                        <% } else { %>
+                            Tất cả sản phẩm
+                        <% } %>
+                    </summary>
+                    <div class="review-product-picker__panel">
+                        <label class="review-product-picker__option review-product-picker__option--all">
+                            <input type="checkbox" value="" data-review-all="product_ids" <%= selectedProductIds.length ? '' : 'checked' %>>
+                            <span>Tất cả sản phẩm</span>
+                        </label>
+                        <% productOptions.forEach((product) => { %>
+                            <label class="review-product-picker__option">
+                                <input
+                                    type="checkbox"
+                                    name="product_ids"
+                                    value="<%= product.id %>"
+                                    <%= selectedProductIds.includes(String(product.id)) ? 'checked' : '' %>
+                                >
+                                <span><%= product.name %></span>
+                                <small><%= product.review_count || 0 %></small>
+                            </label>
+                        <% }) %>
+                    </div>
+                </details>
+                <details class="review-filter-picker" data-review-picker>
+                    <summary class="admin-form__input review-product-picker__summary" data-review-summary="ratings">
+                        <% if (selectedRatings.length) { %>
+                            Đã chọn <%= selectedRatings.length %> mức sao
+                        <% } else { %>
+                            Mọi điểm
+                        <% } %>
+                    </summary>
+                    <div class="review-product-picker__panel review-product-picker__panel--compact">
+                        <label class="review-product-picker__option review-product-picker__option--all">
+                            <input type="checkbox" value="" data-review-all="ratings" <%= selectedRatings.length ? '' : 'checked' %>>
+                            <span>Mọi điểm</span>
+                        </label>
+                    <% ratingOptions.forEach((value) => { %>
+                        <label class="review-product-picker__option">
+                            <input
+                                type="checkbox"
+                                name="ratings"
+                                value="<%= value %>"
+                                <%= selectedRatings.includes(value) ? 'checked' : '' %>
+                            >
+                            <span><%= value %> sao</span>
+                        </label>
+                    <% }) %>
+                    </div>
+                </details>
+                <select name="sentiment" class="admin-form__input">
+                    <option value="" <%= !selectedSentiment ? 'selected' : '' %>>Mọi cảm xúc</option>
+                    <option value="positive" <%= selectedSentiment === 'positive' ? 'selected' : '' %>>Tích cực</option>
+                    <option value="neutral" <%= selectedSentiment === 'neutral' ? 'selected' : '' %>>Trung tính</option>
+                    <option value="negative" <%= selectedSentiment === 'negative' ? 'selected' : '' %>>Tiêu cực</option>
+                </select>
+                <input
+                    type="search"
+                    name="search"
+                    value="<%= currentFilters.search || '' %>"
+                    class="admin-form__input"
+                    placeholder="Tìm sản phẩm, khách, đơn hàng..."
+                >
+                <a
+                    href="/admin/reviews"
+                    class="admin-btn admin-btn--ghost"
+                    data-review-clear
+                    data-review-ajax-link
+                    <%= hasActiveFilter ? '' : 'hidden' %>
+                >Xóa lọc</a>
+            </form>
+        </div>
+
+        <div data-review-results>
+            <% if (reviews && reviews.length > 0) { %>
+                <div class="review-admin-list">
+                    <% reviews.forEach((review) => {
+                        const rating = Math.max(0, Math.min(5, Number(review.rating || 0)));
+                        const mediaItems = Array.isArray(review.media) ? review.media : [];
+                    %>
+                        <article class="review-admin-card">
+                            <div class="review-admin-card__product">
+                                <div class="review-admin-card__thumb">
+                                    <% if (review.product_image) { %>
+                                        <img src="<%= review.product_image %>" alt="<%= review.product_name %>">
+                                    <% } else { %>
+                                        <span><%= String(review.product_name || 'P').charAt(0).toUpperCase() %></span>
+                                    <% } %>
+                                </div>
+                                <div>
+                                    <a href="/products/<%= review.product_slug %>" target="_blank" rel="noopener" class="review-admin-card__product-name"><%= review.product_name %></a>
+                                    <span class="review-admin-card__meta">Đơn <%= review.order_code || 'N/A' %></span>
+                                </div>
+                            </div>
+
+                            <div class="review-admin-card__body">
+                                <div class="review-admin-card__topline">
+                                    <div>
+                                        <div class="review-admin-card__stars"><%= '★'.repeat(rating) %><%= '☆'.repeat(5 - rating) %></div>
+                                        <span class="review-admin-card__date"><%= new Date(review.created_at).toLocaleString('vi-VN') %></span>
+                                    </div>
+                                    <% if (review.is_verified) { %>
+                                        <div class="review-admin-card__badges">
+                                            <span class="admin-table__badge admin-table__badge--processing">Đã mua hàng</span>
+                                        </div>
+                                    <% } %>
+                                </div>
+
+                                <p class="review-admin-card__comment"><%= review.comment || 'Không có nội dung đánh giá.' %></p>
+
+                                <% if (review.ai_insight) { %>
+                                    <div class="review-admin-ai">
+                                        <span class="admin-table__badge admin-table__badge--<%= review.ai_insight.sentiment === 'negative' ? 'cancelled' : (review.ai_insight.sentiment === 'positive' ? 'delivered' : 'pending') %>">
+                                            AI: <%= review.ai_insight.sentiment %>
+                                        </span>
+                                        <% if (Array.isArray(review.ai_insight.topics) && review.ai_insight.topics.length) { %>
+                                            <span class="review-admin-ai__topics"><%= review.ai_insight.topics.join(', ') %></span>
+                                        <% } %>
+                                        <% if (review.ai_insight.summary) { %>
+                                            <p><%= review.ai_insight.summary %></p>
+                                        <% } %>
+                                    </div>
+                                <% } else { %>
+                                    <div class="review-admin-ai review-admin-ai--muted">
+                                        AI sẽ tự phân tích review này sau khi job nền chạy.
+                                    </div>
+                                <% } %>
+
+                                <% if (mediaItems.length > 0) { %>
+                                    <div class="review-admin-media">
+                                        <% mediaItems.forEach((media) => { %>
+                                            <a href="<%= media.media_url %>" target="_blank" rel="noopener" class="review-admin-media__item">
+                                                <% if (media.media_type === 'video') { %>
+                                                    <video src="<%= media.media_url %>" preload="metadata"></video>
+                                                    <span>Video</span>
+                                                <% } else { %>
+                                                    <img src="<%= media.media_url %>" alt="Review media">
+                                                <% } %>
+                                            </a>
+                                        <% }) %>
+                                    </div>
+                                <% } %>
+
+                                <div class="review-admin-card__footer">
+                                    <div class="review-admin-card__customer">
+                                        <strong><%= review.user_name || 'Người dùng' %></strong>
+                                        <span><%= privacy.maskEmail(review.user_email || '') %></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    <% }) %>
+                </div>
+
+                <% if (currentPagination.totalPages > 1) { %>
+                    <nav class="admin-pagination review-admin-pagination" aria-label="Phân trang đánh giá">
+                        <% for (let page = 1; page <= currentPagination.totalPages; page += 1) { %>
+                            <a href="<%= pageUrl(page) %>" class="<%= page === currentPagination.currentPage ? 'active' : '' %>" data-review-ajax-link><%= page %></a>
+                        <% } %>
+                    </nav>
+                <% } %>
+            <% } else { %>
+                <div class="admin-empty-state">
+                    <h2>Chưa có đánh giá phù hợp</h2>
+                    <p>Thử bỏ bộ lọc hoặc kiểm tra lại từ khóa tìm kiếm.</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/admin-footer', { pageScripts: ['/js/admin/reviews.js?v=review-ajax-20260521'] }) %>

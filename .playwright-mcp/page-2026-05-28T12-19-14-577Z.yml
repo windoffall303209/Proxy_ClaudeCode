@@ -1,0 +1,714 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - link "WIND OF FALL" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "WIND OF FALL" [ref=e6]
+        - strong [ref=e8]: WIND OF FALL
+      - generic [ref=e10]:
+        - textbox "Tìm áo polo, váy midi, quần jean..." [ref=e11]
+        - button "Tìm kiếm" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+      - generic [ref=e15]:
+        - link "Đăng nhập / Đăng ký" [ref=e16] [cursor=pointer]:
+          - /url: /auth/login
+          - img [ref=e17]
+          - generic [ref=e19]: Đăng nhập / Đăng ký
+        - link "0" [ref=e20] [cursor=pointer]:
+          - /url: /cart
+          - img [ref=e21]
+          - generic [ref=e24]: "0"
+    - navigation [ref=e27]:
+      - link "Trang chủ" [ref=e28] [cursor=pointer]:
+        - /url: /
+      - link "Nam" [ref=e30] [cursor=pointer]:
+        - /url: /products/category/nam
+      - link "Nữ" [ref=e32] [cursor=pointer]:
+        - /url: /products/category/nu
+      - link "Trẻ Em" [ref=e34] [cursor=pointer]:
+        - /url: /products/category/tre-em
+      - link "Tất cả" [ref=e35] [cursor=pointer]:
+        - /url: /products
+      - link "Sale tới 50%" [ref=e36] [cursor=pointer]:
+        - /url: /products?sale=true
+      - link "For You" [ref=e37] [cursor=pointer]:
+        - /url: /products/for-you
+  - navigation [ref=e38]:
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]: WIND OF FALL
+        - strong [ref=e42]: Tìm outfit cho cả gia đình
+      - button "Đóng menu" [ref=e43] [cursor=pointer]: ×
+    - generic [ref=e45]:
+      - textbox "Tìm sản phẩm yêu thích..." [ref=e46]
+      - button "Tìm kiếm" [ref=e47] [cursor=pointer]:
+        - img [ref=e48]
+    - generic [ref=e50]:
+      - link "Trang chủ" [ref=e51] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e52]:
+        - link "Nam" [ref=e53] [cursor=pointer]:
+          - /url: /products/category/nam
+        - generic [ref=e54]:
+          - link "Áo thun nam" [ref=e55] [cursor=pointer]:
+            - /url: /products/category/ao-thun-nam
+          - link "Áo len nam" [ref=e56] [cursor=pointer]:
+            - /url: /products/category/ao-len-nam
+          - link "Quần jeans nam" [ref=e57] [cursor=pointer]:
+            - /url: /products/category/quan-jeans-nam
+          - link "Đồ bộ ngắn tay nam" [ref=e58] [cursor=pointer]:
+            - /url: /products/category/do-bo-ngan-tay-nam
+          - link "Áo polo nam" [ref=e59] [cursor=pointer]:
+            - /url: /products/category/ao-polo-nam
+          - link "Quần lót nam" [ref=e60] [cursor=pointer]:
+            - /url: /products/category/quan-lot-nam
+          - link "Tất nam" [ref=e61] [cursor=pointer]:
+            - /url: /products/category/tat-nam
+          - link "Áo hoodie - Áo nỉ nam" [ref=e62] [cursor=pointer]:
+            - /url: /products/category/ao-hoodie-ao-ni-nam
+          - link "Quần âu nam" [ref=e63] [cursor=pointer]:
+            - /url: /products/category/quan-au-nam
+          - link "Quần kaki nam" [ref=e64] [cursor=pointer]:
+            - /url: /products/category/quan-kaki-nam
+          - link "Phụ kiện khác nam" [ref=e65] [cursor=pointer]:
+            - /url: /products/category/phu-kien-khac-nam
+          - link "Quần short nam" [ref=e66] [cursor=pointer]:
+            - /url: /products/category/quan-short-nam
+          - link "Sản phẩm khác" [ref=e67] [cursor=pointer]:
+            - /url: /products/category/san-pham-khac-nam
+          - link "Áo sơ mi nam" [ref=e68] [cursor=pointer]:
+            - /url: /products/category/ao-so-mi-nam
+          - link "Túi xách nam" [ref=e69] [cursor=pointer]:
+            - /url: /products/category/tui-xach-nam
+          - link "Đồ bộ dài tay nam" [ref=e70] [cursor=pointer]:
+            - /url: /products/category/do-bo-dai-tay-nam
+          - link "Bộ thể thao nam" [ref=e71] [cursor=pointer]:
+            - /url: /products/category/bo-the-thao-nam
+          - link "Giày nam" [ref=e72] [cursor=pointer]:
+            - /url: /products/category/giay-nam
+          - link "Mũ nam" [ref=e73] [cursor=pointer]:
+            - /url: /products/category/mu-nam
+          - link "Thắt lưng nam" [ref=e74] [cursor=pointer]:
+            - /url: /products/category/that-lung-nam
+          - link "Áo polo thể thao" [ref=e75] [cursor=pointer]:
+            - /url: /products/category/ao-polo-the-thao
+          - link "Áo khoác nam" [ref=e76] [cursor=pointer]:
+            - /url: /products/category/ao-khoac-nam
+          - link "Áo phao nam" [ref=e77] [cursor=pointer]:
+            - /url: /products/category/ao-phao-nam
+          - link "Ví nam" [ref=e78] [cursor=pointer]:
+            - /url: /products/category/vi-nam
+          - link "Áo ba lỗ nam" [ref=e79] [cursor=pointer]:
+            - /url: /products/category/ao-ba-lo-nam
+          - link "Áo giữ nhiệt nam" [ref=e80] [cursor=pointer]:
+            - /url: /products/category/ao-giu-nhiet-nam
+          - link "Áo vest nam" [ref=e81] [cursor=pointer]:
+            - /url: /products/category/ao-vest-nam
+          - link "Áo gió nam" [ref=e82] [cursor=pointer]:
+            - /url: /products/category/ao-gio-nam
+          - link "Phụ kiện nam" [ref=e83] [cursor=pointer]:
+            - /url: /products/category/phu-kien-nam
+          - link "Quần thể thao nam" [ref=e84] [cursor=pointer]:
+            - /url: /products/category/quan-the-thao-nam
+          - link "Áo thun thể thao nam" [ref=e85] [cursor=pointer]:
+            - /url: /products/category/ao-thun-the-thao-nam
+          - link "Đồ bộ nam" [ref=e86] [cursor=pointer]:
+            - /url: /products/category/do-bo-nam
+          - link "Quần dài nam" [ref=e87] [cursor=pointer]:
+            - /url: /products/category/quan-dai-nam
+          - link "Áo polo thể thao nam" [ref=e88] [cursor=pointer]:
+            - /url: /products/category/ao-polo-the-thao-nam
+          - link "Quần nỉ nam" [ref=e89] [cursor=pointer]:
+            - /url: /products/category/quan-ni-nam
+      - generic [ref=e90]:
+        - link "Nữ" [ref=e91] [cursor=pointer]:
+          - /url: /products/category/nu
+        - generic [ref=e92]:
+          - link "Quần âu nữ" [ref=e93] [cursor=pointer]:
+            - /url: /products/category/quan-au-nu
+          - link "Bộ thể thao nữ" [ref=e94] [cursor=pointer]:
+            - /url: /products/category/bo-the-thao-nu
+          - link "Giày nữ" [ref=e95] [cursor=pointer]:
+            - /url: /products/category/giay-nu
+          - link "Đầm và chân váy nữ" [ref=e96] [cursor=pointer]:
+            - /url: /products/category/dam-va-chan-vay-nu
+          - link "Áo ba lỗ - Áo hai dây nữ" [ref=e97] [cursor=pointer]:
+            - /url: /products/category/ao-hai-day-ba-lo-nu
+          - link "Đồ bộ ngắn tay nữ" [ref=e98] [cursor=pointer]:
+            - /url: /products/category/do-bo-ngan-tay-nu
+          - link "Áo polo nữ" [ref=e99] [cursor=pointer]:
+            - /url: /products/category/ao-polo-nu
+          - link "Áo thun nữ" [ref=e100] [cursor=pointer]:
+            - /url: /products/category/ao-thun-nu
+          - link "Áo len nữ" [ref=e101] [cursor=pointer]:
+            - /url: /products/category/ao-len-nu
+          - link "Quần lót nữ" [ref=e102] [cursor=pointer]:
+            - /url: /products/category/quan-lot-nu
+          - link "Áo sơ mi nữ" [ref=e103] [cursor=pointer]:
+            - /url: /products/category/ao-so-mi-nu
+          - link "Áo giữ nhiệt nữ" [ref=e104] [cursor=pointer]:
+            - /url: /products/category/ao-giu-nhiet-nu
+          - link "Áo hoodie - Áo nỉ nữ" [ref=e105] [cursor=pointer]:
+            - /url: /products/category/ao-hoodie-ao-ni-nu
+          - link "Đồ bộ dài tay nữ" [ref=e106] [cursor=pointer]:
+            - /url: /products/category/do-bo-dai-tay-nu
+          - link "Sản phẩm khác" [ref=e107] [cursor=pointer]:
+            - /url: /products/category/san-pham-khac-nu
+          - link "Quần jeans nữ" [ref=e108] [cursor=pointer]:
+            - /url: /products/category/quan-jeans-nu
+          - link "Tất nữ" [ref=e109] [cursor=pointer]:
+            - /url: /products/category/tat-nu
+          - link "Quần short nữ" [ref=e110] [cursor=pointer]:
+            - /url: /products/category/quan-short-nu
+          - link "Áo khoác nữ" [ref=e111] [cursor=pointer]:
+            - /url: /products/category/ao-khoac-nu
+          - link "Áo chống nắng nữ" [ref=e112] [cursor=pointer]:
+            - /url: /products/category/ao-chong-nang-nu
+          - link "Áo thun thể thao nữ" [ref=e113] [cursor=pointer]:
+            - /url: /products/category/ao-thun-the-thao-nu
+          - link "Phụ kiện khác nữ" [ref=e114] [cursor=pointer]:
+            - /url: /products/category/phu-kien-khac-nu
+          - link "Quần nỉ nữ" [ref=e115] [cursor=pointer]:
+            - /url: /products/category/quan-ni-nu
+          - link "Áo polo thể thao nữ" [ref=e116] [cursor=pointer]:
+            - /url: /products/category/ao-polo-the-thao-nu
+          - link "Đồ thể thao nữ" [ref=e117] [cursor=pointer]:
+            - /url: /products/category/do-the-thao-nu
+          - link "Áo vest nữ" [ref=e118] [cursor=pointer]:
+            - /url: /products/category/ao-vest-nu
+          - link "Quần kaki nữ" [ref=e119] [cursor=pointer]:
+            - /url: /products/category/quan-kaki-nu
+          - link "Ví nữ" [ref=e120] [cursor=pointer]:
+            - /url: /products/category/vi-nu
+          - link "Thắt lưng nữ" [ref=e121] [cursor=pointer]:
+            - /url: /products/category/that-lung-nu
+          - link "Đồ bộ nữ" [ref=e122] [cursor=pointer]:
+            - /url: /products/category/do-bo-nu
+          - link "Quần dài nữ" [ref=e123] [cursor=pointer]:
+            - /url: /products/category/quan-dai-nu
+          - link "Áo bra nữ" [ref=e124] [cursor=pointer]:
+            - /url: /products/category/ao-bra-nu
+          - link "Quần thể thao nữ" [ref=e125] [cursor=pointer]:
+            - /url: /products/category/quan-the-thao-nu
+          - link "Áo măng tô nữ" [ref=e126] [cursor=pointer]:
+            - /url: /products/category/ao-mang-to-nu
+          - link "Túi xách nữ" [ref=e127] [cursor=pointer]:
+            - /url: /products/category/tui-xach-nu
+          - link "Áo gió nữ" [ref=e128] [cursor=pointer]:
+            - /url: /products/category/ao-gio
+          - link "Áo phao nữ" [ref=e129] [cursor=pointer]:
+            - /url: /products/category/ao-phao-nu
+          - link "Áo polo thể thao nữ" [ref=e130] [cursor=pointer]:
+            - /url: /products/category/ao-polo-the-thao-nu-1
+      - generic [ref=e131]:
+        - link "Trẻ Em" [ref=e132] [cursor=pointer]:
+          - /url: /products/category/tre-em
+        - generic [ref=e133]:
+          - link "Phụ kiện trẻ em khác" [ref=e134] [cursor=pointer]:
+            - /url: /products/category/phu-kien-tre-em-khac
+          - link "Áo len trẻ em" [ref=e135] [cursor=pointer]:
+            - /url: /products/category/ao-len-tre-em
+          - link "Áo polo trẻ em" [ref=e136] [cursor=pointer]:
+            - /url: /products/category/ao-polo-tre-em
+          - link "Quần dài trẻ em" [ref=e137] [cursor=pointer]:
+            - /url: /products/category/quan-dai-tre-em
+          - link "Quần short trẻ em" [ref=e138] [cursor=pointer]:
+            - /url: /products/category/quan-short-tre-em
+          - link "Đầm và chân váy bé gái" [ref=e139] [cursor=pointer]:
+            - /url: /products/category/dam-va-chan-vay-be-gai
+          - link "Đồ bộ dài tay trẻ em" [ref=e140] [cursor=pointer]:
+            - /url: /products/category/do-bo-dai-tay-tre-em
+          - link "Sản phẩm khác" [ref=e141] [cursor=pointer]:
+            - /url: /products/category/san-pham-khac-tre-em
+          - link "Áo thun trẻ em" [ref=e142] [cursor=pointer]:
+            - /url: /products/category/ao-thun-tre-em
+          - link "Áo hoodie - áo nỉ trẻ em" [ref=e143] [cursor=pointer]:
+            - /url: /products/category/ao-hoodie-ao-ni-tre-em
+          - link "Quần nỉ trẻ em" [ref=e144] [cursor=pointer]:
+            - /url: /products/category/quan-ni-tre-em
+          - link "Bộ thể thao trẻ em" [ref=e145] [cursor=pointer]:
+            - /url: /products/category/bo-the-thao-tre-em
+          - link "Đồ bộ ngắn tay trẻ em" [ref=e146] [cursor=pointer]:
+            - /url: /products/category/do-bo-ngan-tay-tre-em
+          - link "Áo sơ mi trẻ em" [ref=e147] [cursor=pointer]:
+            - /url: /products/category/ao-so-mi-tre-em
+          - link "Đồ bộ trẻ em" [ref=e148] [cursor=pointer]:
+            - /url: /products/category/do-bo-tre-em
+          - link "Tất trẻ em" [ref=e149] [cursor=pointer]:
+            - /url: /products/category/tat-tre-em
+          - link "Quần jeans trẻ em" [ref=e150] [cursor=pointer]:
+            - /url: /products/category/quan-jeans-tre-em
+          - link "Giày dép trẻ em" [ref=e151] [cursor=pointer]:
+            - /url: /products/category/giay-dep-tre-em
+          - link "Quần kaki trẻ em" [ref=e152] [cursor=pointer]:
+            - /url: /products/category/quan-kaki-tre-em
+          - link "Quần trẻ em" [ref=e153] [cursor=pointer]:
+            - /url: /products/category/quan-tre-em
+          - link "Áo chống nắng trẻ em" [ref=e154] [cursor=pointer]:
+            - /url: /products/category/ao-chong-nang-tre-em
+          - link "Áo khoác trẻ em" [ref=e155] [cursor=pointer]:
+            - /url: /products/category/ao-khoac-tre-em
+          - link "Áo polo thể thao trẻ em" [ref=e156] [cursor=pointer]:
+            - /url: /products/category/ao-polo-the-thao-tre-em
+          - link "Áo ba lỗ trẻ em" [ref=e157] [cursor=pointer]:
+            - /url: /products/category/ao-ba-lo-tre-em
+          - link "Đồ mặc trong trẻ em" [ref=e158] [cursor=pointer]:
+            - /url: /products/category/do-mac-trong-tre-em
+          - link "Mũ trẻ em" [ref=e159] [cursor=pointer]:
+            - /url: /products/category/mu-tre-em
+          - link "Áo gió trẻ em" [ref=e160] [cursor=pointer]:
+            - /url: /products/category/ao-gio-tre-em
+          - link "Áo phao trẻ em" [ref=e161] [cursor=pointer]:
+            - /url: /products/category/ao-phao-tre-em
+          - link "Áo giữ nhiệt trẻ em" [ref=e162] [cursor=pointer]:
+            - /url: /products/category/ao-giu-nhiet-tre-em
+      - link "Tất cả" [ref=e163] [cursor=pointer]:
+        - /url: /products
+      - link "Sale tới 50%" [ref=e164] [cursor=pointer]:
+        - /url: /products?sale=true
+      - link "For You" [ref=e165] [cursor=pointer]:
+        - /url: /products/for-you
+    - generic [ref=e166]:
+      - link "Đăng nhập" [ref=e167] [cursor=pointer]:
+        - /url: /auth/login
+      - link "Đăng ký" [ref=e168] [cursor=pointer]:
+        - /url: /auth/register
+      - link "Giỏ hàng" [ref=e169] [cursor=pointer]:
+        - /url: /cart
+    - paragraph [ref=e171]: Hỗ trợ tư vấn set đồ 1:1 qua hotline 1900 123 456
+  - main [ref=e172]:
+    - generic [ref=e174]:
+      - heading "Sản phẩm / Tất cả sản phẩm" [level=1] [ref=e177]:
+        - generic [ref=e178]: Sản phẩm
+        - generic [ref=e179]: /
+        - generic [ref=e180]: Tất cả sản phẩm
+      - generic [ref=e181]:
+        - complementary [ref=e182]:
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - paragraph [ref=e187]: Bộ lọc
+              - link "Xóa" [ref=e188] [cursor=pointer]:
+                - /url: /products
+            - generic [ref=e189]:
+              - heading "Danh mục" [level=3] [ref=e191]
+              - generic [ref=e192]:
+                - generic [ref=e194]:
+                  - checkbox "Lọc theo danh mục Nam" [ref=e196]
+                  - button "Mở danh mục con của Nam" [ref=e197] [cursor=pointer]:
+                    - generic [ref=e198]: Nam
+                    - generic [ref=e199]: ▾
+                - generic [ref=e201]:
+                  - checkbox "Lọc theo danh mục Nữ" [ref=e203]
+                  - button "Mở danh mục con của Nữ" [ref=e204] [cursor=pointer]:
+                    - generic [ref=e205]: Nữ
+                    - generic [ref=e206]: ▾
+                - generic [ref=e208]:
+                  - checkbox "Lọc theo danh mục Trẻ Em" [ref=e210]
+                  - button "Mở danh mục con của Trẻ Em" [ref=e211] [cursor=pointer]:
+                    - generic [ref=e212]: Trẻ Em
+                    - generic [ref=e213]: ▾
+            - generic [ref=e214]:
+              - heading "Giá" [level=3] [ref=e215]
+              - generic [ref=e216]:
+                - generic [ref=e217] [cursor=pointer]:
+                  - checkbox "Dưới 200k" [ref=e218]
+                  - generic [ref=e219]: Dưới 200k
+                - generic [ref=e220] [cursor=pointer]:
+                  - checkbox "200k - 500k" [ref=e221]
+                  - generic [ref=e222]: 200k - 500k
+                - generic [ref=e223] [cursor=pointer]:
+                  - checkbox "500k - 1M" [ref=e224]
+                  - generic [ref=e225]: 500k - 1M
+                - generic [ref=e226] [cursor=pointer]:
+                  - checkbox "Từ 1M" [ref=e227]
+                  - generic [ref=e228]: Từ 1M
+              - generic [ref=e229]:
+                - generic [ref=e230]:
+                  - generic [ref=e231]: Từ
+                  - spinbutton "Từ" [ref=e232]
+                - generic [ref=e233]:
+                  - generic [ref=e234]: Đến
+                  - spinbutton "Đến" [ref=e235]
+              - button "Áp dụng giá" [ref=e237] [cursor=pointer]
+            - generic [ref=e238]:
+              - heading "Đánh giá" [level=3] [ref=e239]
+              - generic [ref=e240]:
+                - generic [ref=e241] [cursor=pointer]:
+                  - checkbox "Từ 4 sao trở lên" [ref=e242]
+                  - generic [ref=e243]: Từ 4 sao trở lên
+                - generic [ref=e244] [cursor=pointer]:
+                  - checkbox "Từ 3 sao trở lên" [ref=e245]
+                  - generic [ref=e246]: Từ 3 sao trở lên
+                - generic [ref=e247] [cursor=pointer]:
+                  - checkbox "Từ 2 sao trở lên" [ref=e248]
+                  - generic [ref=e249]: Từ 2 sao trở lên
+                - generic [ref=e250] [cursor=pointer]:
+                  - checkbox "Từ 1 sao trở lên" [ref=e251]
+                  - generic [ref=e252]: Từ 1 sao trở lên
+            - generic [ref=e253]:
+              - heading "Khuyến mãi" [level=3] [ref=e254]
+              - generic [ref=e255]:
+                - generic [ref=e256] [cursor=pointer]:
+                  - checkbox "Đang giảm" [ref=e257]
+                  - generic [ref=e258]: Đang giảm
+                - generic [ref=e259] [cursor=pointer]:
+                  - checkbox "Sắp giảm" [ref=e260]
+                  - generic [ref=e261]: Sắp giảm
+                - generic [ref=e262] [cursor=pointer]:
+                  - checkbox "Đang + sắp giảm" [ref=e263]
+                  - generic [ref=e264]: Đang + sắp giảm
+        - generic [ref=e265]:
+          - generic [ref=e266]:
+            - generic [ref=e267]:
+              - generic [ref=e268]: "2.578"
+              - generic [ref=e269]: sản phẩm
+            - generic [ref=e270]:
+              - generic [ref=e271]:
+                - generic [ref=e272]: Sắp xếp
+                - combobox "Sắp xếp" [ref=e273]:
+                  - option "Mới nhất" [selected]
+                  - option "Bán chạy"
+                  - option "Giá tăng dần"
+                  - option "Giá giảm dần"
+                  - option "Tên A-Z"
+                  - option "Tên Z-A"
+              - generic [ref=e274]:
+                - generic [ref=e275]: Hiển thị
+                - combobox "Hiển thị" [ref=e276]:
+                  - option "10 / trang"
+                  - option "20 / trang" [selected]
+                  - option "30 / trang"
+                  - option "40 / trang"
+                  - option "50 / trang"
+          - generic [ref=e277]:
+            - article [ref=e278]:
+              - link "Polo nam s.cafe dệt tổ ong phối bo Thêm vào giỏ Polo nam s.cafe dệt tổ ong phối bo 5.0 | 1 đã bán 149.000đ" [ref=e279] [cursor=pointer]:
+                - /url: /products/polo-nam-cafe-de-t-to-ong-pho-i-bo
+                - generic [ref=e280]:
+                  - img "Polo nam s.cafe dệt tổ ong phối bo" [ref=e281]
+                  - button "Thêm vào giỏ" [ref=e282]:
+                    - img [ref=e283]
+                    - generic [ref=e287]: Thêm vào giỏ
+                - generic [ref=e288]:
+                  - heading "Polo nam s.cafe dệt tổ ong phối bo" [level=3] [ref=e289]
+                  - generic [ref=e291]:
+                    - generic [ref=e292]: "5.0"
+                    - generic [ref=e293]: ★
+                    - generic [ref=e294]: "|"
+                    - generic [ref=e295]: 1 đã bán
+                  - generic [ref=e297]: 149.000đ
+            - article [ref=e298]:
+              - link "Quần Jean Nữ Ống Loe Gấu Nhăn Thêm vào giỏ Quần Jean Nữ Ống Loe Gấu Nhăn 5.0 | 1 đã bán 249.000đ" [ref=e299] [cursor=pointer]:
+                - /url: /products/quan-jean-nu-ong-loe-gau-nhan
+                - generic [ref=e300]:
+                  - img "Quần Jean Nữ Ống Loe Gấu Nhăn" [ref=e301]
+                  - button "Thêm vào giỏ" [ref=e302]:
+                    - img [ref=e303]
+                    - generic [ref=e307]: Thêm vào giỏ
+                - generic [ref=e308]:
+                  - heading "Quần Jean Nữ Ống Loe Gấu Nhăn" [level=3] [ref=e309]
+                  - generic [ref=e311]:
+                    - generic [ref=e312]: "5.0"
+                    - generic [ref=e313]: ★
+                    - generic [ref=e314]: "|"
+                    - generic [ref=e315]: 1 đã bán
+                  - generic [ref=e317]: 249.000đ
+            - article [ref=e318]:
+              - link "Áo polo nam s.cafe pique phối nẹp Thêm vào giỏ Áo polo nam s.cafe pique phối nẹp 5.0 | 9 đã bán 149.500đ" [ref=e319] [cursor=pointer]:
+                - /url: /products/ao-polo-nam-ca-phe-phoi-nep
+                - generic [ref=e320]:
+                  - img "Áo polo nam s.cafe pique phối nẹp" [ref=e321]
+                  - button "Thêm vào giỏ" [ref=e322]:
+                    - img [ref=e323]
+                    - generic [ref=e327]: Thêm vào giỏ
+                - generic [ref=e328]:
+                  - heading "Áo polo nam s.cafe pique phối nẹp" [level=3] [ref=e329]
+                  - generic [ref=e331]:
+                    - generic [ref=e332]: "5.0"
+                    - generic [ref=e333]: ★
+                    - generic [ref=e334]: "|"
+                    - generic [ref=e335]: 9 đã bán
+                  - generic [ref=e337]: 149.500đ
+            - article [ref=e338]:
+              - link "Quần jeans nữ denim 4 mùa ống vẩy Thêm vào giỏ Quần jeans nữ denim 4 mùa ống vẩy 1 đã bán 439.200đ" [ref=e339] [cursor=pointer]:
+                - /url: /products/quan-jeans-nu-coolmax-ong-vay-nhe-co-ban
+                - generic [ref=e340]:
+                  - img "Quần jeans nữ denim 4 mùa ống vẩy" [ref=e341]
+                  - button "Thêm vào giỏ" [ref=e342]:
+                    - img [ref=e343]
+                    - generic [ref=e347]: Thêm vào giỏ
+                - generic [ref=e348]:
+                  - heading "Quần jeans nữ denim 4 mùa ống vẩy" [level=3] [ref=e349]
+                  - generic [ref=e352]: 1 đã bán
+                  - generic [ref=e354]: 439.200đ
+            - article [ref=e355]:
+              - link "Quần Kaki Kid Cơ Bản Thêm vào giỏ Quần Kaki Kid Cơ Bản 99.000đ" [ref=e356] [cursor=pointer]:
+                - /url: /products/quan-kaki-kid-co-ban
+                - generic [ref=e357]:
+                  - img "Quần Kaki Kid Cơ Bản" [ref=e358]
+                  - button "Thêm vào giỏ" [ref=e359]:
+                    - img [ref=e360]
+                    - generic [ref=e364]: Thêm vào giỏ
+                - generic [ref=e365]:
+                  - heading "Quần Kaki Kid Cơ Bản" [level=3] [ref=e366]
+                  - generic [ref=e370]: 99.000đ
+            - article [ref=e371]:
+              - link "Quần Âu Nữ Côn Túi Tam Giác (qan7070) Thêm vào giỏ Quần Âu Nữ Côn Túi Tam Giác (qan7070) 2 đã bán 249.500đ" [ref=e372] [cursor=pointer]:
+                - /url: /products/quan-au-nu-con-tui-tam-giac-qan7070
+                - generic [ref=e373]:
+                  - img "Quần Âu Nữ Côn Túi Tam Giác (qan7070)" [ref=e374]
+                  - button "Thêm vào giỏ" [ref=e375]:
+                    - img [ref=e376]
+                    - generic [ref=e380]: Thêm vào giỏ
+                - generic [ref=e381]:
+                  - heading "Quần Âu Nữ Côn Túi Tam Giác (qan7070)" [level=3] [ref=e382]
+                  - generic [ref=e385]: 2 đã bán
+                  - generic [ref=e387]: 249.500đ
+            - article [ref=e388]:
+              - link "Quần Nỉ Nữ Dáng Suông Thêm vào giỏ Quần Nỉ Nữ Dáng Suông 299.000đ" [ref=e389] [cursor=pointer]:
+                - /url: /products/quan-ni-nu-dang-suong
+                - generic [ref=e390]:
+                  - img "Quần Nỉ Nữ Dáng Suông" [ref=e391]
+                  - button "Thêm vào giỏ" [ref=e392]:
+                    - img [ref=e393]
+                    - generic [ref=e397]: Thêm vào giỏ
+                - generic [ref=e398]:
+                  - heading "Quần Nỉ Nữ Dáng Suông" [level=3] [ref=e399]
+                  - generic [ref=e403]: 299.000đ
+            - article [ref=e404]:
+              - link "Áo Thu Đông Nữ Trễ Vai Thêm vào giỏ Áo Thu Đông Nữ Trễ Vai 379.000đ" [ref=e405] [cursor=pointer]:
+                - /url: /products/ao-thu-dong-nu-tre-vai
+                - generic [ref=e406]:
+                  - img "Áo Thu Đông Nữ Trễ Vai" [ref=e407]
+                  - button "Thêm vào giỏ" [ref=e408]:
+                    - img [ref=e409]
+                    - generic [ref=e413]: Thêm vào giỏ
+                - generic [ref=e414]:
+                  - heading "Áo Thu Đông Nữ Trễ Vai" [level=3] [ref=e415]
+                  - generic [ref=e419]: 379.000đ
+            - article [ref=e420]:
+              - link "Polo Thể Thao Nam Phối Lé Nổi Bật Thêm vào giỏ Polo Thể Thao Nam Phối Lé Nổi Bật 1 đã bán 149.500đ" [ref=e421] [cursor=pointer]:
+                - /url: /products/polo-the-thao-nam-phoi-le-noi-bat
+                - generic [ref=e422]:
+                  - img "Polo Thể Thao Nam Phối Lé Nổi Bật" [ref=e423]
+                  - button "Thêm vào giỏ" [ref=e424]:
+                    - img [ref=e425]
+                    - generic [ref=e429]: Thêm vào giỏ
+                - generic [ref=e430]:
+                  - heading "Polo Thể Thao Nam Phối Lé Nổi Bật" [level=3] [ref=e431]
+                  - generic [ref=e434]: 1 đã bán
+                  - generic [ref=e436]: 149.500đ
+            - article [ref=e437]:
+              - link "Quần Kaki Nam Cạp Chun Ốp Khóa Sườn Thêm vào giỏ Quần Kaki Nam Cạp Chun Ốp Khóa Sườn 149.000đ" [ref=e438] [cursor=pointer]:
+                - /url: /products/quan-kaki-nam-cap-chun-op-khoa-suon
+                - generic [ref=e439]:
+                  - img "Quần Kaki Nam Cạp Chun Ốp Khóa Sườn" [ref=e440]
+                  - button "Thêm vào giỏ" [ref=e441]:
+                    - img [ref=e442]
+                    - generic [ref=e446]: Thêm vào giỏ
+                - generic [ref=e447]:
+                  - heading "Quần Kaki Nam Cạp Chun Ốp Khóa Sườn" [level=3] [ref=e448]
+                  - generic [ref=e452]: 149.000đ
+            - article [ref=e453]:
+              - link "Áo Thu Đông Nữ Dáng Ôm Khuyên Cổ Thêm vào giỏ Áo Thu Đông Nữ Dáng Ôm Khuyên Cổ 249.000đ" [ref=e454] [cursor=pointer]:
+                - /url: /products/ao-thu-dong-nu-dang-om-khuyen-co
+                - generic [ref=e455]:
+                  - img "Áo Thu Đông Nữ Dáng Ôm Khuyên Cổ" [ref=e456]
+                  - button "Thêm vào giỏ" [ref=e457]:
+                    - img [ref=e458]
+                    - generic [ref=e462]: Thêm vào giỏ
+                - generic [ref=e463]:
+                  - heading "Áo Thu Đông Nữ Dáng Ôm Khuyên Cổ" [level=3] [ref=e464]
+                  - generic [ref=e468]: 249.000đ
+            - article [ref=e469]:
+              - link "Bộ đồ thể thao nam nỉ Double Face áo khoác kéo khóa Thêm vào giỏ Bộ đồ thể thao nam nỉ Double Face áo khoác kéo khóa 1 đã bán 0đ" [ref=e470] [cursor=pointer]:
+                - /url: /products/bo-do-the-thao-nam-ni-double-face-ao-khoac-keo-khoa
+                - generic [ref=e471]:
+                  - img "Bộ đồ thể thao nam nỉ Double Face áo khoác kéo khóa" [ref=e472]
+                  - button "Thêm vào giỏ" [ref=e473]:
+                    - img [ref=e474]
+                    - generic [ref=e478]: Thêm vào giỏ
+                - generic [ref=e479]:
+                  - heading "Bộ đồ thể thao nam nỉ Double Face áo khoác kéo khóa" [level=3] [ref=e480]
+                  - generic [ref=e483]: 1 đã bán
+                  - generic [ref=e485]: 0đ
+            - article [ref=e486]:
+              - link "Quần âu nam polyester nano solid ống đứng Thêm vào giỏ Quần âu nam polyester nano solid ống đứng 199.000đ" [ref=e487] [cursor=pointer]:
+                - /url: /products/quan-tay-nam-nano-ong-dung
+                - generic [ref=e488]:
+                  - img "Quần âu nam polyester nano solid ống đứng" [ref=e489]
+                  - button "Thêm vào giỏ" [ref=e490]:
+                    - img [ref=e491]
+                    - generic [ref=e495]: Thêm vào giỏ
+                - generic [ref=e496]:
+                  - heading "Quần âu nam polyester nano solid ống đứng" [level=3] [ref=e497]
+                  - generic [ref=e501]: 199.000đ
+            - article [ref=e502]:
+              - link "Quần Âu Nam Cao Cấp Giữ Phom, Co Giãn Thoải Mái Thêm vào giỏ Quần Âu Nam Cao Cấp Giữ Phom, Co Giãn Thoải Mái 499.000đ" [ref=e503] [cursor=pointer]:
+                - /url: /products/quan-tay-nam-cong-so
+                - generic [ref=e504]:
+                  - img "Quần Âu Nam Cao Cấp Giữ Phom, Co Giãn Thoải Mái" [ref=e505]
+                  - button "Thêm vào giỏ" [ref=e506]:
+                    - img [ref=e507]
+                    - generic [ref=e511]: Thêm vào giỏ
+                - generic [ref=e512]:
+                  - heading "Quần Âu Nam Cao Cấp Giữ Phom, Co Giãn Thoải Mái" [level=3] [ref=e513]
+                  - generic [ref=e517]: 499.000đ
+            - article [ref=e518]:
+              - link "Quần Sooc Nam Yody Sport Thêm vào giỏ Quần Sooc Nam Yody Sport 199.000đ" [ref=e519] [cursor=pointer]:
+                - /url: /products/quan-short-nam-yody-sport
+                - generic [ref=e520]:
+                  - img "Quần Sooc Nam Yody Sport" [ref=e521]
+                  - button "Thêm vào giỏ" [ref=e522]:
+                    - img [ref=e523]
+                    - generic [ref=e527]: Thêm vào giỏ
+                - generic [ref=e528]:
+                  - heading "Quần Sooc Nam Yody Sport" [level=3] [ref=e529]
+                  - generic [ref=e533]: 199.000đ
+            - article [ref=e534]:
+              - link "Quần Âu Nữ Dáng Suông Súp Cá Tính Thêm vào giỏ Quần Âu Nữ Dáng Suông Súp Cá Tính 149.000đ" [ref=e535] [cursor=pointer]:
+                - /url: /products/quan-au-nu-dang-suong-sup-ca-tinh-
+                - generic [ref=e536]:
+                  - img "Quần Âu Nữ Dáng Suông Súp Cá Tính" [ref=e537]
+                  - button "Thêm vào giỏ" [ref=e538]:
+                    - img [ref=e539]
+                    - generic [ref=e543]: Thêm vào giỏ
+                - generic [ref=e544]:
+                  - heading "Quần Âu Nữ Dáng Suông Súp Cá Tính" [level=3] [ref=e545]
+                  - generic [ref=e549]: 149.000đ
+            - article [ref=e550]:
+              - link "Áo Ba Lỗ Cơ Bản Thun Rip Thêm vào giỏ Áo Ba Lỗ Cơ Bản Thun Rip 49.000đ" [ref=e551] [cursor=pointer]:
+                - /url: /products/ao-ba-lo-co-ban-thun-rip
+                - generic [ref=e552]:
+                  - img "Áo Ba Lỗ Cơ Bản Thun Rip" [ref=e553]
+                  - button "Thêm vào giỏ" [ref=e554]:
+                    - img [ref=e555]
+                    - generic [ref=e559]: Thêm vào giỏ
+                - generic [ref=e560]:
+                  - heading "Áo Ba Lỗ Cơ Bản Thun Rip" [level=3] [ref=e561]
+                  - generic [ref=e565]: 49.000đ
+            - article [ref=e566]:
+              - link "Quần Âu Nữ Lưng Cao Relax Pants Co Giãn Tốt Thêm vào giỏ Quần Âu Nữ Lưng Cao Relax Pants Co Giãn Tốt 399.200đ" [ref=e567] [cursor=pointer]:
+                - /url: /products/quan-au-nu-lung-cao-relax-pants
+                - generic [ref=e568]:
+                  - img "Quần Âu Nữ Lưng Cao Relax Pants Co Giãn Tốt" [ref=e569]
+                  - button "Thêm vào giỏ" [ref=e570]:
+                    - img [ref=e571]
+                    - generic [ref=e575]: Thêm vào giỏ
+                - generic [ref=e576]:
+                  - heading "Quần Âu Nữ Lưng Cao Relax Pants Co Giãn Tốt" [level=3] [ref=e577]
+                  - generic [ref=e581]: 399.200đ
+            - article [ref=e582]:
+              - link "Polo Nữ Gia Đình Vải Mắt Chim Thêm vào giỏ Polo Nữ Gia Đình Vải Mắt Chim 199.000đ" [ref=e583] [cursor=pointer]:
+                - /url: /products/polo-nu-gia-dinh
+                - generic [ref=e584]:
+                  - img "Polo Nữ Gia Đình Vải Mắt Chim" [ref=e585]
+                  - button "Thêm vào giỏ" [ref=e586]:
+                    - img [ref=e587]
+                    - generic [ref=e591]: Thêm vào giỏ
+                - generic [ref=e592]:
+                  - heading "Polo Nữ Gia Đình Vải Mắt Chim" [level=3] [ref=e593]
+                  - generic [ref=e597]: 199.000đ
+            - article [ref=e598]:
+              - link "Polo Nam Gia Đình Thêm vào giỏ Polo Nam Gia Đình 199.000đ" [ref=e599] [cursor=pointer]:
+                - /url: /products/polo-nam-gia-dinh
+                - generic [ref=e600]:
+                  - img "Polo Nam Gia Đình" [ref=e601]
+                  - button "Thêm vào giỏ" [ref=e602]:
+                    - img [ref=e603]
+                    - generic [ref=e607]: Thêm vào giỏ
+                - generic [ref=e608]:
+                  - heading "Polo Nam Gia Đình" [level=3] [ref=e609]
+                  - generic [ref=e613]: 199.000đ
+          - generic [ref=e614]:
+            - paragraph [ref=e615]: Trang 1 / 129
+            - navigation "Phân trang sản phẩm" [ref=e616]:
+              - link "1" [ref=e617] [cursor=pointer]:
+                - /url: /products?page=1&per_page=20
+              - link "2" [ref=e618] [cursor=pointer]:
+                - /url: /products?page=2&per_page=20
+              - link "3" [ref=e619] [cursor=pointer]:
+                - /url: /products?page=3&per_page=20
+              - generic [ref=e620]: ...
+              - link "129" [ref=e621] [cursor=pointer]:
+                - /url: /products?page=129&per_page=20
+              - link "Sau" [ref=e622] [cursor=pointer]:
+                - /url: /products?page=2&per_page=20
+  - contentinfo [ref=e623]:
+    - generic [ref=e625]:
+      - generic [ref=e626]:
+        - strong [ref=e627]: Freeship đơn từ 499K
+        - paragraph [ref=e628]: Thông tin ưu đãi rõ ràng ngay từ trang đầu để bạn chốt đơn nhanh hơn.
+      - generic [ref=e629]:
+        - strong [ref=e630]: Đổi trả trong 30 ngày
+        - paragraph [ref=e631]: Yên tâm thử size và đổi mẫu nếu chưa thật sự phù hợp.
+      - generic [ref=e632]:
+        - strong [ref=e633]: Hỗ trợ qua hotline và chat
+        - paragraph [ref=e634]: Dễ hỏi size, hỏi phối đồ và theo dõi đơn hàng khi cần.
+    - generic [ref=e636]:
+      - generic [ref=e637]:
+        - strong [ref=e640]: WIND OF FALL
+        - paragraph [ref=e641]: Thương hiệu thời trang everyday theo tinh thần hiện đại, gọn gàng và dễ mặc. Chúng tôi ưu tiên chất liệu, phom dáng và trải nghiệm mua sắm mượt mà trên mọi thiết bị.
+        - generic [ref=e642]:
+          - link "Facebook" [ref=e643] [cursor=pointer]:
+            - /url: https://www.facebook.com/vuthanhnam.123964
+          - link "Instagram" [ref=e644] [cursor=pointer]:
+            - /url: "#"
+          - link "TikTok" [ref=e645] [cursor=pointer]:
+            - /url: https://www.tiktok.com/@_namthanhvu_
+          - link "Zalo" [ref=e646] [cursor=pointer]:
+            - /url: http://zaloapp.com/qr/p/1h4rjrrvipy5m
+      - generic [ref=e647]:
+        - heading "Mua sắm" [level=4] [ref=e648]
+        - list [ref=e649]:
+          - listitem [ref=e650]:
+            - link "Thời trang nam" [ref=e651] [cursor=pointer]:
+              - /url: /products/category/nam
+          - listitem [ref=e652]:
+            - link "Thời trang nữ" [ref=e653] [cursor=pointer]:
+              - /url: /products/category/nu
+          - listitem [ref=e654]:
+            - link "Trẻ em" [ref=e655] [cursor=pointer]:
+              - /url: /products/category/tre-em
+          - listitem [ref=e656]:
+            - link "Khu sale" [ref=e657] [cursor=pointer]:
+              - /url: /products?sale=true
+      - generic [ref=e658]:
+        - heading "Hỗ trợ khách hàng" [level=4] [ref=e659]
+        - list [ref=e660]:
+          - listitem [ref=e661]:
+            - link "Vận chuyển" [ref=e662] [cursor=pointer]:
+              - /url: /policy/shipping
+          - listitem [ref=e663]:
+            - link "Đổi trả" [ref=e664] [cursor=pointer]:
+              - /url: /policy/return
+          - listitem [ref=e665]:
+            - link "Thanh toán" [ref=e666] [cursor=pointer]:
+              - /url: /policy/payment
+          - listitem [ref=e667]:
+            - link "Bảo mật thông tin" [ref=e668] [cursor=pointer]:
+              - /url: /policy/privacy
+      - generic [ref=e669]:
+        - heading "Liên hệ" [level=4] [ref=e670]
+        - list [ref=e671]:
+          - listitem [ref=e672]:
+            - 'link "Hotline: 035.848.2955" [ref=e673] [cursor=pointer]':
+              - /url: tel:035.848.2955
+          - listitem [ref=e674]:
+            - link "nvuthanh4@gmail.com" [ref=e675] [cursor=pointer]:
+              - /url: mailto:nvuthanh4@gmail.com
+          - listitem [ref=e676]:
+            - link "123 Nguyễn Huệ, Quận 1, TP.HCM" [ref=e677] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e678]:
+            - link "Mở cửa 8:00 - 22:00 mỗi ngày" [ref=e679] [cursor=pointer]:
+              - /url: "#"
+    - generic [ref=e681]:
+      - paragraph [ref=e682]: © 2026 WIND OF FALL. All rights reserved.
+      - generic [ref=e683]:
+        - generic [ref=e684]: COD
+        - generic [ref=e685]: VNPay
+        - generic [ref=e686]: MoMo
+        - generic [ref=e687]: Visa
+  - button [ref=e689] [cursor=pointer]:
+    - img [ref=e690]

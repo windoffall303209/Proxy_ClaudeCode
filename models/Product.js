@@ -95,7 +95,7 @@ class Product {
         return variants;
     }
 
-    // Chuan hoa chuoi tim kiem ve dang khong dau de tranh lech do PostgreSQL collation.
+    // Chuan hoa chuoi tim kiem ve dang khong dau de tranh lech do MySQL collation.
     static normalizeSearchText(value = '') {
         return String(value || '')
             .normalize('NFD')
@@ -147,9 +147,8 @@ class Product {
     static hasSearchTerm(words = [], term = '', options = {}) {
         const allowFuzzy = options.allowFuzzy === true;
         return words.some((word) => (
-            (term.length === 1 && word.includes(term)) ||
             word === term ||
-            (term.length >= 3 && word.startsWith(term)) ||
+            (term.length >= 1 && word.startsWith(term)) ||
             (word.length >= 3 && term.startsWith(word)) ||
             (
                 allowFuzzy &&
@@ -193,6 +192,12 @@ class Product {
         const nameWords = this.getSearchWords(nameText);
         const categoryWords = this.getSearchWords(categoryText);
         const secondaryWords = this.getSearchWords(secondaryText);
+        const isSingleCharacterQuery = terms.length === 1 && terms[0].length === 1;
+
+        if (isSingleCharacterQuery && !name.includes(terms[0])) {
+            return 0;
+        }
+
         const searchableWords = [...nameWords, ...categoryWords, ...secondaryWords];
         const allowFuzzyTerms = terms.length > 1;
 
@@ -401,12 +406,12 @@ ${this.getVariantAggregateSelect(productAlias)}`;
     static getVariantAggregateSelect(productAlias = 'p') {
         return `
                    (
-                       SELECT STRING_AGG(DISTINCT NULLIF(TRIM(pv.color), ''), ', ' ORDER BY NULLIF(TRIM(pv.color), ''))
+                       SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.color), '') ORDER BY pv.color SEPARATOR ', ')
                        FROM product_variants pv
                        WHERE pv.product_id = ${productAlias}.id
                    ) as variant_colors,
                    (
-                       SELECT STRING_AGG(DISTINCT NULLIF(TRIM(pv.size), ''), ', ' ORDER BY NULLIF(TRIM(pv.size), ''))
+                       SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(pv.size), '') ORDER BY pv.size SEPARATOR ', ')
                        FROM product_variants pv
                        WHERE pv.product_id = ${productAlias}.id
                    ) as variant_sizes`;
@@ -419,8 +424,10 @@ ${this.getVariantAggregateSelect(productAlias)}`;
             return '';
         }
 
-        // accentSensitive is kept for call-site compatibility; PostgreSQL text comparison is already byte-aware here.
+        // accentSensitive (default true): dùng BINARY LOWER() phân biệt dấu tiếng Việt
         // Tắt khi caller đã strip dấu (ví dụ chatbot intent search)
+        const accentSensitive = options.accentSensitive !== false;
+
         const searchBase = normalizedSearch.toLowerCase();
         const exactSearchTerm = `%${searchBase}%`;
         const terms = Array.from(new Set(
@@ -430,7 +437,9 @@ ${this.getVariantAggregateSelect(productAlias)}`;
                 .filter((term) => term.length >= 1)
         )).slice(0, 8);
 
-        const safeLike = (field) => `LOWER(${field}) LIKE ?`;
+        const safeLike = accentSensitive
+            ? (field) => `BINARY LOWER(${field}) LIKE ?`
+            : (field) => `LOWER(${field}) LIKE ?`;
 
         const productFieldClause = `(
             ${safeLike(`${productAlias}.name`)}
@@ -1312,8 +1321,8 @@ ${this.getVariantAggregateSelect('p')}
                 .filter((t) => t.length >= 2)
         )).slice(0, 8);
 
-        const safeName = 'LOWER(p.name)';
-        const safeDesc = 'LOWER(p.description)';
+        const safeName = 'BINARY LOWER(p.name)';
+        const safeDesc = 'BINARY LOWER(p.description)';
 
         const nameMatchScore = terms.length > 0
             ? terms.map(() => `(CASE WHEN ${safeName} LIKE ? THEN 1 ELSE 0 END)`).join(' + ')
@@ -1394,7 +1403,7 @@ ${this.getVariantAggregateSelect('p')}
         }
 
         // Xử lý an toàn like.
-        const safeLike = (field) => `LOWER(${field}) LIKE ?`;
+        const safeLike = (field) => `BINARY LOWER(${field}) LIKE ?`;
 
         // Tạo dữ liệu biến thể exists clause.
         const buildVariantExistsClause = () => `EXISTS (

@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu thanh toán trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu thanh toán trong MySQL.
 const pool = require('../config/database');
 
 class Payment {

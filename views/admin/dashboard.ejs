@@ -1,5 +1,13 @@
 <%# Template admin render màn quản trị dashboard quản trị với dữ liệu từ controller quản trị. %>
 <%- include('../partials/admin-header', { currentPage: 'dashboard', pageStyles: ['/css/admin/dashboard.css'] }) %>
+<%
+    const currentDashboardPeriod = typeof dashboardPeriod !== 'undefined' && dashboardPeriod
+        ? dashboardPeriod
+        : { mode: 'month', date: new Date().toISOString().slice(0, 10), month: new Date().toISOString().slice(0, 7), year: String(new Date().getFullYear()) };
+    const periodModeLabel = currentDashboardPeriod.mode === 'day'
+        ? 'ngày'
+        : (currentDashboardPeriod.mode === 'year' ? 'năm' : 'tháng');
+%>
 
 <div class="admin-page">
     <div class="container">
@@ -7,9 +15,40 @@
         <div class="admin-page-header">
             <div class="admin-page-header__left">
                 <h1>Bảng Điều Khiển</h1>
-                <p>Tổng quan hoạt động kinh doanh</p>
+                <p>Tổng quan hoạt động kinh doanh theo <%= periodModeLabel %> đã chọn</p>
             </div>
             <div class="admin-page-header__actions">
+                <form class="dashboard-period-form" method="GET" action="/admin/dashboard" data-dashboard-period-form>
+                    <input type="hidden" name="recent_limit" value="<%= recentLimit || 10 %>">
+                    <select name="period_mode" class="admin-form__select dashboard-period-form__select" data-dashboard-period-mode>
+                        <option value="day" <%= currentDashboardPeriod.mode === 'day' ? 'selected' : '' %>>Theo ngày</option>
+                        <option value="month" <%= currentDashboardPeriod.mode === 'month' ? 'selected' : '' %>>Theo tháng</option>
+                        <option value="year" <%= currentDashboardPeriod.mode === 'year' ? 'selected' : '' %>>Theo năm</option>
+                    </select>
+                    <input
+                        type="date"
+                        name="period_date"
+                        value="<%= currentDashboardPeriod.date %>"
+                        class="admin-form__input dashboard-period-form__input"
+                        data-dashboard-period-input="day"
+                    >
+                    <input
+                        type="month"
+                        name="period_month"
+                        value="<%= currentDashboardPeriod.month %>"
+                        class="admin-form__input dashboard-period-form__input"
+                        data-dashboard-period-input="month"
+                    >
+                    <input
+                        type="number"
+                        name="period_year"
+                        min="2000"
+                        max="2100"
+                        value="<%= currentDashboardPeriod.year %>"
+                        class="admin-form__input dashboard-period-form__input"
+                        data-dashboard-period-input="year"
+                    >
+                </form>
                 <button class="admin-btn admin-btn--primary" data-dashboard-action="refresh">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="23 4 23 10 17 10"/>
@@ -44,8 +83,8 @@
                         </svg>
                     </div>
                     <div class="stat-card__content">
-                        <h3 class="stat-card__label">Doanh Thu Hôm Nay</h3>
-                        <p class="stat-card__value"><%= (stats.today_revenue || 0).toLocaleString('vi-VN') %>đ</p>
+                        <h3 class="stat-card__label">Doanh Thu Trong Kỳ</h3>
+                        <p class="stat-card__value"><%= (stats.period_revenue || 0).toLocaleString('vi-VN') %>đ</p>
                     </div>
                 </div>
 
@@ -140,7 +179,7 @@
                     <div class="dashboard-chart-card__header">
                         <div>
                             <h3 class="dashboard-chart-card__title">Biểu đồ đơn hàng</h3>
-                            <p class="dashboard-chart-card__text">Phân bổ đơn hàng theo trạng thái hiện tại.</p>
+                            <p class="dashboard-chart-card__text">Phân bổ đơn hàng theo trạng thái trong <%= periodModeLabel %> đã chọn.</p>
                         </div>
                     </div>
                     <div class="dashboard-chart-card__canvas">
@@ -174,7 +213,7 @@
                     <div class="dashboard-chart-card__header">
                         <div>
                             <h3 class="dashboard-chart-card__title">Biểu đồ sản phẩm</h3>
-                            <p class="dashboard-chart-card__text">Trực quan hóa sản phẩm đang bán, hết hàng và đang ẩn.</p>
+                            <p class="dashboard-chart-card__text">Sản phẩm được tạo trong <%= periodModeLabel %> đã chọn, nhóm theo trạng thái hiện tại.</p>
                         </div>
                     </div>
                     <div class="dashboard-chart-card__canvas dashboard-chart-card__canvas--compact">
@@ -202,6 +241,57 @@
         <% } %>
 
         <!-- Bảng đơn hàng gần đây -->
+        <% if (Array.isArray(inventoryAlerts) && inventoryAlerts.length > 0) { %>
+            <div class="admin-section admin-section--spaced">
+                <div class="admin-section__header">
+                    <div>
+                        <h3 class="admin-section__title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            </svg>
+                            Dự báo tồn kho AI
+                        </h3>
+                        <p class="dashboard-section__subtext">Ưu tiên sản phẩm có nguy cơ hết hàng hoặc bán chậm.</p>
+                    </div>
+                    <a href="/admin/products" class="admin-btn admin-btn--ghost">Xem sản phẩm</a>
+                </div>
+                <div class="admin-table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th class="text-center">Tồn</th>
+                                <th class="text-center">Rủi ro</th>
+                                <th>Gợi ý</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% inventoryAlerts.forEach((item) => { %>
+                                <tr>
+                                    <td>
+                                        <a href="/products/<%= item.product_slug %>" class="admin-table__link" target="_blank" rel="noopener"><%= item.product_name %></a>
+                                        <% if (item.category_name) { %><br><small><%= item.category_name %></small><% } %>
+                                    </td>
+                                    <td class="text-center"><strong><%= item.current_stock %></strong></td>
+                                    <td class="text-center">
+                                        <span class="admin-table__badge admin-table__badge--<%= ['out','high'].includes(item.risk_level) ? 'cancelled' : (item.risk_level === 'medium' ? 'pending' : 'processing') %>">
+                                            <%= item.risk_level %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <%= item.ai_summary || 'Chưa có gợi ý.' %>
+                                        <% if (item.suggested_restock_qty > 0) { %>
+                                            <br><small>Đề xuất nhập thêm: <strong><%= item.suggested_restock_qty %></strong></small>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <% } %>
+
         <% if (recentOrders && recentOrders.length > 0) { %>
             <div class="admin-section admin-section--spaced">
                 <div class="admin-section__header">
@@ -385,6 +475,7 @@
 <%# Bootstrap dữ liệu JSON cho script phía client. %>
 <script type="application/json" id="adminDashboardBootstrap"><%- JSON.stringify({
     recentLimit: Number(recentLimit || 10),
+    dashboardPeriod: currentDashboardPeriod,
     orderStatus: dashboardCharts?.orderStatus || {},
     productStatus: dashboardCharts?.productStatus || {},
     recentOrders: (recentOrders || []).map(order => ({

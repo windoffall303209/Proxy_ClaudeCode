@@ -72,6 +72,49 @@ function initAdminNoticeToast() {
     window.history.replaceState({}, '', nextUrl);
 }
 
+function formatAdminUnreadCount(count) {
+    const value = Number(count) || 0;
+    return value > 99 ? '99+' : String(Math.max(0, value));
+}
+
+function updateAdminSidebarChatBadge(count) {
+    const badge = document.getElementById('adminSidebarChatUnreadBadge');
+    if (!badge) {
+        return;
+    }
+
+    const value = Number(count) || 0;
+    if (value <= 0) {
+        badge.hidden = true;
+        badge.textContent = '0';
+        return;
+    }
+
+    badge.hidden = false;
+    badge.textContent = formatAdminUnreadCount(value);
+}
+
+window.updateAdminSidebarChatBadge = updateAdminSidebarChatBadge;
+
+async function refreshAdminSidebarChatBadge() {
+    const badge = document.getElementById('adminSidebarChatUnreadBadge');
+    if (!badge) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/chat/admin/unread-count', { credentials: 'same-origin' });
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+        updateAdminSidebarChatBadge(data.count);
+    } catch (error) {
+        console.error('Refresh admin chat badge error:', error);
+    }
+}
+
 function ensureAdminOtpModal() {
     let modal = document.getElementById('adminOtpModal');
     if (modal) {
@@ -187,4 +230,6 @@ window.showAdminOtpModal = function showAdminOtpModal(options = {}) {
 document.addEventListener('DOMContentLoaded', () => {
     initAdminMobileMenu();
     initAdminNoticeToast();
+    refreshAdminSidebarChatBadge();
+    window.setInterval(refreshAdminSidebarChatBadge, 30000);
 });

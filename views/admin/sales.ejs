@@ -43,6 +43,10 @@
             </div>
         </div>
 
+        <% if (typeof notice !== 'undefined' && notice) { %>
+            <div class="admin-notice admin-notice--<%= noticeType === 'error' ? 'error' : 'success' %>"><%= notice %></div>
+        <% } %>
+
         <!-- Các thẻ thống kê khuyến mãi -->
         <div class="stats-grid">
             <div class="stat-card stat-card--purple">
@@ -99,7 +103,7 @@
                     <polyline points="6 9 12 15 18 9"/>
                 </svg>
             </h3>
-            <form action="/admin/sales" method="POST" class="admin-form admin-section__content">
+            <form id="createSaleForm" action="/admin/sales" method="POST" class="admin-form admin-section__content">
                 <div class="admin-form__row">
                     <div class="admin-form__group">
                         <label class="admin-form__label">Tên khuyến mãi <span>*</span></label>
@@ -268,6 +272,11 @@
                                                 <path d="m22 6-10 7L2 6"/>
                                             </svg>
                                         </button>
+                                        <form action="/admin/sales/<%= sale.id %>/ai-draft" method="POST" class="admin-inline-form">
+                                            <button type="submit" class="admin-btn admin-btn--ghost" title="Tạo bản nháp AI">
+                                                AI
+                                            </button>
+                                        </form>
                                         <button data-sale-action="delete" data-sale-id="<%= sale.id %>" class="admin-btn admin-btn--delete" title="Xóa">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <polyline points="3 6 5 6 21 6"/>
@@ -277,6 +286,20 @@
                                     </div>
                                 </td>
                             </tr>
+                            <% if (sale.ai_marketing_draft) { %>
+                                <tr>
+                                    <td></td>
+                                    <td colspan="7">
+                                        <div class="marketing-draft-preview">
+                                            <strong>AI draft:</strong>
+                                            <span><%= sale.ai_marketing_draft.subject %></span>
+                                            <% if (sale.ai_marketing_draft.preview_text) { %>
+                                                <small><%= sale.ai_marketing_draft.preview_text %></small>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
                         <% }) %>
                     </tbody>
                 </table>

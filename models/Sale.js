@@ -1,4 +1,4 @@
-// Model truy vấn và chuẩn hóa dữ liệu khuyến mãi trong PostgreSQL.
+// Model truy vấn và chuẩn hóa dữ liệu khuyến mãi trong MySQL.
 const pool = require('../config/database');
 
 class Sale {

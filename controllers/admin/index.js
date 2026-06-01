@@ -6,7 +6,9 @@ module.exports = {
     ...require('./orderController'),
     ...require('./returnController'),
     ...require('./userController'),
+    ...require('./reviewController'),
     ...require('./bannerController'),
     ...require('./marketingController'),
-    ...require('./storefrontController')
+    ...require('./storefrontController'),
+    ...require('./apiKeyController')
 };
